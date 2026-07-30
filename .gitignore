@@ -1,0 +1,19 @@
+node_modules/
+*.log
+.env
+.DS_Store
+Thumbs.db
+
+# Local Claude Code state — a dev artifact, not part of the plugin.
+# marketplace.json uses "source": "./", so the repo root IS the plugin payload and
+# everything tracked here is copied into every user's plugin cache on install.
+.claude/settings.local.json
+
+# dist/ is deliberately NOT ignored.
+#
+# PLUGIN-PRD P-09: the server ships as built JavaScript committed to the repo and is
+# started as `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` from .mcp.json. Adding dist/ here
+# would ship a plugin whose MCP server never starts, and the harness reports that as the
+# tools simply being absent (PC-02, "what the user sees when something is wrong").
+#
+# Keeping dist/ honest against src/ is open question PQ-06.
