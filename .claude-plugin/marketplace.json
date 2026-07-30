@@ -1,0 +1,23 @@
+{
+  "name": "manabase",
+  "owner": {
+    "name": "Nick Barger"
+  },
+  "description": "Magic: The Gathering tooling for Claude Code.",
+  "plugins": [
+    {
+      "name": "manabase",
+      "source": "./",
+      "displayName": "Manabase",
+      "description": "Magic: The Gathering card research for Claude — expressive Scryfall search with correct prices and legality. Manabase is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.",
+      "category": "research",
+      "tags": [
+        "magic-the-gathering",
+        "mtg",
+        "scryfall",
+        "commander",
+        "deckbuilding"
+      ]
+    }
+  ]
+}

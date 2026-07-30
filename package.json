@@ -1,0 +1,27 @@
+{
+  "name": "manabase",
+  "version": "0.0.0",
+  "description": "MTG MCP server — Scryfall-backed card search for Claude. Independent of the plugin version, which is governed by PLUGIN-PRD P-08 and lives in .claude-plugin/plugin.json.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "manabase-mtg": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@types/node": "^22.20.1",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.9.3"
+  }
+}

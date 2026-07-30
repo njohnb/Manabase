@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "manabase",
+  "displayName": "Manabase",
+  "description": "Magic: The Gathering card research for Claude — expressive Scryfall search with correct prices and legality. Manabase is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.",
+  "author": {
+    "name": "Nick Barger"
+  },
+  "keywords": [
+    "magic-the-gathering",
+    "mtg",
+    "scryfall",
+    "commander",
+    "deckbuilding"
+  ]
+}
