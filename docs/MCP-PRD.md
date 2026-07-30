@@ -5,7 +5,7 @@
 > capability template; adding a capability means appending a CAP block and updating
 > sections 6, 7, and 9. Nothing else.
 
-**Document status:** foundation established 2026-07-29. One capability specified (CAP-01).
+**Document status:** foundation established 2026-07-29. One capability specified ([CAP-01](#cap-01--card-search)).
 Eight capabilities queued and unassigned.
 
 ---
@@ -46,7 +46,7 @@ the reasoning instead of re-deriving it.
 | [D-01](#d-01--distribution-local-package-over-stdio) | Distribution: a package people install and run locally over stdio | 2026-07-29 |
 | [D-02](#d-02--runtime-nodejs--typescript) | Runtime: Node.js + TypeScript, published to npm, run via `npx -y` | 2026-07-29 |
 | [D-03](#d-03--testability-handlers-callable-as-plain-functions) | Testability: any tool handler must be callable directly as a plain function in a test | 2026-07-29 |
-| [D-04](#d-04--no-transport-abstraction-layer) | Do not build an abstraction layer to achieve D-03 | 2026-07-29 |
+| [D-04](#d-04--no-transport-abstraction-layer) | Do not build an abstraction layer to achieve [D-03](#d-03--testability-handlers-callable-as-plain-functions) | 2026-07-29 |
 | [D-05](#d-05--transport-stdio-now-streamable-http-later-no-sse) | Transport: stdio now. Streamable HTTP later if needed. Skip SSE entirely | 2026-07-29 |
 | [D-06](#d-06--pricing-from-scryfall) | Pricing comes from Scryfall, not a separate provider | 2026-07-29 |
 | [D-07](#d-07--three-way-cache-split) | Cache split is three-way, not two-way | 2026-07-29 |
@@ -98,11 +98,11 @@ from deep in the call stack — read config once at startup and pass it down.
 
 **Decided 2026-07-29.**
 
-**Do not build an abstraction layer to achieve D-03.** No `ITransport` interface, no transport
+**Do not build an abstraction layer to achieve [D-03](#d-03--testability-handlers-callable-as-plain-functions).** No `ITransport` interface, no transport
 factory.
 
 The SDK's transport object is already the abstraction. An interface with one implementation is
-over-engineering. The payoff of D-03 is that adding Streamable HTTP later is a *new entry
+over-engineering. The payoff of [D-03](#d-03--testability-handlers-callable-as-plain-functions) is that adding Streamable HTTP later is a *new entry
 point*, not a rewrite — that payoff does not require an indirection layer.
 
 ### D-05 — Transport: stdio now, Streamable HTTP later, no SSE
@@ -139,7 +139,7 @@ The original two-way split was right about *why* — Scryfall's own docs say bul
 dangerously stale after 24 hours while gameplay data needs only weekly or post-set-release
 refresh. It was wrong about *what is possible*: regex, `otag:`, `function:`, `art:`/`atag:`,
 and legality/price filters are **server-side query-engine features, not properties of card
-objects** (verified 2026-07-29, §4.1).
+objects** (verified 2026-07-29, [§4.1](#41-scryfall-rest-api)).
 
 Full Scryfall syntax cannot be served from a local bulk file without reimplementing Scryfall's
 search engine — a multi-month project that would stay permanently behind theirs. Prices
@@ -156,7 +156,7 @@ bundled in the package.**
 The WotC Fan Content Policy prohibits "verbatim copying and reposting of Wizards' IP." Shipping
 a 975 KB verbatim copy of WotC's document to other people is the shape of thing that clause
 describes. Fetching on the user's own machine from WotC's own URL sidesteps it, and has the
-bonus of never going stale across quarterly CR updates. D-01 (local distribution) is what makes
+bonus of never going stale across quarterly CR updates. [D-01](#d-01--distribution-local-package-over-stdio) (local distribution) is what makes
 this cheap — a hosted service could not push the fetch to the user.
 
 ### D-09 — Archidekt writes land last
@@ -165,7 +165,7 @@ this cheap — a hosted service could not push the fetch to the user.
 
 **Archidekt writes land last.**
 
-Not a credential problem — D-01 solves that. The write API is undocumented, unstable, and the
+Not a credential problem — [D-01](#d-01--distribution-local-package-over-stdio) solves that. The write API is undocumented, unstable, and the
 operation is destructive. Every read-only capability should be delivered and stable before
 anything can damage a user's deck.
 
@@ -197,24 +197,24 @@ reads well and groups related tools without a namespace mechanism.
 
 Version 0.0.14, last published seven years ago, zero dependents, and its own README states
 Archidekt's API is undocumented and in open beta. It earns nothing over `fetch`. Its value is
-as *documentation* of URL shapes, which §4.5 now records directly.
+as *documentation* of URL shapes, which [§4.5](#45-archidekt) now records directly.
 
-> **Note on D-07.** This revises the decision as originally stated. The original rationale is
+> **Note on [D-07](#d-07--three-way-cache-split).** This revises the decision as originally stated. The original rationale is
 > preserved above and still holds. The change is in scope of what bulk data is used *for*,
 > forced by a verified fact about where Scryfall's query engine lives. Recorded here rather
-> than left as an open question so that a future session building CAP-01 does not architect
+> than left as an open question so that a future session building [CAP-01](#cap-01--card-search) does not architect
 > against a local search engine.
 
 ---
 
 ## 3. Constraints
 
-Boundaries, not choices. Decisions in §2 are made *within* these.
+Boundaries, not choices. Decisions in [§2](#2-locked-decisions) are made *within* these.
 
 ### 3.1 Distribution and install friction
 
 - **No build step for the end user.** They paste a config block and restart their client.
-- **No credentials for read-only capabilities.** Every source in §4 serves reads
+- **No credentials for read-only capabilities.** Every source in [§4](#4-external-dependencies) serves reads
   anonymously (verified). Nothing in Phase 1 may require a login, an API key, or a signup.
 - **Install friction is a product requirement, not a nice-to-have.** It is the stated
   primary adoption risk. A capability that adds a setup step is more expensive than its
@@ -223,13 +223,13 @@ Boundaries, not choices. Decisions in §2 are made *within* these.
 ### 3.2 Testability
 
 - **Every tool handler is callable as a plain function.** No server, no transport, no
-  process. (D-03)
+  process. ([D-03](#d-03--testability-handlers-callable-as-plain-functions))
 - **No per-user state in module-level variables.** This is what makes a handler a function
   rather than a method on a hidden singleton.
 - **No environment-variable reads below the entry point.** Config is read once at startup
   and passed down. A handler that reaches for `process.env` cannot be tested without
   arranging global state.
-- **No abstraction layer built to satisfy the above.** (D-04)
+- **No abstraction layer built to satisfy the above.** ([D-04](#d-04--no-transport-abstraction-layer))
 
 ### 3.3 Legal and terms of service
 
@@ -241,11 +241,11 @@ README and the published package description:
 > Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of
 > Wizards of the Coast. ©Wizards of the Coast LLC."
 
-The policy also prohibits verbatim redistribution of Wizards' IP (drives D-08), prohibits
+The policy also prohibits verbatim redistribution of Wizards' IP (drives [D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)), prohibits
 selling fan content or licensing it for compensation, and permits donations/sponsorship only
 where they don't gate community access.
 
-**Scryfall data use** — there is **no attribution requirement** (verified 2026-07-29, §4.1).
+**Scryfall data use** — there is **no attribution requirement** (verified 2026-07-29, [§4.1](#41-scryfall-rest-api)).
 There are prohibitions, and these bind:
 
 - May not use Scryfall's name or logos in a way implying endorsement.
@@ -255,8 +255,8 @@ There are prohibitions, and these bind:
 - May not use the data to create new games or imply it comes from another game.
 - **May not simply repackage, republish, or proxy Scryfall data — the software must create
   additional value for end users.** A tool that is a thin passthrough of `/cards/search`
-  arguably fails this. CAP-01's value-add is query construction, result shaping for LLM
-  reasoning, and the price-correctness handling in §4.1.3.
+  arguably fails this. [CAP-01](#cap-01--card-search)'s value-add is query construction, result shaping for LLM
+  reasoning, and the price-correctness handling in [§4.1.3](#413-price-fields--three-verified-traps).
 
 Image handling, if images are ever surfaced: do not crop off the artist name or copyright,
 do not distort or filter, do not add watermarks, and when using `art_crop` the artist and
@@ -288,8 +288,8 @@ docs:
 
 ### 3.6 Error surface
 
-Handlers never throw (D-10). Additionally, some upstream failures are **inherently
-ambiguous** and the error text must not claim more than is known — see §4.5, where Archidekt
+Handlers never throw ([D-10](#d-10--tool-handlers-never-throw)). Additionally, some upstream failures are **inherently
+ambiguous** and the error text must not claim more than is known — see [§4.5](#45-archidekt), where Archidekt
 returns an indistinguishable 404 for private, unlisted, and deleted decks.
 
 ---
@@ -312,7 +312,7 @@ batch card resolution, rulings, sets, catalogs, card symbols, tags, card migrati
 **Required headers.** `User-Agent` naming this app (library defaults explicitly disallowed)
 and `Accept` (may be generic, e.g. `*/*`). **[verified]**
 
-**Rate limits.** Per-endpoint and hard. See §3.4 for the table and the 429 consequences.
+**Rate limits.** Per-endpoint and hard. See [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) for the table and the 429 consequences.
 **[verified — this is stricter than the commonly assumed flat 10/sec; the four card
 endpoints are 2/sec.]**
 
@@ -339,7 +339,7 @@ ignored." **[verified]** Do not offer it.
 
 **Critical architectural fact.** These operators are evaluated **server-side**. They are not
 fields on the card object and cannot be reproduced from bulk data without reimplementing
-Scryfall's query engine. This is the fact behind D-07. **[verified]**
+Scryfall's query engine. This is the fact behind [D-07](#d-07--three-way-cache-split). **[verified]**
 
 #### 4.1.2 Batch resolution
 
@@ -373,18 +373,18 @@ The price object's live shape is exactly:
    will report "no price available" for some of the most valuable cards in Magic.
    **[verified]**
 
-**ToS notes.** No attribution requirement. Prohibitions in §3.3 bind — especially the
+**ToS notes.** No attribution requirement. Prohibitions in [§3.3](#33-legal-and-terms-of-service) bind — especially the
 no-paywall rule and the "must create additional value, not proxy" rule. Scryfall's own terms
 state price data and card legality are informational only with no guarantees.
 
 **Risk if it changes or disappears.** **Severe — this is the single point of failure.** Every
-capability except Comprehensive Rules lookup depends on Scryfall, and CAP-01 depends on it
+capability except Comprehensive Rules lookup depends on Scryfall, and [CAP-01](#cap-01--card-search) depends on it
 for query evaluation specifically, which nothing else replaces. There is no second source for
-Scryfall query syntax. Mitigations: be scrupulous about §3.4 so access is never revoked for
+Scryfall query syntax. Mitigations: be scrupulous about [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) so access is never revoked for
 cause; keep the `User-Agent` accurate so Scryfall can contact the author rather than block;
 treat a Scryfall outage as total outage and fail with a clear message rather than a stack
 trace. Migration to a bulk-only fallback would mean losing regex and tag operators entirely —
-i.e. losing CAP-01's core value.
+i.e. losing [CAP-01](#cap-01--card-search)'s core value.
 
 ### 4.2 Scryfall bulk data
 
@@ -444,13 +444,13 @@ bulk files, updated daily.
 **Tagging object.** Joins a tag to cards — `oracle_id` for oracle tags, `illustration_id` for
 art tags — plus a `weight` indicating how prominently the tag applies. **[verified]**
 
-**Constraints this imposes.** See §3.5. Track by `id`, not `slug`. Provide a way to disable
+**Constraints this imposes.** See [§3.5](#35-community-sourced-tag-data). Track by `id`, not `slug`. Provide a way to disable
 individual tags. Data is community-sourced and moderated but not guaranteed clean.
 
 **Why this matters beyond tag discovery.** The `parent_ids`/`child_ids` hierarchy and
 `aliases` are what let a capability answer "what tag means *ramp*?" and then hand a correct
-`otag:` term to CAP-01. Tag *discovery* is a bulk-data problem; tag *search* is a CAP-01
-problem. Keeping those separate is why D-07 is three-way.
+`otag:` term to [CAP-01](#cap-01--card-search). Tag *discovery* is a bulk-data problem; tag *search* is a [CAP-01](#cap-01--card-search)
+problem. Keeping those separate is why [D-07](#d-07--three-way-cache-split) is three-way.
 
 **Risk.** Moderate. Newer than the rest of the API, so more likely to change shape.
 Community-maintained, so individual tags can appear, vanish, or be renamed — which is
@@ -540,7 +540,7 @@ author (`24637224`): `GET /api/decks/24637224/` returns
 result with a browser `User-Agent`, so this is not bot-blocking. **Private, unlisted, and
 deleted decks are indistinguishable to an anonymous caller.** **[verified]** Error messaging
 for any deck-reading capability must cover all three possibilities and must not assert which
-one occurred (§3.6).
+one occurred ([§3.6](#36-error-surface)).
 
 **Rate limits.** None documented; **no rate-limit, retry-after, or throttling headers exposed
 at all**. **[verified absent — meaning unknown.]** Self-throttle conservatively.
@@ -549,12 +549,12 @@ at all**. **[verified absent — meaning unknown.]** Self-throttle conservativel
 append, preservation of categories / commander designation / companion / maybeboard, blast
 radius on partial failure) are **unanswered**. Testing writes requires authentication and
 would mutate a real deck; that was deliberately not done in a research session. This is
-Open Question OQ-04 and is the reason D-09 exists.
+Open Question [OQ-04](#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api) and is the reason [D-09](#d-09--archidekt-writes-land-last) exists.
 
 **The npm `archidekt` package does not earn its dependency.** v0.0.14, published seven years
 ago, zero dependents, and its README states: "Archidekt does not have documentation for their
 API and is currently in open beta. Therefore everything herein is open to change."
-**[verified]** See D-12. Its URL-shape documentation is transcribed into this section so the
+**[verified]** See [D-12](#d-12--no-npm-archidekt-dependency). Its URL-shape documentation is transcribed into this section so the
 package can be ignored entirely.
 
 **Risk.** High for writes, moderate for reads. An undocumented open-beta API can change
@@ -596,7 +596,7 @@ of Wizards' IP," citing freely distributing rules content as its example. The ex
 D&D rules content, and the policy does not name the Magic CR specifically. **[inferred: the
 policy does not explicitly forbid bundling the Magic CR, but shipping a verbatim 975 KB copy
 of a Wizards document to other people matches the described shape closely enough that the
-low-cost alternative wins.]** This drives D-08: fetch at runtime on the user's machine, cache
+low-cost alternative wins.]** This drives [D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled): fetch at runtime on the user's machine, cache
 locally, revalidate on version change.
 
 **Risk.** Low-moderate. The document is stable, free, and long-lived. The fragile part is
@@ -609,7 +609,7 @@ the cached copy usable when resolution fails, and report staleness rather than f
 **URL:** `https://company.wizards.com/en/legal/fancontentpolicy`
 
 Not a data source — a constraint that governs the whole project, and the actual origin of the
-attribution obligation. See §3.3 for the verbatim disclaimer and §3.1/§3.3 for the
+attribution obligation. See [§3.3](#33-legal-and-terms-of-service) for the verbatim disclaimer and [§3.1](#31-distribution-and-install-friction)/[§3.3](#33-legal-and-terms-of-service) for the
 non-commercial and non-paywall implications. Scryfall and Commander Spellbook both operate
 under this policy and both carry the disclaimer, which is confirmation that it is the right
 frame for this project too. **[verified]**
@@ -635,7 +635,7 @@ Reproduce this schema for every new capability. Do not modify it.
 ```
 
 **IDs are stable and never reused.** Adding a capability means appending a CAP block and
-updating §6, §7, and §9 — nothing else.
+updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) — nothing else.
 
 ---
 
@@ -648,10 +648,10 @@ updating §6, §7, and §9 — nothing else.
   operators. And I want back enough about each card that I can actually reason about whether
   it belongs in a deck, without opening a browser tab to check its price or legality.
 - **Behavior:**
-  - Accepts a Scryfall query string and evaluates it against live `GET /cards/search` (D-07).
+  - Accepts a Scryfall query string and evaluates it against live `GET /cards/search` ([D-07](#d-07--three-way-cache-split)).
     The **full** query language is supported because Scryfall evaluates it — this capability
     does not parse, validate, or reimplement the syntax.
-  - Supports the operators verified in §4.1.1, explicitly including regex (`o:/…/`), oracle
+  - Supports the operators verified in [§4.1.1](#411-search-endpoint), explicitly including regex (`o:/…/`), oracle
     tags (`otag:` / `function:`), and art tags (`art:` / `atag:`). These are ordinary search
     operators, not a separate tag integration.
   - Exposes the search parameters that change result meaning: `unique`
@@ -662,14 +662,14 @@ updating §6, §7, and §9 — nothing else.
     legalities, and price.
   - **Price correctness is part of this capability, not deferred.** Results constrain to
     paper printings for price purposes, and surface `usd_foil` / `usd_etched` when `usd` is
-    null rather than reporting no price (§4.1.3). A card with genuinely no paper price says
+    null rather than reporting no price ([§4.1.3](#413-price-fields--three-verified-traps)). A card with genuinely no paper price says
     so, and says why (digital-only).
   - **Paginates explicitly.** Page size is 175. When more results exist, the response says
     how many total and that more are available, so the model can decide between narrowing
     the query and fetching another page. It does not silently truncate, and it does not
     auto-fetch every page of a 6,000-card result.
   - **Malformed queries return a structured failure carrying Scryfall's own `details`
-    message** (D-10). Scryfall's error text is genuinely useful for correction — e.g. "All
+    message** ([D-10](#d-10--tool-handlers-never-throw)). Scryfall's error text is genuinely useful for correction — e.g. "All
     of your terms were ignored" for an invalid operator — and passing it through lets Claude
     self-correct on the next call.
   - **The Scryfall syntax is surfaced to the model, not assumed.** The tool description and
@@ -678,69 +678,69 @@ updating §6, §7, and §9 — nothing else.
     the user spelling them out. This is a stated user need, so the reference is part of the
     capability rather than documentation.
   - Respects the 2/second limit for `/cards/search` and handles 429 by backing off, never by
-    retrying immediately (§3.4).
-- **Depends on:** Scryfall REST API (§4.1) — `GET /cards/search`. No other data source. No
+    retrying immediately ([§3.4](#34-rate-limits-are-hard-constraints-not-guidance)).
+- **Depends on:** Scryfall REST API ([§4.1](#41-scryfall-rest-api)) — `GET /cards/search`. No other data source. No
   other CAP. This is the foundation most queued capabilities build on.
 - **Serves via:** `card_search`. Plus a syntax reference exposed as an MCP resource (and/or a
-  `card_search_syntax` tool) — see OQ-01 for which.
+  `card_search_syntax` tool) — see [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) for which.
 - **Acceptance criteria:**
   1. A handler function for `card_search` is invoked directly in a test with no MCP server
-     started and no transport constructed (D-03).
+     started and no transport constructed ([D-03](#d-03--testability-handlers-callable-as-plain-functions)).
   2. `o:/^{T}: Add/` returns results (>1,000 as of 2026-07-29), demonstrating regex reaches
      Scryfall unmangled.
   3. `otag:ramp`, `function:removal`, `art:squirrel`, and `atag:squirrel` each return
      results.
   4. A search matching Gaea's Cradle's judge printing reports a price from `usd_foil`, not
-     "no price available" (§4.1.3 trap 2).
+     "no price available" ([§4.1.3](#413-price-fields--three-verified-traps) trap 2).
   5. A search for an `is:etched` printing reports a price from `usd_etched`.
   6. A price for Black Lotus resolves against a paper printing, not the MTGO printing whose
-     paper prices are all null (§4.1.3 trap 3).
+     paper prices are all null ([§4.1.3](#413-price-fields--three-verified-traps) trap 3).
   7. A digital-only Arena card reports no paper price *and* states that the reason is
      digital-only.
   8. `illustrationtag:dragon` (invalid operator, HTTP 400) returns a structured failure
-     containing Scryfall's `details` text — and does not throw (D-10).
+     containing Scryfall's `details` text — and does not throw ([D-10](#d-10--tool-handlers-never-throw)).
   9. A query with >175 matches reports the total count and that more results exist.
   10. Every outbound request carries a `User-Agent` naming this application and an `Accept`
-      header (§3.4).
+      header ([§3.4](#34-rate-limits-are-hard-constraints-not-guidance)).
   11. Two searches issued back to back do not exceed 2 requests/second.
   12. An HTTP 429 results in a backoff, not an immediate retry, and surfaces a clear
       structured failure if it persists.
-- **Open questions:** OQ-01 (how to surface syntax), OQ-02 (result verbosity vs. context
+- **Open questions:** [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (how to surface syntax), [OQ-02](#oq-02--how-verbose-should-a-search-result-be) (result verbosity vs. context
   budget).
 
 ---
 
 ## 6. Phases
 
-**Phase 1 — Card search.** CAP-01 alone.
+**Phase 1 — Card search.** [CAP-01](#cap-01--card-search) alone.
 
 This is the smallest genuinely useful version, and it is useful on its own: expressive card
 search with correct prices and legality answers real deckbuilding questions with no other
 capability present. It is also the right first phase for three structural reasons — it
 establishes the Scryfall client, the rate-limit discipline, and the never-throw error shape
-that everything else reuses; it proves the capability template in §5; and it is the dependency
+that everything else reuses; it proves the capability template in [§5](#5-capabilities); and it is the dependency
 most queued capabilities build on. Phase 1 requires no credentials, no bulk-data pipeline, and
-no local storage, so it validates D-01's install-friction claim before any heavier machinery
+no local storage, so it validates [D-01](#d-01--distribution-local-package-over-stdio)'s install-friction claim before any heavier machinery
 exists.
 
 **Eight capabilities are queued and unassigned.** Phase assignment happens in the sessions
-that specify them, not here. They are, with the dependencies already visible from §4:
+that specify them, not here. They are, with the dependencies already visible from [§4](#4-external-dependencies):
 
 | Queued capability | Primary source | Notes from research |
 |---|---|---|
-| Combo discovery | Commander Spellbook `/find-my-combos`, `/variants/` (§4.4) | the primitive already exists and is anonymous |
-| Archidekt deck reading | Archidekt `GET /api/decks/{id}/` (§4.5) | works unauth; must handle the 404 masking |
-| Arena-format decklist export | none beyond CAP-01 / deck reading | pure transformation |
-| Decklist pricing | Scryfall `POST /cards/collection` (§4.1.2) | 75/request; inherits §4.1.3 price traps |
-| Budget alternatives | Scryfall search + collection | depends on CAP-01 and pricing |
-| Archidekt deck writing | Archidekt write API (§4.5) | **last** per D-09; OQ-04 unresolved |
-| Tag discovery | Scryfall `oracle_tags` / `art_tags` bulk (§4.3) | first capability needing bulk + local storage |
-| Comprehensive Rules lookup | WotC CR TXT (§4.6) | first capability needing runtime fetch + cache (D-08) |
+| Combo discovery | Commander Spellbook `/find-my-combos`, `/variants/` ([§4.4](#44-commander-spellbook)) | the primitive already exists and is anonymous |
+| Archidekt deck reading | Archidekt `GET /api/decks/{id}/` ([§4.5](#45-archidekt)) | works unauth; must handle the 404 masking |
+| Arena-format decklist export | none beyond [CAP-01](#cap-01--card-search) / deck reading | pure transformation |
+| Decklist pricing | Scryfall `POST /cards/collection` ([§4.1.2](#412-batch-resolution)) | 75/request; inherits [§4.1.3](#413-price-fields--three-verified-traps) price traps |
+| Budget alternatives | Scryfall search + collection | depends on [CAP-01](#cap-01--card-search) and pricing |
+| Archidekt deck writing | Archidekt write API ([§4.5](#45-archidekt)) | **last** per [D-09](#d-09--archidekt-writes-land-last); [OQ-04](#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api) unresolved |
+| Tag discovery | Scryfall `oracle_tags` / `art_tags` bulk ([§4.3](#43-scryfall-tags-api)) | first capability needing bulk + local storage |
+| Comprehensive Rules lookup | WotC CR TXT ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)) | first capability needing runtime fetch + cache ([D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)) |
 
 Two observations that should inform later phase assignment. **Tag discovery and Rules lookup
 are the first capabilities that require local persistence** — everything before them is
 stateless request/response, so they carry setup cost the earlier ones don't. And **Archidekt
-deck writing should be strictly last** (D-09), after deck reading has been stable long
+deck writing should be strictly last** ([D-09](#d-09--archidekt-writes-land-last)), after deck reading has been stable long
 enough to trust.
 
 ---
@@ -752,10 +752,10 @@ what would resolve it.
 
 ### OQ-01 — How should Scryfall syntax be surfaced to the model?
 
-CAP-01 requires that Claude write good queries unprompted, which means the syntax has to be
+[CAP-01](#cap-01--card-search) requires that Claude write good queries unprompted, which means the syntax has to be
 somewhere the model reads. Candidates: a long tool description; a separate
 `card_search_syntax` tool; an MCP resource. This collides with the SpellStack convention of
-tool descriptions under 200 characters (§4 reference notes, D-11) — that rule was written for
+tool descriptions under 200 characters ([§4](#4-external-dependencies) reference notes, [D-11](#d-11--tool-naming-convention)) — that rule was written for
 tools whose usage is obvious, and Scryfall syntax is the opposite case.
 *Resolves by:* testing whether Claude produces correct `otag:`/regex queries with a compact
 description plus a resource, versus a long description alone. This is an empirical question,
@@ -772,41 +772,41 @@ result payload sizes against a realistic context budget.
 
 `oracle_tags`/`art_tags` (tag discovery) and the CR text (rules lookup) both need local
 persistence. Where does it live on a user's machine, what is the refresh trigger, and does
-first run block on a download? Under D-01 this is an install-friction question, so it is
+first run block on a download? Under [D-01](#d-01--distribution-local-package-over-stdio) this is an install-friction question, so it is
 product-relevant, not purely design.
 *Resolves by:* specifying the tag-discovery capability, which is the first to need it.
 
 ### OQ-04 — What is the behavior and blast radius of Archidekt's write API?
 
-Unresolved and deliberately untested (§4.5). Specifically: does bulk import replace or
+Unresolved and deliberately untested ([§4.5](#45-archidekt)). Specifically: does bulk import replace or
 append; does it preserve categories, commander designation, companion, and maybeboard; and
 what is the state of the deck after a partial failure?
 *Resolves by:* authenticated testing against a disposable deck, immediately before specifying
-Archidekt deck writing. Not before — D-09 puts this last on purpose.
+Archidekt deck writing. Not before — [D-09](#d-09--archidekt-writes-land-last) puts this last on purpose.
 
 ### OQ-05 — Do Commander Spellbook or Archidekt impose rate limits?
 
-Neither documents limits and neither exposes rate-limit headers (§4.4, §4.5). Absence of
+Neither documents limits and neither exposes rate-limit headers ([§4.4](#44-commander-spellbook), [§4.5](#45-archidekt)). Absence of
 evidence is not absence of limits.
 *Resolves by:* asking the Commander Spellbook admins via their Discord (the About page
 directs API questions there), and by conservative self-throttling in the meantime.
 
 ### OQ-06 — Is Commander Spellbook's combo *data* licensed, as distinct from its code?
 
-The code is MIT; the data has no stated license and there is no ToS page (§4.4).
+The code is MIT; the data has no stated license and there is no ToS page ([§4.4](#44-commander-spellbook)).
 *Resolves by:* asking the project admins. Low urgency — the data is served anonymously by a
 project that exists to distribute it, and EDHREC already consumes it.
 
 ### OQ-07 — How is `intentionallySkippedCardData` populated in Archidekt deck payloads, and what does its presence mean for a deck read?
 
-The field exists in the response (§4.5) and its name implies some card data can be
+The field exists in the response ([§4.5](#45-archidekt)) and its name implies some card data can be
 deliberately absent, which would affect completeness of a deck read.
 *Resolves by:* reading decks containing tokens, custom cards, and unreleased spoilers, and
 observing when the field is non-empty.
 
 ### OQ-08 — Does the CR landing page ever offer more than one date-stamped TXT, and how are mid-cycle corrections handled?
 
-URL resolution depends on scraping a single `.txt` href (§4.6). If two versions are ever
+URL resolution depends on scraping a single `.txt` href ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)). If two versions are ever
 listed, "most recent" needs a rule.
 *Resolves by:* re-checking the landing page across a set release boundary.
 
@@ -818,51 +818,51 @@ Explicitly rejected, with reasons, so these do not resurface.
 
 **TCGplayer direct API integration.** They no longer grant new API access, so this is not a
 tradeoff being made — it is unavailable. Scryfall's TCGplayer-derived market price is the
-substitute (D-06).
+substitute ([D-06](#d-06--pricing-from-scryfall)).
 
 **Scraping TCGplayer.** Rejected on terms-of-service grounds and on fragility. Do not
 propose it.
 
 **Per-condition pricing, seller listings, and buylist prices.** Not obtainable from Scryfall,
-which carries one number per printing per finish. This limitation is accepted (D-06), not a
+which carries one number per printing per finish. This limitation is accepted ([D-06](#d-06--pricing-from-scryfall)), not a
 gap to be filled elsewhere.
 
-**Hosted deployment.** Rejected by D-01. Holding other people's credentials and being the
+**Hosted deployment.** Rejected by [D-01](#d-01--distribution-local-package-over-stdio). Holding other people's credentials and being the
 single point of failure for 5–20 users are both costs this project declines to take on.
-Streamable HTTP as a *local* transport remains a future option (D-05); that is a different
+Streamable HTTP as a *local* transport remains a future option ([D-05](#d-05--transport-stdio-now-streamable-http-later-no-sse)); that is a different
 thing from hosting.
 
-**SSE transport.** Deprecated in the 2025-06-18 MCP spec revision (D-05). Work toward a dead
+**SSE transport.** Deprecated in the 2025-06-18 MCP spec revision ([D-05](#d-05--transport-stdio-now-streamable-http-later-no-sse)). Work toward a dead
 end.
 
 **Embeddings / vector search for rules.** The CR is a 9,367-line structured document with
-numbered rules, a regular subrule scheme, and a clean glossary (§4.6). Rules questions are
+numbered rules, a regular subrule scheme, and a clean glossary ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)). Rules questions are
 overwhelmingly lookups by rule number, by exact term, or by keyword — all of which
 structured parsing and text search answer exactly, and answer *citably*. Embeddings would add
-a model dependency, an index build step, and install friction (§3.1), in exchange for fuzzy
+a model dependency, an index build step, and install friction ([§3.1](#31-distribution-and-install-friction)), in exchange for fuzzy
 matching over a corpus whose value depends on precise citation. Wrong tool.
 
-**Reimplementing Scryfall's search engine locally.** The reason D-07 exists. Regex, `otag:`,
-`function:`, `art:`/`atag:`, and legality/price filters are server-side (§4.1.1). Rebuilding
+**Reimplementing Scryfall's search engine locally.** The reason [D-07](#d-07--three-way-cache-split) exists. Regex, `otag:`,
+`function:`, `art:`/`atag:`, and legality/price filters are server-side ([§4.1.1](#411-search-endpoint)). Rebuilding
 them would be a multi-month project that stayed permanently behind Scryfall's own, in
 exchange for offline search nobody asked for.
 
-**A transport abstraction layer.** Rejected by D-04. The SDK transport is already the
+**A transport abstraction layer.** Rejected by [D-04](#d-04--no-transport-abstraction-layer). The SDK transport is already the
 abstraction; an interface with one implementation is over-engineering.
 
-**The npm `archidekt` package as a dependency.** Rejected by D-12 — seven years stale, zero
+**The npm `archidekt` package as a dependency.** Rejected by [D-12](#d-12--no-npm-archidekt-dependency) — seven years stale, zero
 dependents, and its own README disclaims the API's stability. Its URL documentation is
-transcribed into §4.5 so it can be ignored.
+transcribed into [§4.5](#45-archidekt) so it can be ignored.
 
-**Bundling the Comprehensive Rules text in the package.** Rejected by D-08 on Fan Content
+**Bundling the Comprehensive Rules text in the package.** Rejected by [D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled) on Fan Content
 Policy grounds.
 
 **Any paywall, subscription, survey, Discord-join, or channel-follow gate on card data.**
-Prohibited by Scryfall's data-use rules (§3.3) and by the Fan Content Policy's
+Prohibited by Scryfall's data-use rules ([§3.3](#33-legal-and-terms-of-service)) and by the Fan Content Policy's
 non-commercial terms. Not a product option.
 
 **Deck editing outside Archidekt.** No other deck platform is in scope. Archidekt writes are
-last (D-09); other platforms are not queued at all.
+last ([D-09](#d-09--archidekt-writes-land-last)); other platforms are not queued at all.
 
 ---
 
@@ -870,12 +870,13 @@ last (D-09); other platforms are not queued at all.
 
 | Date | What changed | Why |
 |---|---|---|
-| 2026-07-29 | Document created. Established §1–§9. Recorded 12 locked decisions (D-01–D-12), constraints, and seven external-dependency subsections from live research. Specified CAP-01 (card search). Assigned Phase 1. Opened OQ-01–OQ-08. | Foundation session. Eight capabilities queued and unassigned, to be appended in later sessions using the §5 template. |
-| 2026-07-29 | **D-07 revised** from a two-way cache split ("bulk for gameplay text, live API for prices") to a three-way split. | Research established that regex, `otag:`, `function:`, and `art:`/`atag:` are server-side query-engine features, not card-object fields (§4.1.1). Full Scryfall syntax — a stated CAP-01 requirement — cannot be served from local bulk data. The original rationale about price staleness still holds and is preserved in the D-07 row. Recorded as a revision rather than an open question so future sessions do not architect against a local search engine. |
-| 2026-07-29 | Recorded that Scryfall has **no attribution requirement**, and that the attribution obligation originates in the WotC Fan Content Policy with fixed verbatim wording (§3.3, §4.1, §4.7). | The pre-session assumption was that Scryfall required credit. Reading the full "Use of Scryfall Data and Images" section and the ToS "Content License" section found prohibitions but no crediting requirement. Getting the source right matters because the Fan Content Policy's wording is mandatory and not editorial. |
-| 2026-07-29 | Recorded that Scryfall bulk data now exposes `jsonl_download_uri` / `compressed_size` and **no longer** `download_uri` / `size`, and serves gzipped JSONL (§4.2). | Contradicts widely-held prior knowledge of this API. Any future session writing bulk-data code from recall will use the wrong field names. |
-| 2026-07-29 | Recorded three verified price-field traps and made price correctness an explicit part of CAP-01 rather than a later refinement (§4.1.3, CAP-01 criteria 4–7). | `usd` is null for 7,599 foil-only cards, `eur_etched` does not exist despite being documented, and `/cards/named` can return a digital printing with all paper prices null. Each would silently produce wrong output, so each became an acceptance criterion. |
-| 2026-07-29 | Recorded that Archidekt masks non-public decks as HTTP 404, indistinguishable from deleted (§4.5, §3.6). | Verified against a real private deck ID. Constrains error messaging for the queued deck-reading capability: it cannot claim which cause applies. |
+| 2026-07-29 | Document created. Established [§1](#1-overview)–[§9](#9-revision-log). Recorded 12 locked decisions ([D-01](#d-01--distribution-local-package-over-stdio)–[D-12](#d-12--no-npm-archidekt-dependency)), constraints, and seven external-dependency subsections from live research. Specified [CAP-01](#cap-01--card-search) (card search). Assigned Phase 1. Opened [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)–[OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled). | Foundation session. Eight capabilities queued and unassigned, to be appended in later sessions using the [§5](#5-capabilities) template. |
+| 2026-07-29 | **[D-07](#d-07--three-way-cache-split) revised** from a two-way cache split ("bulk for gameplay text, live API for prices") to a three-way split. | Research established that regex, `otag:`, `function:`, and `art:`/`atag:` are server-side query-engine features, not card-object fields ([§4.1.1](#411-search-endpoint)). Full Scryfall syntax — a stated [CAP-01](#cap-01--card-search) requirement — cannot be served from local bulk data. The original rationale about price staleness still holds and is preserved in the [D-07](#d-07--three-way-cache-split) row. Recorded as a revision rather than an open question so future sessions do not architect against a local search engine. |
+| 2026-07-29 | Recorded that Scryfall has **no attribution requirement**, and that the attribution obligation originates in the WotC Fan Content Policy with fixed verbatim wording ([§3.3](#33-legal-and-terms-of-service), [§4.1](#41-scryfall-rest-api), [§4.7](#47-wotc-fan-content-policy)). | The pre-session assumption was that Scryfall required credit. Reading the full "Use of Scryfall Data and Images" section and the ToS "Content License" section found prohibitions but no crediting requirement. Getting the source right matters because the Fan Content Policy's wording is mandatory and not editorial. |
+| 2026-07-29 | Recorded that Scryfall bulk data now exposes `jsonl_download_uri` / `compressed_size` and **no longer** `download_uri` / `size`, and serves gzipped JSONL ([§4.2](#42-scryfall-bulk-data)). | Contradicts widely-held prior knowledge of this API. Any future session writing bulk-data code from recall will use the wrong field names. |
+| 2026-07-29 | Recorded three verified price-field traps and made price correctness an explicit part of [CAP-01](#cap-01--card-search) rather than a later refinement ([§4.1.3](#413-price-fields--three-verified-traps), [CAP-01](#cap-01--card-search) criteria 4–7). | `usd` is null for 7,599 foil-only cards, `eur_etched` does not exist despite being documented, and `/cards/named` can return a digital printing with all paper prices null. Each would silently produce wrong output, so each became an acceptance criterion. |
+| 2026-07-29 | Recorded that Archidekt masks non-public decks as HTTP 404, indistinguishable from deleted ([§4.5](#45-archidekt), [§3.6](#36-error-surface)). | Verified against a real private deck ID. Constrains error messaging for the queued deck-reading capability: it cannot claim which cause applies. |
+| 2026-07-30 | [§2](#2-locked-decisions) converted from a single table to an index table plus one `###` heading per decision ([D-01](#d-01--distribution-local-package-over-stdio)–[D-12](#d-12--no-npm-archidekt-dependency)); [§7](#7-open-questions) open questions promoted from bold leads to `###` headings; every internal `§` and ID reference converted to a markdown link. | Navigation. Several hundred references were bare text that resolved nowhere on any surface, and [§2](#2-locked-decisions)'s paragraph-length table cells were the least readable part of the document. GitHub emits no anchor for a table cell, so the decisions had no link targets until they became headings. **Presentation only — no decision was reopened, no rationale was reworded, and no ID changed.** Recorded so a future session does not read the restructure as a substantive edit. |
 | 2026-08-03 | CAP-01 live acceptance pass: criteria 1–12 verified (criteria 1, 10, 11, 12 at unit level; 2–9 live via `scripts/cap01-live.mjs`). Live totals: regex 1,555, `otag:ramp` 2,274, `function:removal` 6,405, `art:squirrel` 194. Drift from the 2026-07-29 research record: (a) `!"Black Lotus"` now returns the MTGO Vintage Masters printing by default rather than a paper printing — correctly reported as `digital-only`, not a bare no-price; (b) no paper Black Lotus printing carries a USD price any more (EUR only), so criterion 6's paper-price half is evidenced by a substitute `usd>=1 game:paper` probe. No code changes were required. Results: `docs/slices/TrackA-Slice6-results.md`. | Track A Slice 6 (`docs/DEV-ROADMAP.md`) — closes the server half of Phase 1. |
 
 ---
