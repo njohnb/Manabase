@@ -38,23 +38,166 @@ oracle that replaces a judge.
 
 ## 2. Locked decisions
 
-Settled unless explicitly reopened. Each row carries its rationale so later sessions inherit
+Settled unless explicitly reopened. Each decision carries its rationale so later sessions inherit
 the reasoning instead of re-deriving it.
 
-| # | Decision | Rationale | Date |
-|---|---|---|---|
-| D-01 | **Distribution: a package people install and run locally over stdio.** Not a hosted service. | Keeps the author out of the business of holding other people's credentials, and nobody is blocked when hosting falls over. Install friction is the primary adoption risk, so every design decision weighs it heavily. | 2026-07-29 |
-| D-02 | **Runtime: Node.js + TypeScript, published to npm, run via `npx -y`.** Runner-up rejected: .NET 10 + `dnx`. | `npx` is the pattern every MCP client's documentation uses, so the config line is one users can paste without thinking, and Node ≥18 is already present on most technical machines. The TypeScript SDK is the MCP reference implementation and tracks spec revisions first. .NET 10 + `dnx` was genuinely competitive — it matches the author's existing toolchain, standards, and review tooling — but loses on the axis that matters most here: it needs a ~70 MB runtime acquisition for friends who don't have .NET, and `dnx` is new enough that its failure modes are unfamiliar to the people who'd hit them. Accepted cost: the author's .NET review agents and coding-standards skills do not apply to this project. | 2026-07-29 |
-| D-03 | **Testability: any tool handler must be callable directly as a plain function in a test** — no MCP server started, no transport involved. | If a test needs a running server to exercise logic, something has leaked upward. Falls out of two habits: no per-user state in module-level variables, and no reading environment variables from deep in the call stack — read config once at startup and pass it down. | 2026-07-29 |
-| D-04 | **Do not build an abstraction layer to achieve D-03.** No `ITransport` interface, no transport factory. | The SDK's transport object is already the abstraction. An interface with one implementation is over-engineering. The payoff of D-03 is that adding Streamable HTTP later is a *new entry point*, not a rewrite — that payoff does not require an indirection layer. | 2026-07-29 |
-| D-05 | **Transport: stdio now. Streamable HTTP later if needed. Skip SSE entirely.** | SSE was deprecated in the 2025-06-18 spec revision. Building it would be work toward a dead end. | 2026-07-29 |
-| D-06 | **Pricing comes from Scryfall, not a separate provider.** | TCGplayer no longer grants new API access. Scryfall carries `usd`, `usd_foil`, `usd_etched`, `eur`, `eur_foil`, `tix`, synced every 24 hours from TCGplayer's market price. That is one number per printing — no per-condition breakdown, no seller listings, no buylist. **That tradeoff is accepted.** Do not propose a paid price provider. Do not scrape TCGplayer. | 2026-07-29 |
-| D-07 | **Cache split is three-way, not two-way** (revised from "bulk for gameplay text, live API for prices" — see note below). **Live `/cards/search`** for anything requiring query evaluation. **Live `/cards/collection`** for resolving known card names in batches of 75. **Bulk files** for corpora that would otherwise cost thousands of requests: `oracle_tags`, `art_tags`, `rulings`. | The original two-way split was right about *why* — Scryfall's own docs say bulk prices are dangerously stale after 24 hours while gameplay data needs only weekly or post-set-release refresh. It was wrong about *what is possible*: regex, `otag:`, `function:`, `art:`/`atag:`, and legality/price filters are **server-side query-engine features, not properties of card objects** (verified 2026-07-29, §4.1). Full Scryfall syntax cannot be served from a local bulk file without reimplementing Scryfall's search engine — a multi-month project that would stay permanently behind theirs. Prices therefore arrive on whichever live response was already being fetched, which is simpler than a separate price path. | 2026-07-29 |
-| D-08 | **Comprehensive Rules text is fetched at runtime from WotC and cached locally. It is never bundled in the package.** | The WotC Fan Content Policy prohibits "verbatim copying and reposting of Wizards' IP." Shipping a 975 KB verbatim copy of WotC's document to other people is the shape of thing that clause describes. Fetching on the user's own machine from WotC's own URL sidesteps it, and has the bonus of never going stale across quarterly CR updates. D-01 (local distribution) is what makes this cheap — a hosted service could not push the fetch to the user. | 2026-07-29 |
-| D-09 | **Archidekt writes land last.** | Not a credential problem — D-01 solves that. The write API is undocumented, unstable, and the operation is destructive. Every read-only capability should be delivered and stable before anything can damage a user's deck. | 2026-07-29 |
-| D-10 | **Tool handlers never throw. They return structured results carrying success or failure.** | A thrown exception becomes an opaque MCP protocol error. A structured failure that includes Scryfall's own `details` message lets Claude correct a malformed query and retry — which is the common case for a syntax as large as Scryfall's. Carried forward from the SpellStack reference project. | 2026-07-29 |
-| D-11 | **Tool naming: `domain_verb_noun` in snake_case** (e.g. `card_search`, `deck_read_archidekt`). | Carried forward from the SpellStack reference project. Tool names are shown to the model; this reads well and groups related tools without a namespace mechanism. | 2026-07-29 |
-| D-12 | **No dependency on the npm `archidekt` package.** Use plain HTTP. | Version 0.0.14, last published seven years ago, zero dependents, and its own README states Archidekt's API is undocumented and in open beta. It earns nothing over `fetch`. Its value is as *documentation* of URL shapes, which §4.5 now records directly. | 2026-07-29 |
+| # | Decision | Date |
+|---|---|---|
+| [D-01](#d-01--distribution-local-package-over-stdio) | Distribution: a package people install and run locally over stdio | 2026-07-29 |
+| [D-02](#d-02--runtime-nodejs--typescript) | Runtime: Node.js + TypeScript, published to npm, run via `npx -y` | 2026-07-29 |
+| [D-03](#d-03--testability-handlers-callable-as-plain-functions) | Testability: any tool handler must be callable directly as a plain function in a test | 2026-07-29 |
+| [D-04](#d-04--no-transport-abstraction-layer) | Do not build an abstraction layer to achieve D-03 | 2026-07-29 |
+| [D-05](#d-05--transport-stdio-now-streamable-http-later-no-sse) | Transport: stdio now. Streamable HTTP later if needed. Skip SSE entirely | 2026-07-29 |
+| [D-06](#d-06--pricing-from-scryfall) | Pricing comes from Scryfall, not a separate provider | 2026-07-29 |
+| [D-07](#d-07--three-way-cache-split) | Cache split is three-way, not two-way | 2026-07-29 |
+| [D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled) | Comprehensive Rules text is fetched at runtime from WotC and cached locally. It is never bundled in the package | 2026-07-29 |
+| [D-09](#d-09--archidekt-writes-land-last) | Archidekt writes land last | 2026-07-29 |
+| [D-10](#d-10--tool-handlers-never-throw) | Tool handlers never throw. They return structured results carrying success or failure | 2026-07-29 |
+| [D-11](#d-11--tool-naming-convention) | Tool naming: `domain_verb_noun` in snake_case | 2026-07-29 |
+| [D-12](#d-12--no-npm-archidekt-dependency) | No dependency on the npm `archidekt` package | 2026-07-29 |
+
+### D-01 — Distribution: local package over stdio
+
+**Decided 2026-07-29.**
+
+**Distribution: a package people install and run locally over stdio.** Not a hosted service.
+
+Keeps the author out of the business of holding other people's credentials, and nobody is
+blocked when hosting falls over. Install friction is the primary adoption risk, so every design
+decision weighs it heavily.
+
+### D-02 — Runtime: Node.js + TypeScript
+
+**Decided 2026-07-29.**
+
+**Runtime: Node.js + TypeScript, published to npm, run via `npx -y`.** Runner-up rejected:
+.NET 10 + `dnx`.
+
+`npx` is the pattern every MCP client's documentation uses, so the config line is one users can
+paste without thinking, and Node ≥18 is already present on most technical machines. The
+TypeScript SDK is the MCP reference implementation and tracks spec revisions first.
+
+.NET 10 + `dnx` was genuinely competitive — it matches the author's existing toolchain,
+standards, and review tooling — but loses on the axis that matters most here: it needs a ~70 MB
+runtime acquisition for friends who don't have .NET, and `dnx` is new enough that its failure
+modes are unfamiliar to the people who'd hit them. Accepted cost: the author's .NET review
+agents and coding-standards skills do not apply to this project.
+
+### D-03 — Testability: handlers callable as plain functions
+
+**Decided 2026-07-29.**
+
+**Testability: any tool handler must be callable directly as a plain function in a test** — no
+MCP server started, no transport involved.
+
+If a test needs a running server to exercise logic, something has leaked upward. Falls out of
+two habits: no per-user state in module-level variables, and no reading environment variables
+from deep in the call stack — read config once at startup and pass it down.
+
+### D-04 — No transport abstraction layer
+
+**Decided 2026-07-29.**
+
+**Do not build an abstraction layer to achieve D-03.** No `ITransport` interface, no transport
+factory.
+
+The SDK's transport object is already the abstraction. An interface with one implementation is
+over-engineering. The payoff of D-03 is that adding Streamable HTTP later is a *new entry
+point*, not a rewrite — that payoff does not require an indirection layer.
+
+### D-05 — Transport: stdio now, Streamable HTTP later, no SSE
+
+**Decided 2026-07-29.**
+
+**Transport: stdio now. Streamable HTTP later if needed. Skip SSE entirely.**
+
+SSE was deprecated in the 2025-06-18 spec revision. Building it would be work toward a dead
+end.
+
+### D-06 — Pricing from Scryfall
+
+**Decided 2026-07-29.**
+
+**Pricing comes from Scryfall, not a separate provider.**
+
+TCGplayer no longer grants new API access. Scryfall carries `usd`, `usd_foil`, `usd_etched`,
+`eur`, `eur_foil`, `tix`, synced every 24 hours from TCGplayer's market price. That is one
+number per printing — no per-condition breakdown, no seller listings, no buylist. **That
+tradeoff is accepted.** Do not propose a paid price provider. Do not scrape TCGplayer.
+
+### D-07 — Three-way cache split
+
+**Decided 2026-07-29.**
+
+**Cache split is three-way, not two-way** (revised from "bulk for gameplay text, live API for
+prices" — see note below). **Live `/cards/search`** for anything requiring query evaluation.
+**Live `/cards/collection`** for resolving known card names in batches of 75. **Bulk files**
+for corpora that would otherwise cost thousands of requests: `oracle_tags`, `art_tags`,
+`rulings`.
+
+The original two-way split was right about *why* — Scryfall's own docs say bulk prices are
+dangerously stale after 24 hours while gameplay data needs only weekly or post-set-release
+refresh. It was wrong about *what is possible*: regex, `otag:`, `function:`, `art:`/`atag:`,
+and legality/price filters are **server-side query-engine features, not properties of card
+objects** (verified 2026-07-29, §4.1).
+
+Full Scryfall syntax cannot be served from a local bulk file without reimplementing Scryfall's
+search engine — a multi-month project that would stay permanently behind theirs. Prices
+therefore arrive on whichever live response was already being fetched, which is simpler than a
+separate price path.
+
+### D-08 — Comprehensive Rules fetched at runtime, never bundled
+
+**Decided 2026-07-29.**
+
+**Comprehensive Rules text is fetched at runtime from WotC and cached locally. It is never
+bundled in the package.**
+
+The WotC Fan Content Policy prohibits "verbatim copying and reposting of Wizards' IP." Shipping
+a 975 KB verbatim copy of WotC's document to other people is the shape of thing that clause
+describes. Fetching on the user's own machine from WotC's own URL sidesteps it, and has the
+bonus of never going stale across quarterly CR updates. D-01 (local distribution) is what makes
+this cheap — a hosted service could not push the fetch to the user.
+
+### D-09 — Archidekt writes land last
+
+**Decided 2026-07-29.**
+
+**Archidekt writes land last.**
+
+Not a credential problem — D-01 solves that. The write API is undocumented, unstable, and the
+operation is destructive. Every read-only capability should be delivered and stable before
+anything can damage a user's deck.
+
+### D-10 — Tool handlers never throw
+
+**Decided 2026-07-29.**
+
+**Tool handlers never throw. They return structured results carrying success or failure.**
+
+A thrown exception becomes an opaque MCP protocol error. A structured failure that includes
+Scryfall's own `details` message lets Claude correct a malformed query and retry — which is the
+common case for a syntax as large as Scryfall's. Carried forward from the SpellStack reference
+project.
+
+### D-11 — Tool naming convention
+
+**Decided 2026-07-29.**
+
+**Tool naming: `domain_verb_noun` in snake_case** (e.g. `card_search`, `deck_read_archidekt`).
+
+Carried forward from the SpellStack reference project. Tool names are shown to the model; this
+reads well and groups related tools without a namespace mechanism.
+
+### D-12 — No npm `archidekt` dependency
+
+**Decided 2026-07-29.**
+
+**No dependency on the npm `archidekt` package.** Use plain HTTP.
+
+Version 0.0.14, last published seven years ago, zero dependents, and its own README states
+Archidekt's API is undocumented and in open beta. It earns nothing over `fetch`. Its value is
+as *documentation* of URL shapes, which §4.5 now records directly.
 
 > **Note on D-07.** This revises the decision as originally stated. The original rationale is
 > preserved above and still holds. The change is in scope of what bulk data is used *for*,
@@ -607,7 +750,8 @@ enough to trust.
 Numbered, persistent. Questions stay here until answered — they are not dropped. Each records
 what would resolve it.
 
-**OQ-01 — How should Scryfall syntax be surfaced to the model?**
+### OQ-01 — How should Scryfall syntax be surfaced to the model?
+
 CAP-01 requires that Claude write good queries unprompted, which means the syntax has to be
 somewhere the model reads. Candidates: a long tool description; a separate
 `card_search_syntax` tool; an MCP resource. This collides with the SpellStack convention of
@@ -617,46 +761,51 @@ tools whose usage is obvious, and Scryfall syntax is the opposite case.
 description plus a resource, versus a long description alone. This is an empirical question,
 not an architectural one.
 
-**OQ-02 — How verbose should a search result be?**
+### OQ-02 — How verbose should a search result be?
+
 Full oracle text plus legalities plus all prices for 175 cards is a large amount of context.
 Too little and the model can't reason; too much and it crowds out the conversation.
 *Resolves by:* deciding a default field set plus an opt-in verbose mode, then checking real
 result payload sizes against a realistic context budget.
 
-**OQ-03 — What is the bulk-data storage strategy, and when is it introduced?**
+### OQ-03 — What is the bulk-data storage strategy, and when is it introduced?
+
 `oracle_tags`/`art_tags` (tag discovery) and the CR text (rules lookup) both need local
 persistence. Where does it live on a user's machine, what is the refresh trigger, and does
 first run block on a download? Under D-01 this is an install-friction question, so it is
 product-relevant, not purely design.
 *Resolves by:* specifying the tag-discovery capability, which is the first to need it.
 
-**OQ-04 — What is the behavior and blast radius of Archidekt's write API?**
+### OQ-04 — What is the behavior and blast radius of Archidekt's write API?
+
 Unresolved and deliberately untested (§4.5). Specifically: does bulk import replace or
 append; does it preserve categories, commander designation, companion, and maybeboard; and
 what is the state of the deck after a partial failure?
 *Resolves by:* authenticated testing against a disposable deck, immediately before specifying
 Archidekt deck writing. Not before — D-09 puts this last on purpose.
 
-**OQ-05 — Do Commander Spellbook or Archidekt impose rate limits?**
+### OQ-05 — Do Commander Spellbook or Archidekt impose rate limits?
+
 Neither documents limits and neither exposes rate-limit headers (§4.4, §4.5). Absence of
 evidence is not absence of limits.
 *Resolves by:* asking the Commander Spellbook admins via their Discord (the About page
 directs API questions there), and by conservative self-throttling in the meantime.
 
-**OQ-06 — Is Commander Spellbook's combo *data* licensed, as distinct from its code?**
+### OQ-06 — Is Commander Spellbook's combo *data* licensed, as distinct from its code?
+
 The code is MIT; the data has no stated license and there is no ToS page (§4.4).
 *Resolves by:* asking the project admins. Low urgency — the data is served anonymously by a
 project that exists to distribute it, and EDHREC already consumes it.
 
-**OQ-07 — How is `intentionallySkippedCardData` populated in Archidekt deck payloads, and
-what does its presence mean for a deck read?**
+### OQ-07 — How is `intentionallySkippedCardData` populated in Archidekt deck payloads, and what does its presence mean for a deck read?
+
 The field exists in the response (§4.5) and its name implies some card data can be
 deliberately absent, which would affect completeness of a deck read.
 *Resolves by:* reading decks containing tokens, custom cards, and unreleased spoilers, and
 observing when the field is non-empty.
 
-**OQ-08 — Does the CR landing page ever offer more than one date-stamped TXT, and how are
-mid-cycle corrections handled?**
+### OQ-08 — Does the CR landing page ever offer more than one date-stamped TXT, and how are mid-cycle corrections handled?
+
 URL resolution depends on scraping a single `.txt` href (§4.6). If two versions are ever
 listed, "most recent" needs a rule.
 *Resolves by:* re-checking the landing page across a set release boundary.

@@ -791,8 +791,8 @@ Numbered, persistent. Questions stay here until answered — they are not droppe
 what would resolve it. The `PQ-` prefix keeps these unambiguous against the `OQ-` numbers in
 `docs/MCP-PRD.md` §7, which remain that document's to answer.
 
-**PQ-01 — Do an MCP server's tool schemas count toward the always-on cost that
-`claude plugin details` reports?**
+### PQ-01 — Do an MCP server's tool schemas count toward the always-on cost that `claude plugin details` reports?
+
 §4.6 could not establish this either way, and it is the one cost figure PC-02 cannot state.
 It matters more than a reporting detail: unlike a skill description, a tool schema cannot be
 budget-trimmed (§3.1), so if tool schemas are a real always-on cost then tool count and
@@ -802,8 +802,8 @@ formatting one.
 comparing the reported always-on total against the same plugin with the server removed. Do
 this during Phase 1 — PC-02's criterion 10 already produces the first half of the measurement.
 
-**PQ-02 — What is this plugin's measured always-on cost, and does it fit alongside what the
-author already has installed?**
+### PQ-02 — What is this plugin's measured always-on cost, and does it fit alongside what the author already has installed?
+
 §3.1's budget is shared, and the author's `dotnet-plugin` already spends ~1,722 always-on
 tokens across 20 skills (§4.6). The plugin's own footprint looks small; the aggregate is the
 question, and it is the one that determines whether §3.1's silent degradation is a live risk
@@ -812,8 +812,8 @@ or a theoretical one.
 its biggest contributors, plus `/context`, whose Skills row reports the listing size after the
 budget is applied. Both are available now; run them once Phase 1 is installed.
 
-**PQ-03 — What triggers a refresh of the bulk data and the Comprehensive Rules cache, and
-should it ever be a `SessionStart` hook?**
+### PQ-03 — What triggers a refresh of the bulk data and the Comprehensive Rules cache, and should it ever be a `SessionStart` hook?
+
 Recording a disagreement rather than a gap. A session-start hook is the obvious mechanism, but
 it fires on **every** session in **every** project — so for 5–20 people it means a network call
 at every Claude Code launch, almost all of them in projects that have nothing to do with Magic.
@@ -825,7 +825,8 @@ discovery or rules lookup in `docs/MCP-PRD.md` §6. This is the plugin-side half
 document's OQ-03. Whichever way it goes, §3.4 constrains the mechanism: a hook here must be
 exec form.
 
-**PQ-04 — How would the author detect that a friend's skill listing has been budget-trimmed?**
+### PQ-04 — How would the author detect that a friend's skill listing has been budget-trimmed?
+
 §3.1's degradation is silent and `/doctor` is local. A friend whose listing overflowed would
 experience PC-01 as "sometimes it doesn't seem to know about Magic" and would probably not
 report it as a bug at all.
@@ -834,7 +835,8 @@ the README is sufficient, or whether PC-01 needs to be robust to having no descr
 it cannot be, since the description *is* the invocation mechanism. Likely a documentation
 answer, but confirm it rather than assuming.
 
-**PQ-05 — Should the plugin be submitted to the community marketplace once it is stable?**
+### PQ-05 — Should the plugin be submitted to the community marketplace once it is stable?
+
 Anthropic maintains `claude-plugins-community`, where third-party submissions land after
 review and automated safety screening; approved plugins are pinned to a commit SHA with CI
 bumping the pin. **[verified 2026-07-29]** This is not the hosted marketplace rejected in §8 —
@@ -845,7 +847,8 @@ for 5–20.
 *Resolves by:* an explicit decision after Phase 1 is stable. Not urgent, and reversible in one
 direction only — worth deciding deliberately rather than drifting into.
 
-**PQ-06 — What keeps the committed `dist/` honest?**
+### PQ-06 — What keeps the committed `dist/` honest?
+
 P-09 accepts committed build output as the cheaper cost, but the failure mode it creates is a
 release where `dist/` does not match `src/` — and because the harness runs whatever is
 committed, that failure is invisible until someone reports wrong behavior.
@@ -853,7 +856,8 @@ committed, that failure is invisible until someone reports wrong behavior.
 the build part of the `claude plugin tag` release step. An implementation decision, recorded
 here because P-09 created the risk and should not be read as having ignored it.
 
-**PQ-07 — Is deck optimization a skill or an agent?**
+### PQ-07 — Is deck optimization a skill or an agent?
+
 Both are paid always-on for their description (§4.6), so the question is whether the work needs
 its own context window — a long analysis that would otherwise crowd the conversation — rather
 than which one it resembles. Note that a plugin-shipped agent cannot declare `hooks`,
@@ -862,7 +866,8 @@ normal scoped tool name regardless.
 *Resolves by:* specifying the component, which cannot happen until the capability it depends on
 exists (§6).
 
-**PQ-08 — What does a user see when the Archidekt credential is missing, expired, or rejected?**
+### PQ-08 — What does a user see when the Archidekt credential is missing, expired, or rejected?
+
 Deferred deliberately. P-13 means there is no credential in Phase 1, and
 `docs/MCP-PRD.md` D-09 puts Archidekt writes last. Note that `docs/MCP-PRD.md` §4.5 verified
 that Archidekt masks non-public decks as an indistinguishable 404, and §3.6 forbids error text
