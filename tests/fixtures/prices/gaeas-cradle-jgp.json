@@ -1,0 +1,32 @@
+{
+  "object": "card",
+  "id": "a3f1c0d2-5b7e-4a91-8c3d-2e6f4b1a9d70",
+  "name": "Gaea's Cradle",
+  "cmc": 0.0,
+  "type_line": "Legendary Land",
+  "oracle_text": "{T}: Add {G} for each creature you control.",
+  "color_identity": [],
+  "rarity": "rare",
+  "set": "jgp",
+  "set_name": "Judge Gift Cards 1998",
+  "digital": false,
+  "games": ["paper"],
+  "legalities": {
+    "standard": "not_legal",
+    "pioneer": "not_legal",
+    "modern": "not_legal",
+    "legacy": "banned",
+    "vintage": "restricted",
+    "commander": "legal",
+    "pauper": "not_legal",
+    "brawl": "not_legal"
+  },
+  "prices": {
+    "usd": null,
+    "usd_foil": "3999.00",
+    "usd_etched": null,
+    "eur": null,
+    "eur_foil": "3200.00",
+    "tix": null
+  }
+}

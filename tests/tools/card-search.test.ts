@@ -208,7 +208,7 @@ describe("cardSearch — shaping", () => {
     assert.ok(!("colors" in delver));
   });
 
-  test("price uses the naive resolver: usd present -> nonfoil, usd null -> no-price-data", async () => {
+  test("price resolves per finish: usd -> nonfoil, usd null with usd_foil -> foil", async () => {
     const { client } = makeFakeClient({ ok: true, value: searchPage1 });
 
     const r = await cardSearch(client, { q: "t:creature" });
@@ -219,10 +219,10 @@ describe("cardSearch — shaping", () => {
       usd: "2.47",
       finish: "nonfoil",
     });
-    // Knowingly wrong in this slice: the card has a usd_foil price. Slice 4 fixes it.
     assert.deepEqual(byName(r.value.cards, "Delver of Secrets // Insectile Aberration").price, {
-      available: false,
-      reason: "no-price-data",
+      available: true,
+      usd: "12.34",
+      finish: "foil",
     });
   });
 });

@@ -1,0 +1,34 @@
+{
+  "object": "card",
+  "id": "f5a80e34-2b96-4d71-8c0a-3e7b1d6f2c99",
+  "name": "Goldvein Pick",
+  "mana_cost": "{2}",
+  "cmc": 2.0,
+  "type_line": "Artifact — Equipment",
+  "oracle_text": "Equipped creature gets +1/+0 and has \"Whenever this creature deals combat damage to a player, create a Treasure token.\"\nEquip {2}",
+  "colors": [],
+  "color_identity": [],
+  "rarity": "common",
+  "set": "sld",
+  "set_name": "Secret Lair Drop",
+  "digital": false,
+  "games": ["paper"],
+  "legalities": {
+    "standard": "not_legal",
+    "pioneer": "legal",
+    "modern": "legal",
+    "legacy": "legal",
+    "vintage": "legal",
+    "commander": "legal",
+    "pauper": "legal",
+    "brawl": "not_legal"
+  },
+  "prices": {
+    "usd": null,
+    "usd_foil": null,
+    "usd_etched": null,
+    "eur": null,
+    "eur_foil": null,
+    "tix": null
+  }
+}
