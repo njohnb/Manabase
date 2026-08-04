@@ -1,0 +1,132 @@
+{
+  "object": "list",
+  "total_cards": 1197,
+  "has_more": true,
+  "next_page": "https://api.scryfall.com/cards/search?format=json&page=2&q=t%3Acreature&unique=cards",
+  "data": [
+    {
+      "object": "card",
+      "id": "8ade1a11-25db-45bf-88fb-9ba9d1b0c4dc",
+      "name": "Baleful Strix",
+      "mana_cost": "{U}{B}",
+      "cmc": 2.0,
+      "type_line": "Artifact Creature — Bird",
+      "oracle_text": "Flying, deathtouch\nWhen this creature enters, draw a card.",
+      "colors": ["B", "U"],
+      "color_identity": ["B", "U"],
+      "power": "1",
+      "toughness": "1",
+      "rarity": "uncommon",
+      "set": "2xm",
+      "set_name": "Double Masters",
+      "digital": false,
+      "games": ["paper", "mtgo"],
+      "legalities": {
+        "standard": "not_legal",
+        "pioneer": "not_legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "vintage": "legal",
+        "commander": "legal",
+        "pauper": "not_legal",
+        "brawl": "not_legal"
+      },
+      "prices": {
+        "usd": "2.47",
+        "usd_foil": "6.11",
+        "usd_etched": null,
+        "eur": "1.99",
+        "eur_foil": "4.50",
+        "tix": "0.35"
+      }
+    },
+    {
+      "object": "card",
+      "id": "7f8f0b0a-9f4c-4b6f-9a3b-4a2f0d1a0f11",
+      "name": "Jace, the Mind Sculptor",
+      "mana_cost": "{2}{U}{U}",
+      "cmc": 4.0,
+      "type_line": "Legendary Planeswalker — Jace",
+      "oracle_text": "+2: Look at the top card of target player's library. You may put that card on the bottom of that player's library.\n0: Draw three cards, then put two cards from your hand on top of your library in any order.\n−1: Return target creature to its owner's hand.\n−12: Exile all cards from target player's library, then that player shuffles their hand into their library.",
+      "colors": ["U"],
+      "color_identity": ["U"],
+      "loyalty": "3",
+      "rarity": "mythic",
+      "set": "2xm",
+      "set_name": "Double Masters",
+      "digital": false,
+      "games": ["paper", "mtgo"],
+      "legalities": {
+        "standard": "not_legal",
+        "pioneer": "not_legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "vintage": "restricted",
+        "commander": "legal",
+        "pauper": "not_legal",
+        "brawl": "not_legal"
+      },
+      "prices": {
+        "usd": "44.18",
+        "usd_foil": "78.99",
+        "usd_etched": null,
+        "eur": "38.00",
+        "eur_foil": "70.25",
+        "tix": "1.24"
+      }
+    },
+    {
+      "object": "card",
+      "id": "0b7b3a5c-1f1a-4a4c-8f4a-2c9d1c0f5a22",
+      "name": "Delver of Secrets // Insectile Aberration",
+      "cmc": 1.0,
+      "type_line": "Creature — Human Wizard // Creature — Human Insect",
+      "color_identity": ["U"],
+      "rarity": "common",
+      "set": "isd",
+      "set_name": "Innistrad",
+      "digital": false,
+      "games": ["paper", "mtgo"],
+      "legalities": {
+        "standard": "not_legal",
+        "pioneer": "legal",
+        "modern": "legal",
+        "legacy": "legal",
+        "vintage": "legal",
+        "commander": "legal",
+        "pauper": "legal",
+        "brawl": "not_legal"
+      },
+      "prices": {
+        "usd": null,
+        "usd_foil": "12.34",
+        "usd_etched": null,
+        "eur": null,
+        "eur_foil": "9.80",
+        "tix": "0.03"
+      },
+      "card_faces": [
+        {
+          "object": "card_face",
+          "name": "Delver of Secrets",
+          "mana_cost": "{U}",
+          "type_line": "Creature — Human Wizard",
+          "oracle_text": "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform Delver of Secrets.",
+          "colors": ["U"],
+          "power": "1",
+          "toughness": "1"
+        },
+        {
+          "object": "card_face",
+          "name": "Insectile Aberration",
+          "mana_cost": "",
+          "type_line": "Creature — Human Insect",
+          "oracle_text": "Flying",
+          "colors": ["U"],
+          "power": "3",
+          "toughness": "2"
+        }
+      ]
+    }
+  ]
+}
