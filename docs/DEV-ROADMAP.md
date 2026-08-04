@@ -28,22 +28,22 @@ place as work lands.
 
 ## 2. Current state (verified 2026-08-04)
 
-**Track A is complete.** Slices 1–6 landed as PRs #2–#7, delivering
+**Track A is complete.** Slices [1](./slices/TrackA-Slice1.md)–[6](./slices/TrackA-Slice6.md) landed as PRs #2–#7, delivering
 [CAP-01](./MCP-PRD.md#cap-01--card-search) end to end: all twelve acceptance criteria are
-verified, nine of them live against real Scryfall (`docs/slices/TrackA-Slice6-results.md`).
+verified, nine of them live against real Scryfall ([`docs/slices/TrackA-Slice6-results.md`](./slices/TrackA-Slice6-results.md)).
 
-**Track B has started.** Slice 7 landed 2026-08-04: the plugin **has** now been installed from a
+**Track B has started.** [Slice 7](./slices/TrackB-Slice7.md) landed 2026-08-04: the plugin **has** now been installed from a
 marketplace, on a cold profile, and six of
 [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s ten acceptance criteria (1, 2, 3, 4, 6, 7)
 are verified against a real harness, with criterion 9 explicitly not met — see
-`docs/slices/TrackB-Slice7-results.md`. What remains: `SKILL.md` is still unwritten and no
+[`docs/slices/TrackB-Slice7-results.md`](./slices/TrackB-Slice7-results.md). What remains: `SKILL.md` is still unwritten and no
 context-cost measurement has been taken, so every
 [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) acceptance criterion, and
 [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5, 8 and 10, are still unverified.
 
 | Area | State |
 |---|---|
-| Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory is still an empty placeholder (Slice 8) |
+| Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory is still an empty placeholder ([Slice 8](./slices/TrackB-Slice8.md)) |
 | Toolchain | `package.json` with `esbuild` bundle build, `tsc --noEmit` typecheck, `node --test`; MCP SDK `^1.30.0` as a devDependency |
 | `plugin.json` | present; **no `version`** ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)), **no `userConfig`** ([P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)), Fan Content disclaimer in `description` ([§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)) |
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
@@ -53,7 +53,7 @@ context-cost measurement has been taken, so every
 | Tests | 19 suites, **67 tests, 67 passing**; `tsc --noEmit` clean — re-run 2026-08-04 |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
-| `SKILL.md` | **not written** — Slice 8 |
+| `SKILL.md` | **not written** — [Slice 8](./slices/TrackB-Slice8.md) |
 
 Two properties of the existing scaffold worth preserving on purpose:
 
@@ -72,7 +72,7 @@ Two properties of the existing scaffold worth preserving on purpose:
 3. Handlers are plain functions; config is read once at the entry point and passed down; no
    `process.env` below the entry point ([D-03](./MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions), `MCP-PRD.md` [§3.2](./MCP-PRD.md#32-testability)).
 4. Skills carry instructions, never card facts (`PLUGIN-PRD.md` [§3.6](./PLUGIN-PRD.md#36-skills-carry-instructions-never-facts)).
-5. `dist/` is committed and must be rebuilt with every `src/` change until Slice 11 automates
+5. `dist/` is committed and must be rebuilt with every `src/` change until [Slice 11](./slices/TrackC-Slice11.md) automates
    the check ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)).
 6. The verbatim Fan Content disclaimer stays on every user-facing surface (`PLUGIN-PRD.md`
    [§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)).
@@ -161,7 +161,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     evaluates the syntax, [D-07](./MCP-PRD.md#d-07--three-way-cache-split)).
   - Shape each card to [CAP-01](./MCP-PRD.md#cap-01--card-search)'s field list: name, mana cost, cmc, type line, oracle text,
     colors and color identity, power/toughness/loyalty where applicable, rarity, set, format
-    legalities, price (price handling completed in Slice 4).
+    legalities, price (price handling completed in [Slice 4](./slices/TrackA-Slice4.md)).
   - Pagination reporting: total count, whether more exist, current page — never silently
     truncate, never auto-fetch further pages.
   - Failures (including malformed queries) pass through as structured results.
@@ -176,7 +176,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   the slice spec anticipated:
   - **Scryfall answers a valid query with zero matches as HTTP 404.** The handler maps that to a
     *successful, empty* search carrying Scryfall's own note, not a failure — no matches is a
-    search outcome, not a dead end. Verified live in Slice 6 (check 13).
+    search outcome, not a dead end. Verified live in [Slice 6](./slices/TrackA-Slice6.md) (check 13).
   - **Double-faced and split cards carry `oracle_text` / `mana_cost` on `card_faces`, not at the
     top level.** Faces are joined with ` // ` so those cards do not come back blank.
   - `legalities` passes through untrimmed, which is a deliberate deferral to
@@ -204,9 +204,9 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 - **Landed:** PR #5 (`af319d1`). `src/scryfall/prices.ts` resolves `usd` → `usd_foil` →
   `usd_etched` and labels the finish; unavailability is always given a reason
   (`digital-only` / `no-price-data`), never a bare null.
-- **Caveat on criterion 6.** Slice 6 found that **no paper Black Lotus printing carries a USD
+- **Caveat on criterion 6.** [Slice 6](./slices/TrackA-Slice6.md) found that **no paper Black Lotus printing carries a USD
   price any more** — all three are EUR-only. The fixture still proves paper-vs-digital selection,
-  but Black Lotus can no longer evidence *paper USD resolution*; Slice 6 substitutes a
+  but Black Lotus can no longer evidence *paper USD resolution*; [Slice 6](./slices/TrackA-Slice6.md) substitutes a
   `usd>=1 game:paper` probe for that half. `PriceInfo` models no EUR fallback, which is a live
   gap for Reserved List cards rather than a settled decision — see
   [§4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps).
@@ -216,20 +216,20 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 - **Goal:** `card_search` reachable over MCP; the server is now genuinely usable.
 - **Work:**
   - Register `card_search` ([D-11](./MCP-PRD.md#d-11--tool-naming-convention) naming) with its input schema and a **compact** tool
-    description. The deep syntax teaching belongs to [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) (Slice 8) — [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) stays open
-    until Slice 9 measures whether that split works; resist front-loading syntax into the
+    description. The deep syntax teaching belongs to [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) ([Slice 8](./slices/TrackB-Slice8.md)) — [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) stays open
+    until [Slice 9](./slices/TrackB-Slice9.md) measures whether that split works; resist front-loading syntax into the
     description before there is evidence it is needed.
   - Handler failures become structured tool *results*, never MCP protocol errors ([D-10](./MCP-PRD.md#d-10--tool-handlers-never-throw)).
 - **Done when:**
   - ☑ `tools/list` shows `card_search`; a live `tools/call` with a real query round-trips.
   - ☑ A malformed query over MCP returns the structured failure, not a protocol error.
 - **Binding refs:** [D-10](./MCP-PRD.md#d-10--tool-handlers-never-throw), [D-11](./MCP-PRD.md#d-11--tool-naming-convention); `MCP-PRD.md` [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model); `PLUGIN-PRD.md` [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key) (the scoped name
-  `mcp__plugin_manabase_mtg__card_search` appears only when running as a plugin — Slice 7
+  `mcp__plugin_manabase_mtg__card_search` appears only when running as a plugin — [Slice 7](./slices/TrackB-Slice7.md)
   verifies that form).
 - **Landed:** PR #6 (`0001115`). The compact description held — five lines naming the operator
   families and the pagination contract, with the deep syntax teaching left to [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft). That is a
   bet, not a result: [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
-  stays open until Slice 9 measures whether the split works.
+  stays open until [Slice 9](./slices/TrackB-Slice9.md) measures whether the split works.
 - **One protocol-level error survives by design:** an unknown tool name throws. That is harness
   misuse rather than a query the model should retry, so it is the single deliberate exception to
   [D-10](./MCP-PRD.md#d-10--tool-handlers-never-throw) — every *query* failure is still a structured result.
@@ -250,7 +250,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   - ☑ `MCP-PRD.md` [§9](./MCP-PRD.md#9-revision-log) has the revision-log row.
 - **Binding refs:** [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance criteria; `MCP-PRD.md` [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance), [§9](./MCP-PRD.md#9-revision-log).
 - **Landed:** PR #7 (`14eadc1`). 13 of 13 checks pass, exit 0; full record in
-  `docs/slices/TrackA-Slice6-results.md`. Criteria 2–9 are live; criteria 1, 10, 11 and 12 are
+  [`docs/slices/TrackA-Slice6-results.md`](./slices/TrackA-Slice6-results.md). Criteria 2–9 are live; criteria 1, 10, 11 and 12 are
   unit-level by design — the last of those because provoking a real 429 is forbidden by
   [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance).
 - **Two upstream drifts found, neither requiring a code change**, both now recorded in
@@ -260,7 +260,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   `function:removal` 6,386→6,405; `art:squirrel` 192→194).
 
 **Track A is closed.** The server delivers [CAP-01](./MCP-PRD.md#cap-01--card-search) and nothing
-downstream is blocked on it: Slices 7 and 8 were waiting on Slices 5 and 3 respectively, and both
+downstream is blocked on it: Slices [7](./slices/TrackB-Slice7.md) and [8](./slices/TrackB-Slice8.md) were waiting on Slices [5](./slices/TrackA-Slice5.md) and [3](./slices/TrackA-Slice3.md) respectively, and both
 gates are open.
 
 ---
@@ -290,7 +290,7 @@ gates are open.
   - ☐ `claude plugin validate . --strict` passes (criterion 9). **Left unticked deliberately:**
     it fails on the single warning that is [P-08](./PLUGIN-PRD.md#p-08--version-scheme)'s
     deliberate unset `version`, so the criterion and the decision are in conflict until the
-    Slice 13 switchover. Re-run there.
+    [Slice 13](./slices/TrackC-Slice13.md) switchover. Re-run there.
 - **Binding refs:** [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) acceptance criteria; [P-06](./PLUGIN-PRD.md#p-06--cached-data-lives-in-the-plugin-data-directory), [P-08](./PLUGIN-PRD.md#p-08--version-scheme), [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key), [P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1);
   `PLUGIN-PRD.md` [§4.2](./PLUGIN-PRD.md#42-marketplace-and-install-path).
 - **Watch out:** never demonstrate or document the raw-URL marketplace add — it downloads
@@ -298,14 +298,14 @@ gates are open.
 - **Landed:** two PRs, as the slice's deliverable is the record rather than the code. PR #13
   (`77b7e83`) carried the `OWNER` fix mid-slice, so the update loop had a real commit to
   observe; PR #14 (`9cb1854`) carried the closeout, whose centerpiece is
-  `docs/slices/TrackB-Slice7-results.md`. Six of seven done-when boxes ticked from a **cold**
+  [`docs/slices/TrackB-Slice7-results.md`](./slices/TrackB-Slice7-results.md). Six of seven done-when boxes ticked from a **cold**
   profile — the install genuinely worked in two commands with no restart and no configuration
   prompt, which had never been observed before. The half worth carrying forward is the update
   loop: [P-08](./PLUGIN-PRD.md#p-08--version-scheme)'s SHA fallback resolved live, and
   `/plugin update` picked up a pushed commit **without** a prior marketplace refresh — the
   operational detail [`PLUGIN-PRD.md` §4.3](./PLUGIN-PRD.md#43-versioning-and-updates) leaves
   unstated, and the thing that makes "every commit is an update" true in practice today. All of
-  it inverts at Slice 13.
+  it inverts at [Slice 13](./slices/TrackC-Slice13.md).
 - **Four findings the spec did not predict**, all in the results doc's Drift section: the
   resolved version is a **12-character** abbreviated SHA, not the 40-character form assumed by
   this slice's own acceptance criteria; the installed plugin root contains a **fetched
@@ -320,7 +320,7 @@ gates are open.
 #### Slice 8 — [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring
 
 - **Goal:** the query-craft skill written, satisfying [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s static criteria 1–4. Can start
-  as soon as Slice 3 fixes the tool's shape.
+  as soon as [Slice 3](./slices/TrackA-Slice3.md) fixes the tool's shape.
 - **Work:**
   - `skills/scryfall-query-craft/SKILL.md`, body targeting ≤2,000 tokens: the
     English-request-to-query strategy, high-frequency operators, the failure loop (read
@@ -392,6 +392,11 @@ gates are open.
   (**recommended** — it catches every path including a friend's PR, and relies on no local
   hook discipline; the alternatives [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) lists are a pre-commit hook or folding the build
   into `claude plugin tag`). Record the decision in `PLUGIN-PRD.md` [§7](./PLUGIN-PRD.md#7-open-questions) (close [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)) and [§9](./PLUGIN-PRD.md#9-revision-log).
+  - **Also add a doc-link checker to the same CI workflow** — `scripts/check-doc-links.mjs`,
+    run as `npm run lint:docs`: extract every `](…#anchor)`, slug every heading, diff the two
+    sets. It is read-only, so CRLF is not at risk. It must **implement** GitHub's slug rules
+    (em dash → doubled hyphen, backticks stripped, duplicate-heading `-1` suffixes), not
+    approximate them; an approximation reports false failures on the anchors already in use.
 - **Done when:**
   - ☐ A push with stale `dist/` fails the check, demonstrated once deliberately.
   - ☐ [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in the PRD.
@@ -418,7 +423,7 @@ gates are open.
 #### Slice 13 — Release gate: the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover
 
 - **Goal:** declare the plugin public. This is a phase boundary, not a task inside Phase 1 —
-  it happens when Slices 1–12 are done and stable, not merely done.
+  it happens when Slices [1](./slices/TrackA-Slice1.md)–[12](./slices/TrackC-Slice12.md) are done and stable, not merely done.
 - **Work:**
   - Set explicit semver in `plugin.json` — and **only** there, never also in the marketplace
     entry (`plugin.json` wins silently, [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates)).
@@ -426,7 +431,7 @@ gates are open.
   - Verify the changed update semantics: a push without a version bump ships nothing — now
     correct behavior, previously wrong ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)).
   - **Re-run `claude plugin validate . --strict` and expect a clean pass.** It fails today on
-    the deliberate unset `version`, which is why Slice 7 left
+    the deliberate unset `version`, which is why [Slice 7](./slices/TrackB-Slice7.md) left
     [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 unticked; setting semver here
     is what resolves the conflict.
   - Decide [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) (community-marketplace submission) explicitly, or record it as deliberately
@@ -435,7 +440,7 @@ gates are open.
 - **Done when:**
   - ☐ Version set, tag pushed, update semantics verified.
   - ☐ `claude plugin validate . --strict` passes cleanly, closing out
-    [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 (left unticked by Slice 7).
+    [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 (left unticked by [Slice 7](./slices/TrackB-Slice7.md)).
   - ☐ `PLUGIN-PRD.md` [§9](./PLUGIN-PRD.md#9-revision-log) records the switchover; [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) has an explicit disposition.
 - **Binding refs:** [P-08](./PLUGIN-PRD.md#p-08--version-scheme), `PLUGIN-PRD.md` [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates), [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable); `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript).
 
@@ -456,17 +461,17 @@ graph LR
   S11 --> S13
 ```
 
-The critical path is 1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13. Slice 8 (skill authoring) is the
-main parallelism opportunity — it needs only Slice 3's tool shape. Slice 11 (CI) can land any
-time after Slice 1 produces a real build.
+The critical path is 1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13. [Slice 8](./slices/TrackB-Slice8.md) (skill authoring) is the
+main parallelism opportunity — it needs only [Slice 3](./slices/TrackA-Slice3.md)'s tool shape. [Slice 11](./slices/TrackC-Slice11.md) (CI) can land any
+time after [Slice 1](./slices/TrackA-Slice1.md) produces a real build.
 
-**As of 2026-08-04, Slices 1–7 are done and the next item on the critical path is Slice 9**,
-which needs Slice 8. Two slices are unblocked and can run in parallel: **8** (`SKILL.md`, needed
-only Slice 3) and **11** (`dist/` CI check, needed only Slice 1 — and now more urgent than when
+**As of 2026-08-04, Slices [1](./slices/TrackA-Slice1.md)–[7](./slices/TrackB-Slice7.md) are done and the next item on the critical path is [Slice 9](./slices/TrackB-Slice9.md)**,
+which needs [Slice 8](./slices/TrackB-Slice8.md). Two slices are unblocked and can run in parallel: **[8](./slices/TrackB-Slice8.md)** (`SKILL.md`, needed
+only [Slice 3](./slices/TrackA-Slice3.md)) and **[11](./slices/TrackC-Slice11.md)** (`dist/` CI check, needed only [Slice 1](./slices/TrackA-Slice1.md) — and now more urgent than when
 it was scheduled, because `dist/index.js` is real committed build output that can silently drift
-from `src/`; Slice 7 hit the CRLF false-alarm form of exactly that). Slice 10 (context cost) is
-also unblocked now that Slice 7 has landed, but it should wait for Slice 8: a baseline measured
-before `SKILL.md` exists is one Slice 8 immediately invalidates.
+from `src/`; [Slice 7](./slices/TrackB-Slice7.md) hit the CRLF false-alarm form of exactly that). [Slice 10](./slices/TrackC-Slice10.md) (context cost) is
+also unblocked now that [Slice 7](./slices/TrackB-Slice7.md) has landed, but it should wait for [Slice 8](./slices/TrackB-Slice8.md): a baseline measured
+before `SKILL.md` exists is one [Slice 8](./slices/TrackB-Slice8.md) immediately invalidates.
 
 ## 6. Beyond Phase 1 — queued slice packs
 

@@ -170,7 +170,8 @@ failure.
 
 ## Editing the docs
 
-The three documents are densely cross-linked (`657` internal links) using GitHub heading anchors:
+The three documents are densely cross-linked (`724` internal links, `673` of them to a heading
+anchor; measured 2026-08-04) using GitHub heading anchors:
 same-file as `#anchor`, cross-file as `./MCP-PRD.md#anchor`. **Renaming a heading breaks every
 link pointing at it.** If you rename one or add links in bulk, verify the anchors resolve rather
 than assuming — the slug rules are unforgiving (em dashes become a doubled hyphen, e.g.
