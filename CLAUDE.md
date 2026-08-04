@@ -40,7 +40,7 @@ holds the planning prompts that generated the PRDs.
 ```
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
-npm test            # node --experimental-strip-types --test  (67 tests, 19 suites)
+npm test            # node --experimental-strip-types --test  (73 tests, 21 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 ```
 
@@ -105,6 +105,13 @@ resolve. Always `owner/repo`.
 
 **Skills carry instructions, never card facts** (PLUGIN-PRD §3.6). No oracle text, prices,
 legality, or combo claims asserted in a skill — those are reached by calling the server.
+
+**Skill frontmatter is YAML, so quote any value containing a colon-space.** An unquoted YAML
+plain scalar cannot contain `": "` — `description: Magic: The Gathering …` does not parse, and a
+skill whose frontmatter fails to parse is dropped with no error on any surface. `/reload-plugins`
+reports `0 skills` in the working state too, so its count proves nothing; the session skill
+listing is the only signal. `npm test` now parses every `skills/**/SKILL.md` and is the check
+that catches this.
 
 **Only `plugin.json` and `marketplace.json` live in `.claude-plugin/`.** Component directories
 (`skills/`, etc.) sit at the repo root; a component placed inside `.claude-plugin/` silently fails
