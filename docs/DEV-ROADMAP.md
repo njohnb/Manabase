@@ -36,14 +36,20 @@ verified, nine of them live against real Scryfall ([`docs/slices/TrackA-Slice6-r
 marketplace, on a cold profile, and six of
 [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s ten acceptance criteria (1, 2, 3, 4, 6, 7)
 are verified against a real harness, with criterion 9 explicitly not met — see
-[`docs/slices/TrackB-Slice7-results.md`](./slices/TrackB-Slice7-results.md). What remains: `SKILL.md` is still unwritten and no
-context-cost measurement has been taken, so every
-[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) acceptance criterion, and
-[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5, 8 and 10, are still unverified.
+[`docs/slices/TrackB-Slice7-results.md`](./slices/TrackB-Slice7-results.md). [Slice 8](./slices/TrackB-Slice8.md) landed 2026-08-04 as PR #19
+(`ab51393`): `SKILL.md` and its two `reference/` files are written, and
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s static criteria 1, 3 and 4 are verified —
+764 of 1,536 listing characters, 2,169 of 5,000 body tokens, and a no-card-facts review run by a
+fresh reviewer with no authoring context, zero flags
+([`docs/slices/TrackB-Slice8-results.md`](./slices/TrackB-Slice8-results.md)). What remains: no
+context-cost measurement has been taken and no behavioral eval has been run, so
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2 ([Slice 10](./slices/TrackC-Slice10.md)) and its criteria 5–13
+([Slice 9](./slices/TrackB-Slice9.md)) are still unverified, as are
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5, 8 and 10.
 
 | Area | State |
 |---|---|
-| Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory is still an empty placeholder ([Slice 8](./slices/TrackB-Slice8.md)) |
+| Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
 | Toolchain | `package.json` with `esbuild` bundle build, `tsc --noEmit` typecheck, `node --experimental-strip-types --test` (flag and quoted glob both required — [Slice 7](./slices/TrackB-Slice7.md) drift finding 4, fixed 2026-08-04); MCP SDK `^1.30.0` as a devDependency |
 | `plugin.json` | present; **no `version`** ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)), **no `userConfig`** ([P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)), Fan Content disclaimer in `description` ([§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)) |
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
@@ -53,7 +59,7 @@ context-cost measurement has been taken, so every
 | Tests | 19 suites, **67 tests, 67 passing**; `tsc --noEmit` clean — re-run 2026-08-04 |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
-| `SKILL.md` | **not written** — [Slice 8](./slices/TrackB-Slice8.md) |
+| `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts |
 
 Two properties of the existing scaffold worth preserving on purpose:
 
@@ -91,7 +97,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 5 | Tool registration & wiring | A — server | ☑ PR #6 |
 | 6 | Live [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance pass | A — server | ☑ PR #7 |
 | 7 | Plugin install verification | B — plugin | ☑ PRs #13, #14 |
-| 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☐ |
+| 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☑ PR #19 |
 | 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☐ |
 | 10 | Context-cost measurement | C — release | ☐ |
 | 11 | `dist/` honesty mechanism | C — release | ☐ |
@@ -341,11 +347,21 @@ gates are open.
     plain Magic questions that never say "Scryfall."
   - Tool references use the scoped name form ([P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)).
 - **Done when (static criteria):**
-  - ☐ `description` + `when_to_use` ≤1,536 characters (criterion 1).
-  - ☐ `SKILL.md` renders ≤5,000 tokens so compaction re-attach keeps the whole body
+  - ☑ `description` + `when_to_use` ≤1,536 characters (criterion 1).
+  - ☑ `SKILL.md` renders ≤5,000 tokens so compaction re-attach keeps the whole body
     (criterion 3).
-  - ☐ A review of the files finds **no card facts** — no oracle text, prices, legality, or
+  - ☑ A review of the files finds **no card facts** — no oracle text, prices, legality, or
     combo claims asserted as fact (criterion 4, [§3.6](./PLUGIN-PRD.md#36-skills-carry-instructions-never-facts)).
+- **Landed:** PR #19 (`ab51393`). Measured 764 of 1,536 characters and 2,169 of 5,000 tokens
+  (Anthropic `count_tokens`, model id recorded); the card-fact review was a fresh
+  no-authoring-context subagent and returned zero flags. Full record in
+  [`docs/slices/TrackB-Slice8-results.md`](./slices/TrackB-Slice8-results.md), including the
+  finding that shaped the failure-loop teaching: Scryfall **silently drops** an invalid term
+  whenever at least one valid term remains — the "All of your terms were ignored." 400 fires
+  only when every term is invalid, so a hallucinated operator yields an ordinary-looking result
+  computed from fewer constraints, with no signal. Behavioral criteria 5–13 remain
+  [Slice 9](./slices/TrackB-Slice9.md)'s; the ≤250-token always-on measurement remains
+  [Slice 10](./slices/TrackC-Slice10.md)'s.
 - **Binding refs:** [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) behavior and criteria 1–4; `PLUGIN-PRD.md` [§3.1](./PLUGIN-PRD.md#31-context-budget), [§3.6](./PLUGIN-PRD.md#36-skills-carry-instructions-never-facts), [§4.1](./PLUGIN-PRD.md#41-harness-features-relied-on).
 - **Watch out:** bulk belongs in the reference files. A body past ~5,000 tokens silently
   loses its tail at the first compaction — the failure mode is invisible.
@@ -473,13 +489,13 @@ The critical path is 1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13. [Slice
 main parallelism opportunity — it needs only [Slice 3](./slices/TrackA-Slice3.md)'s tool shape. [Slice 11](./slices/TrackC-Slice11.md) (CI) can land any
 time after [Slice 1](./slices/TrackA-Slice1.md) produces a real build.
 
-**As of 2026-08-04, Slices [1](./slices/TrackA-Slice1.md)–[7](./slices/TrackB-Slice7.md) are done and the next item on the critical path is [Slice 9](./slices/TrackB-Slice9.md)**,
-which needs [Slice 8](./slices/TrackB-Slice8.md). Two slices are unblocked and can run in parallel: **[8](./slices/TrackB-Slice8.md)** (`SKILL.md`, needed
-only [Slice 3](./slices/TrackA-Slice3.md)) and **[11](./slices/TrackC-Slice11.md)** (`dist/` CI check, needed only [Slice 1](./slices/TrackA-Slice1.md) — and now more urgent than when
-it was scheduled, because `dist/index.js` is real committed build output that can silently drift
-from `src/`; [Slice 7](./slices/TrackB-Slice7.md) hit the CRLF false-alarm form of exactly that). [Slice 10](./slices/TrackC-Slice10.md) (context cost) is
-also unblocked now that [Slice 7](./slices/TrackB-Slice7.md) has landed, but it should wait for [Slice 8](./slices/TrackB-Slice8.md): a baseline measured
-before `SKILL.md` exists is one [Slice 8](./slices/TrackB-Slice8.md) immediately invalidates.
+**As of 2026-08-04, Slices [1](./slices/TrackA-Slice1.md)–[8](./slices/TrackB-Slice8.md) are done and the next item on the critical path is [Slice 9](./slices/TrackB-Slice9.md)**,
+whose two prerequisites — [7](./slices/TrackB-Slice7.md) and [8](./slices/TrackB-Slice8.md) — have both landed, so it is now unblocked. Three slices can
+run in parallel: **[9](./slices/TrackB-Slice9.md)** (evals), **[11](./slices/TrackC-Slice11.md)** (`dist/` CI check, needed only [Slice 1](./slices/TrackA-Slice1.md) — and now more
+urgent than when it was scheduled, because `dist/index.js` is real committed build output that can
+silently drift from `src/`; [Slice 7](./slices/TrackB-Slice7.md) hit the CRLF false-alarm form of exactly that), and
+**[10](./slices/TrackC-Slice10.md)** (context cost), whose reason to wait is now spent: `SKILL.md` exists, so a baseline
+measured today is no longer one [Slice 8](./slices/TrackB-Slice8.md) immediately invalidates.
 
 ## 6. Beyond Phase 1 — queued slice packs
 

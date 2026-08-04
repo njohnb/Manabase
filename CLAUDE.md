@@ -147,13 +147,24 @@ deliberately not met — `claude plugin validate . --strict` fails on the one wa
 `P-08`'s unset `version`, so it stays open until Slice 13. Evidence:
 `docs/slices/TrackB-Slice7-results.md`.
 
-Track C has not started, and the rest of what a user installs is still missing.
-`skills/scryfall-query-craft/SKILL.md` is unwritten and no context-cost measurement exists — so
-every `PC-01` criterion, and `PC-02`'s criteria 5, 8 and 10, are still unverified.
+Slice 8 (skill authoring) landed 2026-08-04 as PR #19: `skills/scryfall-query-craft/SKILL.md` and
+its `reference/operators.md` and `reference/recipes.md` are written, and `PC-01`'s static criteria
+1, 3 and 4 are verified — 764 of 1,536 listing characters, 2,169 of 5,000 body tokens, and a
+no-card-facts review by a fresh reviewer with no authoring context that returned zero flags.
+Evidence: `docs/slices/TrackB-Slice8-results.md`. That slice also verified live that **Scryfall
+silently drops an invalid term whenever at least one valid term remains** — the "All of your terms
+were ignored." 400 fires only when every term is invalid, so a hallucinated operator returns an
+ordinary-looking result computed from fewer constraints. The skill files teach that; never emit an
+operator you have not seen work.
 
-Next on the critical path is Slice 9 (evals), which needs Slice 8. Three slices are unblocked — 8,
-10 and 11 — but 10 should wait for 8, since a context baseline measured before `SKILL.md` exists is
-one Slice 8 immediately invalidates. `docs/DEV-ROADMAP.md` §5 has the graph.
+Track C has not started, and the rest of what a user installs is still unmeasured. No context-cost
+measurement exists and no behavioral eval has been run — so `PC-01`'s criterion 2 (Slice 10) and
+its criteria 5–13 (Slice 9), and `PC-02`'s criteria 5, 8 and 10, are still unverified.
+
+Next on the critical path is Slice 9 (evals), now unblocked since both its prerequisites — 7 and 8
+— have landed. Three slices are unblocked: 9, 10 and 11. Slice 10 no longer has a reason to wait,
+since `SKILL.md` now exists and a baseline measured today is not one Slice 8 invalidates.
+`docs/DEV-ROADMAP.md` §5 has the graph.
 
 ## Price handling — the three traps
 

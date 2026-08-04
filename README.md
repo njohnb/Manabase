@@ -14,8 +14,13 @@ The server half is done. `card_search` runs against live Scryfall, and all twelv
 The two commands below are now a verified path, not merely the intended one: the install was
 performed end to end on a machine that had never installed it, and the server was connected and
 answering in the same session (2026-08-04,
-[`docs/slices/TrackB-Slice7-results.md`](./docs/slices/TrackB-Slice7-results.md)). The plugin half
-is still incomplete — the query-craft skill is unwritten.
+[`docs/slices/TrackB-Slice7-results.md`](./docs/slices/TrackB-Slice7-results.md)). The
+query-craft skill is now written and passes its static checks — it fits the listing budget, fits
+the compaction window, and asserts no card facts (2026-08-04,
+[`docs/slices/TrackB-Slice8-results.md`](./docs/slices/TrackB-Slice8-results.md)). What is not yet
+done is measurement: nobody has measured what the plugin costs a session, and the skill has not
+been run through fresh-session evals, so
+[PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral criteria are unverified.
 [`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
 
 ## Requirements
@@ -49,8 +54,7 @@ Two commands. No config file to edit, no credential prompt, no restart.
   agents/doc-sync.md   dev-only doc reconciler — NOT a plugin component
 .mcp.json              bundled stdio MCP server, key `mtg` (P-09, P-12)
 skills/
-  scryfall-query-craft/  PC-01 — SKILL.md plus a reference/ file read on demand
-                         (placeholder — not written yet)
+  scryfall-query-craft/  PC-01 — SKILL.md plus reference/ files read on demand
 src/                   MCP server source (TypeScript)
 dist/                  committed build output — NOT gitignored (P-09)
 tests/                 handlers called as plain functions, no server (MCP-PRD D-03)
