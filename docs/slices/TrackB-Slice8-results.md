@@ -195,7 +195,8 @@ Run 2026-08-04, proving the tree is otherwise untouched:
   (Node 22.17 needs the strip-types flag, and the unquoted glob under-matches) whose fix already
   exists on the unmerged `fix/npm-test-node22` branch. Nothing in this slice touches it either
   way; the corrected invocation is that branch's, and the full-suite pass is the evidence this
-  criterion wants.
+  criterion wants. *(Dated addendum, later the same day: that fix branch has since merged, and
+  `npm test` itself now reports 67/67 on `main`.)*
 - `claude plugin validate .` — **passes** with the single known warning (`plugin.json` has no
   `version`); `--strict` fails on exactly that warning. This is the
   [Slice 7](./TrackB-Slice7-results.md) criterion 9 disposition, unchanged: the warning *is*
