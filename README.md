@@ -22,7 +22,7 @@ the intended path rather than a verified one. `docs/DEV-ROADMAP.md` tracks what 
 ## Install
 
 ```
-/plugin marketplace add <your-github-owner>/manabase
+/plugin marketplace add njohnb/Manabase
 /plugin install manabase@manabase
 ```
 
