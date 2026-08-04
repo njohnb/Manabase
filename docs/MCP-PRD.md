@@ -345,6 +345,26 @@ not a target. Drift of this size is normal and a future check should expect it.
 `illustrationtag:` is **not** a valid operator — returns HTTP 400, "All of your terms were
 ignored." **[verified, re-verified 2026-08-03]** Do not offer it.
 
+**Addendum — the 400 above is a single-term behavior, and the general case is worse.
+[verified 2026-08-04]** [Slice 8](./slices/TrackB-Slice8.md)'s operator verification
+([`docs/slices/TrackB-Slice8-results.md`](./slices/TrackB-Slice8-results.md)) probed
+`illustrationtag:` and a nonsense operator *inside otherwise-valid queries*, and Scryfall
+**silently drops an unrecognized term whenever at least one recognized term remains**:
+`t:creature illustrationtag:squirrel` returned HTTP 200 with a `total_cards` byte-identical to
+bare `t:creature`, with no warning, note, or diagnostic of any kind. The
+"All of your terms were ignored." 400 fires only when *every* term is invalid — which is why the
+row above, tested as a single-term query, saw it. Two consequences, both recorded there:
+
+- a hallucinated operator inside a real query produces an ordinary-looking result computed from
+  fewer constraints than were asked for, with no signal that a filter was dropped;
+- a 400 is a sound proof of an operator's non-existence **only for a single-term query**; any
+  multi-term probe must compare its count against the same query without the term under test.
+  Slice 8's log verified twelve further operators and four argument forms by exactly that
+  baseline-comparison method.
+
+The 2026-08-03 rows above are left as recorded — nothing in them is wrong, only narrower than
+they read: each was a single-term or all-valid query, where the behaviors coincide.
+
 **Critical architectural fact.** These operators are evaluated **server-side**. They are not
 fields on the card object and cannot be reproduced from bulk data without reimplementing
 Scryfall's query engine. This is the fact behind [D-07](#d-07--three-way-cache-split). **[verified]**
@@ -951,6 +971,7 @@ last ([D-09](#d-09--archidekt-writes-land-last)); other platforms are not queued
 | 2026-08-04 | **Added `delivered` to the [§5](#5-capabilities) capability-block `Status` vocabulary** and set [CAP-01](#cap-01--card-search) to it. The template is otherwise unchanged — this extends the status enum only, and no field was added, removed, or reordered. | The template's three states describe a capability's progress through *specification* and stop at the point where it gets built, so a delivered capability could only be recorded as `specified` — which reads as "not built yet" to exactly the future session the status field exists to inform. Extending the enum was preferred over adding a parallel field because a capability has one state, not a state plus a delivery flag. |
 | 2026-08-04 | **[CAP-01](#cap-01--card-search) recorded as delivered** across Track A Slices 1–6 (PRs #2–#7), and the research record reconciled against what the build found. [§4.1.1](#411-search-endpoint) gains a dated re-verification of the operator counts (the 2026-07-29 figures are kept, not overwritten). [§4.1.3](#413-price-fields--three-verified-traps) gains an addendum widening trap 3: the digital printing now wins a plain `/cards/search` rollup, not only `/cards/named`, and no paper Black Lotus printing carries USD any more. Opened **[OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists)** (EUR fallback). Recorded status notes on [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (compact description shipped, unmeasured) and [OQ-02](#oq-02--how-verbose-should-a-search-result-be) (default field set exists; `legalities` passes through untrimmed). | The build is the first thing to test this document's claims against reality, and it found two upstream data changes and one gap the spec did not anticipate. Recording drift as dated addenda rather than edits keeps [§4](#4-external-dependencies)'s "every claim is dated" property intact — a future session can see both what was true in July and what is true now. OQ-09 exists because the honest `no-price-data` answer for Black Lotus is correct against the spec and unsatisfying to a user, which is a specification question rather than a defect. |
 | 2026-08-03 | [CAP-01](#cap-01--card-search) live acceptance pass: criteria 1–12 verified (criteria 1, 10, 11, 12 at unit level; 2–9 live via `scripts/cap01-live.mjs`). Live totals: regex 1,555, `otag:ramp` 2,274, `function:removal` 6,405, `art:squirrel` 194. Drift from the 2026-07-29 research record: (a) `!"Black Lotus"` now returns the MTGO Vintage Masters printing by default rather than a paper printing — correctly reported as `digital-only`, not a bare no-price; (b) no paper Black Lotus printing carries a USD price any more (EUR only), so criterion 6's paper-price half is evidenced by a substitute `usd>=1 game:paper` probe. No code changes were required. Results: [`docs/slices/TrackA-Slice6-results.md`](./slices/TrackA-Slice6-results.md). | Track A [Slice 6](./slices/TrackA-Slice6.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)) — closes the server half of Phase 1. |
+| 2026-08-04 | **[§4.1.1](#411-search-endpoint) gains a dated addendum scoping the `illustrationtag:` 400**: Scryfall silently drops an unrecognized term whenever at least one recognized term remains, and the "All of your terms were ignored." 400 fires only when *every* term is invalid. Verified live during [Slice 8](./slices/TrackB-Slice8.md)'s operator verification ([`docs/slices/TrackB-Slice8-results.md`](./slices/TrackB-Slice8-results.md)), which also added twelve operators and four argument forms to the verified set by baseline comparison. The 2026-07-29 and 2026-08-03 records are kept — they were single-term or all-valid queries, where the two behaviors coincide. | The prior record read as "an invalid operator returns 400," which is true only in the single-term case; the general case is a silent wrong answer, which is the more dangerous behavior and the one [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s skill now teaches against. Appended as a dated addendum, not an overwrite, per [§4](#4-external-dependencies)'s every-claim-is-dated property. |
 | 2026-08-04 | Linkified this row's bare [CAP-01](#cap-01--card-search), slice, and document references, and backfilled [`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)'s bare `Slice N` prose mentions and results-document paths into markdown links down into [`docs/slices/`](./slices/). No row was added, removed, or reworded beyond adding link syntax. | The navigable-reference convention was real but unwritten, so it drifted; it is now a binding rule in `CLAUDE.md`, and this row was the one place in either PRD where it had already lapsed. **Presentation only — no decision was reopened, no rationale was reworded, and no ID changed.** |
 
 ---
