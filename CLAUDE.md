@@ -40,7 +40,7 @@ holds the planning prompts that generated the PRDs.
 ```
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
-npm test            # node --test tests/**/*.test.ts  (67 tests, 19 suites)
+npm test            # node --experimental-strip-types --test  (67 tests, 19 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 ```
 

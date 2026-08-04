@@ -75,9 +75,13 @@ fires ([`docs/PLUGIN-PRD.md` P-12](./docs/PLUGIN-PRD.md#p-12--plugin-name-and-se
 npm install
 npm run build       # esbuild bundle -> dist/index.js, self-contained
 npm run typecheck   # tsc --noEmit
-npm test            # node --test
+npm test            # node --test, with TypeScript stripped at runtime
 npm run acceptance  # 13 live checks against real Scryfall — slow on purpose
 ```
+
+The tests run `.ts` files directly, so **development needs Node 22.6 or newer** — that is where
+`--experimental-strip-types` landed. The published server has no such floor: it ships as the
+plain-JavaScript `dist/` bundle, which is why `engines` stays at `>=18.0.0`.
 
 `dist/` is committed and is what the plugin actually starts, so **rebuild it with every `src/`
 change**. A stale bundle does not error; the tools are simply absent. Keeping it honest
