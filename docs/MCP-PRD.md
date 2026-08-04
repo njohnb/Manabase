@@ -648,7 +648,7 @@ Reproduce this schema for every new capability. Do not modify it.
 
 ```
 ### CAP-0N — <short name>
-- **Status:** proposed | specified | deferred
+- **Status:** proposed | specified | deferred | delivered
 - **Phase:** N | unassigned
 - **User need:** one or two sentences in my voice, not feature language
 - **Behavior:** precise enough to build against
@@ -665,7 +665,7 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
 
 ### CAP-01 — Card search
 
-- **Status:** specified
+- **Status:** delivered (2026-08-03)
 - **Phase:** 1
 - **User need:** I want to ask for cards in plain English and have Claude turn that into a
   real Scryfall query — including the parts I'd never type myself, like regex and the Tagger
@@ -734,9 +734,10 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
 - **Delivery note (2026-08-03).** All twelve acceptance criteria are verified: 2–9 live against
   Scryfall, and 1, 10, 11, 12 at unit level. Criterion 12 is unit-level permanently — provoking
   a real 429 to observe it is what [§3.4](#34-rate-limits-are-hard-constraints-not-guidance)
-  forbids. The **Status** field above is left at `specified` because the [§5](#5-capabilities)
-  template offers no delivered state; [§6](#6-phases) and [§9](#9-revision-log) carry the
-  delivery record.
+  forbids. `delivered` means the criteria as written are met, not that the capability is
+  finished: [OQ-02](#oq-02--how-verbose-should-a-search-result-be) and
+  [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) are both
+  live against this block.
 
 ---
 
@@ -947,6 +948,7 @@ last ([D-09](#d-09--archidekt-writes-land-last)); other platforms are not queued
 | 2026-07-29 | Recorded three verified price-field traps and made price correctness an explicit part of [CAP-01](#cap-01--card-search) rather than a later refinement ([§4.1.3](#413-price-fields--three-verified-traps), [CAP-01](#cap-01--card-search) criteria 4–7). | `usd` is null for 7,599 foil-only cards, `eur_etched` does not exist despite being documented, and `/cards/named` can return a digital printing with all paper prices null. Each would silently produce wrong output, so each became an acceptance criterion. |
 | 2026-07-29 | Recorded that Archidekt masks non-public decks as HTTP 404, indistinguishable from deleted ([§4.5](#45-archidekt), [§3.6](#36-error-surface)). | Verified against a real private deck ID. Constrains error messaging for the queued deck-reading capability: it cannot claim which cause applies. |
 | 2026-07-30 | [§2](#2-locked-decisions) converted from a single table to an index table plus one `###` heading per decision ([D-01](#d-01--distribution-local-package-over-stdio)–[D-12](#d-12--no-npm-archidekt-dependency)); [§7](#7-open-questions) open questions promoted from bold leads to `###` headings; every internal `§` and ID reference converted to a markdown link. | Navigation. Several hundred references were bare text that resolved nowhere on any surface, and [§2](#2-locked-decisions)'s paragraph-length table cells were the least readable part of the document. GitHub emits no anchor for a table cell, so the decisions had no link targets until they became headings. **Presentation only — no decision was reopened, no rationale was reworded, and no ID changed.** Recorded so a future session does not read the restructure as a substantive edit. |
+| 2026-08-04 | **Added `delivered` to the [§5](#5-capabilities) capability-block `Status` vocabulary** and set [CAP-01](#cap-01--card-search) to it. The template is otherwise unchanged — this extends the status enum only, and no field was added, removed, or reordered. | The template's three states describe a capability's progress through *specification* and stop at the point where it gets built, so a delivered capability could only be recorded as `specified` — which reads as "not built yet" to exactly the future session the status field exists to inform. Extending the enum was preferred over adding a parallel field because a capability has one state, not a state plus a delivery flag. |
 | 2026-08-04 | **[CAP-01](#cap-01--card-search) recorded as delivered** across Track A Slices 1–6 (PRs #2–#7), and the research record reconciled against what the build found. [§4.1.1](#411-search-endpoint) gains a dated re-verification of the operator counts (the 2026-07-29 figures are kept, not overwritten). [§4.1.3](#413-price-fields--three-verified-traps) gains an addendum widening trap 3: the digital printing now wins a plain `/cards/search` rollup, not only `/cards/named`, and no paper Black Lotus printing carries USD any more. Opened **[OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists)** (EUR fallback). Recorded status notes on [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (compact description shipped, unmeasured) and [OQ-02](#oq-02--how-verbose-should-a-search-result-be) (default field set exists; `legalities` passes through untrimmed). | The build is the first thing to test this document's claims against reality, and it found two upstream data changes and one gap the spec did not anticipate. Recording drift as dated addenda rather than edits keeps [§4](#4-external-dependencies)'s "every claim is dated" property intact — a future session can see both what was true in July and what is true now. OQ-09 exists because the honest `no-price-data` answer for Black Lotus is correct against the spec and unsatisfying to a user, which is a specification question rather than a defect. |
 | 2026-08-03 | CAP-01 live acceptance pass: criteria 1–12 verified (criteria 1, 10, 11, 12 at unit level; 2–9 live via `scripts/cap01-live.mjs`). Live totals: regex 1,555, `otag:ramp` 2,274, `function:removal` 6,405, `art:squirrel` 194. Drift from the 2026-07-29 research record: (a) `!"Black Lotus"` now returns the MTGO Vintage Masters printing by default rather than a paper printing — correctly reported as `digital-only`, not a bare no-price; (b) no paper Black Lotus printing carries a USD price any more (EUR only), so criterion 6's paper-price half is evidenced by a substitute `usd>=1 game:paper` probe. No code changes were required. Results: `docs/slices/TrackA-Slice6-results.md`. | Track A Slice 6 (`docs/DEV-ROADMAP.md`) — closes the server half of Phase 1. |
 
