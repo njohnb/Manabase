@@ -17,7 +17,7 @@ export function resolveConfig(
   env: Record<string, string | undefined>,
   platform?: string, // defaults to process.platform; injectable for tests
 ): Config {
-  const userAgent = `manabase-mtg/${APP_VERSION} (+https://github.com/OWNER/manabase)`;
+  const userAgent = `manabase-mtg/${APP_VERSION} (+https://github.com/njohnb/manabase)`;
   const scryfallBaseUrl = "https://api.scryfall.com";
 
   return {
