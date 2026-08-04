@@ -176,8 +176,39 @@ link pointing at it.** If you rename one or add links in bulk, verify the anchor
 than assuming — the slug rules are unforgiving (em dashes become a doubled hyphen, e.g.
 `#d-01--distribution-local-package-over-stdio`).
 
+**Every reference inside `docs/` is navigable.** A `§`, an ID (`D-`, `P-`, `CAP-`, `PC-`, `OQ-`,
+`PQ-`), a slice number, or a repo path mentioned in prose is a markdown link to the thing it names
+— same-file `#anchor`, cross-file `./MCP-PRD.md#anchor`, and a slice always to its spec,
+`[Slice 8](./slices/TrackB-Slice8.md)` (`./TrackB-Slice8.md` from inside `docs/slices/`). Backticks
+are not a link. Adding a reference and linking it are the same edit, never a follow-up. Two
+carve-outs and no others: fenced code blocks, and `docs/prompts/**`, which are verbatim historical
+artifacts carrying zero links by design.
+
 A few `§` references are deliberately left unlinked where the sentence means "the owning PRD" or
-"both PRDs" — linking them would assert a specific document and be wrong. Leave them bare.
+"both PRDs" — linking them would assert a specific document and be wrong. Leave them bare. That
+carve-out covers a bare `§` and nothing else — an ID, a slice number, or a path always names one
+file and is always linked.
+
+## Closing out a slice
+
+**A slice is not finished until the documents say so — dispatch the `doc-sync` subagent as the
+final step.** When a slice or plan completes and its own artifacts are written, launch `doc-sync`
+(`.claude/agents/doc-sync.md`) before reporting back. Hand it the slice or plan identifier, the
+commits or PRs, which acceptance criteria are now verified and with what evidence, and any open
+question the work resolved. It reconciles `docs/DEV-ROADMAP.md`, `docs/MCP-PRD.md`,
+`docs/PLUGIN-PRD.md`, this file, and `README.md`.
+
+**It appends and updates status; it decides nothing.** It may not edit §2 or §3 of either PRD, may
+not rewrite §4, and may not rename a heading or change an ID. Where the work implies a change only
+a locked section can express, it stops and reports — that is the session's call with the user.
+
+**Dispatch it even when you believe nothing changed, and review its diff before committing.** The
+failure this prevents is a verified criterion surviving only in a transcript; the second is a
+subagent's plausible paraphrase landing unread in a binding document.
+
+`.claude/` is dev-only config, not a plugin component surface — the agent lives there deliberately.
+A subagent under a root `agents/` would install into every user's harness
+([`P-07`](./docs/PLUGIN-PRD.md#p-07--skills-not-commands)).
 
 ## Environment
 

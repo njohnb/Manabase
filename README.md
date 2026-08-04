@@ -41,6 +41,8 @@ Two commands. No config file to edit, no credential prompt, no restart.
 .claude-plugin/
   plugin.json          plugin manifest — the only file that lives in .claude-plugin/
   marketplace.json     this repo is its own marketplace (P-11)
+.claude/
+  agents/doc-sync.md   dev-only doc reconciler — NOT a plugin component
 .mcp.json              bundled stdio MCP server, key `mtg` (P-09, P-12)
 skills/
   scryfall-query-craft/  PC-01 — SKILL.md plus a reference/ file read on demand
