@@ -1,0 +1,36 @@
+{
+  "object": "card",
+  "id": "d47e2a19-6f38-4c0b-a5d2-9b1e3f7c8a05",
+  "name": "Fblthp, the Lost",
+  "mana_cost": "{2}{U}",
+  "cmc": 3.0,
+  "type_line": "Legendary Creature — Homunculus",
+  "oracle_text": "When this creature enters, draw a card. If you cast it from your hand, shuffle it into your library instead.",
+  "colors": ["U"],
+  "color_identity": ["U"],
+  "power": "1",
+  "toughness": "1",
+  "rarity": "rare",
+  "set": "ymid",
+  "set_name": "Alchemy: Innistrad",
+  "digital": true,
+  "games": ["arena"],
+  "legalities": {
+    "standard": "not_legal",
+    "pioneer": "not_legal",
+    "modern": "not_legal",
+    "legacy": "not_legal",
+    "vintage": "not_legal",
+    "commander": "not_legal",
+    "pauper": "not_legal",
+    "brawl": "legal"
+  },
+  "prices": {
+    "usd": null,
+    "usd_foil": null,
+    "usd_etched": null,
+    "eur": null,
+    "eur_foil": null,
+    "tix": null
+  }
+}

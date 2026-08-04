@@ -1,0 +1,34 @@
+{
+  "object": "card",
+  "id": "c81b4f60-9a2d-4e15-b0c7-5d3a8f2e6b14",
+  "name": "Jeweled Lotus",
+  "mana_cost": "{0}",
+  "cmc": 0.0,
+  "type_line": "Legendary Artifact",
+  "oracle_text": "{T}, Sacrifice this artifact: Add three mana of any one color. Spend this mana only to cast your commander.",
+  "colors": [],
+  "color_identity": [],
+  "rarity": "mythic",
+  "set": "cmr",
+  "set_name": "Commander Legends",
+  "digital": false,
+  "games": ["paper"],
+  "legalities": {
+    "standard": "not_legal",
+    "pioneer": "not_legal",
+    "modern": "not_legal",
+    "legacy": "legal",
+    "vintage": "legal",
+    "commander": "banned",
+    "pauper": "not_legal",
+    "brawl": "not_legal"
+  },
+  "prices": {
+    "usd": null,
+    "usd_foil": null,
+    "usd_etched": "5.42",
+    "eur": null,
+    "eur_foil": null,
+    "tix": null
+  }
+}
