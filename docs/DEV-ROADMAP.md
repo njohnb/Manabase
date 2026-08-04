@@ -90,7 +90,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 4 | Price correctness | A — server | ☑ PR #5 |
 | 5 | Tool registration & wiring | A — server | ☑ PR #6 |
 | 6 | Live [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance pass | A — server | ☑ PR #7 |
-| 7 | Plugin install verification | B — plugin | ☑ PR #13 |
+| 7 | Plugin install verification | B — plugin | ☑ PRs #13, #14 |
 | 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☐ |
 | 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☐ |
 | 10 | Context-cost measurement | C — release | ☐ |
@@ -295,7 +295,9 @@ gates are open.
   `PLUGIN-PRD.md` [§4.2](./PLUGIN-PRD.md#42-marketplace-and-install-path).
 - **Watch out:** never demonstrate or document the raw-URL marketplace add — it downloads
   only `marketplace.json` and the relative source silently fails to resolve ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)'s trap).
-- **Landed:** PR #13 (`77b7e83`) carried the `OWNER` fix; the record is
+- **Landed:** two PRs, as the slice's deliverable is the record rather than the code. PR #13
+  (`77b7e83`) carried the `OWNER` fix mid-slice, so the update loop had a real commit to
+  observe; PR #14 (`9cb1854`) carried the closeout, whose centerpiece is
   `docs/slices/TrackB-Slice7-results.md`. Six of seven done-when boxes ticked from a **cold**
   profile — the install genuinely worked in two commands with no restart and no configuration
   prompt, which had never been observed before. The half worth carrying forward is the update
