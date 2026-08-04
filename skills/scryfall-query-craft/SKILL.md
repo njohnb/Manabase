@@ -1,7 +1,7 @@
 ---
 name: scryfall-query-craft
-description: Turn a plain-English Magic: The Gathering card request — cheap green ramp legal in my commander deck, creatures that make a token when they die, cards with squirrel art, budget removal under a dollar — into one precise card search, and read the results back accurately.
-when_to_use: Use whenever someone wants Magic cards matching conditions rather than naming one card they already know: deckbuilding for commander/EDH, standard, modern, pauper or any format; filtering by color, color identity, mana value, card type, keyword, power/toughness, rarity, set, or a price ceiling; finding cards by what they do or by a pattern in their rules text; artwork requests; checking what a card is allowed in. Also use when a card search came back empty, far too broad, or with an error.
+description: "Turn a plain-English Magic: The Gathering card request — cheap green ramp legal in my commander deck, creatures that make a token when they die, cards with squirrel art, budget removal under a dollar — into one precise card search, and read the results back accurately."
+when_to_use: "Use whenever someone wants Magic cards matching conditions rather than naming one card they already know: deckbuilding for commander/EDH, standard, modern, pauper or any format; filtering by color, color identity, mana value, card type, keyword, power/toughness, rarity, set, or a price ceiling; finding cards by what they do or by a pattern in their rules text; artwork requests; checking what a card is allowed in. Also use when a card search came back empty, far too broad, or with an error."
 ---
 
 # Writing card searches
