@@ -64,11 +64,16 @@ One `Edit` call per occurrence. `Bash` is **read-only** here: `git status`, `git
 
 ## Every reference you write is a link
 
-Per `CLAUDE.md`'s `## Editing the docs`: a `§`, an ID, a slice number, or a repo path in prose is a
-markdown link to the thing it names. **Derive the anchor by grepping the target file's headings and
-slugging it — never guess.** The slug rules are unforgiving: lowercase, non-alphanumerics stripped,
-spaces to hyphens, and a space-delimited em dash yields a *doubled* hyphen
-(`#d-01--distribution-local-package-over-stdio`).
+Per `CLAUDE.md`'s `## Editing the docs`: in `docs/` and `README.md`, a `§`, an ID, a slice number,
+or a repo path in prose is a markdown link to the thing it names. **Derive the anchor by grepping
+the target file's headings and slugging it — never guess.** The slug rules are unforgiving:
+lowercase, non-alphanumerics stripped, spaces to hyphens, and a space-delimited em dash yields a
+*doubled* hyphen (`#d-01--distribution-local-package-over-stdio`).
+
+**`CLAUDE.md` is the exception — cite by ID there and do not link.** It is loaded whole into every
+session, so link syntax is always-on context cost paid against a reader that greps. Writing links
+into it is a defect, not a courtesy. `skills/` is likewise off-limits for links out of the skill
+directory: `../` paths break after install.
 
 ## Before reporting
 

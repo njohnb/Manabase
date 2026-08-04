@@ -4,15 +4,19 @@ Magic: The Gathering card research for Claude Code. A bundled MCP server plus th
 let Claude write real Scryfall queries from plain English — including the operators nobody
 remembers, like regex and the Tagger tags.
 
-**Status: pre-release.** Phase 1 is card search (CAP-01) delivered as a bundled MCP server
-(PC-02) and a Scryfall query-craft skill (PC-01).
+**Status: pre-release.** Phase 1 is card search
+([CAP-01](./docs/MCP-PRD.md#cap-01--card-search)) delivered as a bundled MCP server
+([PC-02](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server)) and a Scryfall query-craft skill
+([PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)).
 
-The server half is done. `card_search` runs against live Scryfall, and all twelve of CAP-01's
-acceptance criteria are verified (2026-08-03). The two commands below are now a verified path,
-not merely the intended one: the install was performed end to end on a machine that had never
-installed it, and the server was connected and answering in the same session (2026-08-04,
-`docs/slices/TrackB-Slice7-results.md`). The plugin half is still incomplete — the query-craft
-skill is unwritten. `docs/DEV-ROADMAP.md` tracks what remains.
+The server half is done. `card_search` runs against live Scryfall, and all twelve of
+[CAP-01](./docs/MCP-PRD.md#cap-01--card-search)'s acceptance criteria are verified (2026-08-03).
+The two commands below are now a verified path, not merely the intended one: the install was
+performed end to end on a machine that had never installed it, and the server was connected and
+answering in the same session (2026-08-04,
+[`docs/slices/TrackB-Slice7-results.md`](./docs/slices/TrackB-Slice7-results.md)). The plugin half
+is still incomplete — the query-craft skill is unwritten.
+[`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
 
 ## Requirements
 

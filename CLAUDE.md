@@ -140,13 +140,20 @@ importing JSON, so they behave identically under type stripping and under the bu
 Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered**,
 with all twelve acceptance criteria verified — nine live against real Scryfall.
 
-Tracks B and C have not started. The server works; the thing a user installs does not.
-`skills/scryfall-query-craft/SKILL.md` is unwritten, the plugin has never been installed from a
-marketplace, and no context-cost measurement exists — so every `PC-01`/`PC-02` criterion is still
-unverified.
+Track B has started. Slice 7 (install verification) landed 2026-08-04 as PRs #13 and #14: the
+plugin **has** now been installed from a marketplace on a cold profile, and six of `PC-02`'s ten
+acceptance criteria (1, 2, 3, 4, 6, 7) are verified against a real harness. Criterion 9 is
+deliberately not met — `claude plugin validate . --strict` fails on the one warning that is
+`P-08`'s unset `version`, so it stays open until Slice 13. Evidence:
+`docs/slices/TrackB-Slice7-results.md`.
 
-Next on the critical path is Slice 7 (install verification). Slices 7, 8, and 11 are unblocked and
-can run in parallel; `docs/DEV-ROADMAP.md` §5 has the graph.
+Track C has not started, and the rest of what a user installs is still missing.
+`skills/scryfall-query-craft/SKILL.md` is unwritten and no context-cost measurement exists — so
+every `PC-01` criterion, and `PC-02`'s criteria 5, 8 and 10, are still unverified.
+
+Next on the critical path is Slice 9 (evals), which needs Slice 8. Three slices are unblocked — 8,
+10 and 11 — but 10 should wait for 8, since a context baseline measured before `SKILL.md` exists is
+one Slice 8 immediately invalidates. `docs/DEV-ROADMAP.md` §5 has the graph.
 
 ## Price handling — the three traps
 
@@ -177,13 +184,29 @@ link pointing at it.** If you rename one or add links in bulk, verify the anchor
 than assuming — the slug rules are unforgiving (em dashes become a doubled hyphen, e.g.
 `#d-01--distribution-local-package-over-stdio`).
 
-**Every reference inside `docs/` is navigable.** A `§`, an ID (`D-`, `P-`, `CAP-`, `PC-`, `OQ-`,
-`PQ-`), a slice number, or a repo path mentioned in prose is a markdown link to the thing it names
-— same-file `#anchor`, cross-file `./MCP-PRD.md#anchor`, and a slice always to its spec,
-`[Slice 8](./slices/TrackB-Slice8.md)` (`./TrackB-Slice8.md` from inside `docs/slices/`). Backticks
-are not a link. Adding a reference and linking it are the same edit, never a follow-up. Two
-carve-outs and no others: fenced code blocks, and `docs/prompts/**`, which are verbatim historical
-artifacts carrying zero links by design.
+**Every reference inside `docs/` and `README.md` is navigable.** A `§`, an ID (`D-`, `P-`, `CAP-`,
+`PC-`, `OQ-`, `PQ-`), a slice number, or a repo path mentioned in prose is a markdown link to the
+thing it names — same-file `#anchor`, cross-file `./MCP-PRD.md#anchor`, and a slice always to its
+spec, `[Slice 8](./slices/TrackB-Slice8.md)` (`./TrackB-Slice8.md` from inside `docs/slices/`,
+`./docs/slices/…` from `README.md`). Backticks are not a link. Adding a reference and linking it
+are the same edit, never a follow-up. Inside those files there are two carve-outs and no others:
+fenced code blocks, and `docs/prompts/**`, which are verbatim historical artifacts carrying zero
+links by design.
+
+**The rule is scoped to what a human navigates, and it stops at two hard edges.** It is not a
+project-wide style preference, and extending it to the whole repo would be wrong in both
+directions:
+
+- **`skills/` must not link out of the skill directory.** An installed plugin cannot reference
+  files outside its own directory — `../` paths break after install (PLUGIN-PRD §3.3, §4.1). A
+  link to `../../docs/MCP-PRD.md` resolves in the repo and is dead in every installed copy, which
+  is the invisible-failure class this project already pays for elsewhere. Skills cite by ID in
+  plain text, and their supporting files live *inside* the skill directory.
+- **`CLAUDE.md` stays bare on purpose.** This file is loaded whole into every session, so every
+  character is always-on context cost — and a link costs roughly `73` characters against a `6`
+  character ID. Linking its references would grow it by about a fifth to serve a reader that
+  greps rather than clicks. Context budget is a live question here (`PQ-01`, `PQ-02`, Slice 10),
+  so this is a measured trade, not an oversight. Cite by ID and let the reader search.
 
 A few `§` references are deliberately left unlinked where the sentence means "the owning PRD" or
 "both PRDs" — linking them would assert a specific document and be wrong. Leave them bare. That
@@ -208,8 +231,7 @@ failure this prevents is a verified criterion surviving only in a transcript; th
 subagent's plausible paraphrase landing unread in a binding document.
 
 `.claude/` is dev-only config, not a plugin component surface — the agent lives there deliberately.
-A subagent under a root `agents/` would install into every user's harness
-([`P-07`](./docs/PLUGIN-PRD.md#p-07--skills-not-commands)).
+A subagent under a root `agents/` would install into every user's harness (`P-07`).
 
 ## Environment
 
