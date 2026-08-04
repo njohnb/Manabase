@@ -3,7 +3,7 @@
 > **Reading this cold?** This document owns *sequencing only*. Every behavior, decision, and
 > constraint it mentions is specified in `docs/MCP-PRD.md` or `docs/PLUGIN-PRD.md`, referenced
 > by section. If this document and a PRD ever disagree, **the PRD wins** — fix this file.
-> The boundary rule in `PLUGIN-PRD.md` §1 still governs which PRD owns which question.
+> The boundary rule in `PLUGIN-PRD.md` [§1](./PLUGIN-PRD.md#1-overview) still governs which PRD owns which question.
 
 **Document status:** created 2026-08-03; **Track A closed 2026-08-04**. Covers Phase 1 of both
 PRDs as 13 slices, plus unscheduled slice packs for everything queued. Update slice statuses in
@@ -13,9 +13,9 @@ place as work lands.
 
 ## 1. How to use this document
 
-- **One roadmap, not two.** The PRDs split *specification* by the §1 boundary rule, but the
+- **One roadmap, not two.** The PRDs split *specification* by the [§1](./PLUGIN-PRD.md#1-overview) boundary rule, but the
   *work* is one sequence: one repo ([P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root)), plugin slices that cannot be verified until server
-  slices exist, and two Phase 1s that were deliberately aligned (`PLUGIN-PRD.md` §6).
+  slices exist, and two Phase 1s that were deliberately aligned (`PLUGIN-PRD.md` [§6](./PLUGIN-PRD.md#6-roadmap)).
 - **A slice is one bounded work session** — roughly an afternoon, matching both PRDs' stated
   success criterion that "adding the next capability is an afternoon." Each slice has a goal,
   the work, checkable done-when items (mapped to PRD acceptance criteria where they exist),
@@ -23,7 +23,7 @@ place as work lands.
 - **Slices that resolve an open question must update the owning PRD in the same session** —
   its §7 entry and a §9 revision-log row. This roadmap's status column is a progress tracker,
   not a substitute for the PRDs' own records.
-- **Do not reorder past a dependency.** §5 has the graph. Within a track, order is the
+- **Do not reorder past a dependency.** [§5](#5-order-and-parallelism) has the graph. Within a track, order is the
   default; across tracks, parallelism is allowed where the graph permits it.
 
 ## 2. Current state (verified 2026-08-04)
@@ -42,7 +42,7 @@ context-cost measurement has been taken — so every
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory is still an empty placeholder (Slice 8) |
 | Toolchain | `package.json` with `esbuild` bundle build, `tsc --noEmit` typecheck, `node --test`; MCP SDK `^1.30.0` as a devDependency |
-| `plugin.json` | present; **no `version`** ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)), **no `userConfig`** ([P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)), Fan Content disclaimer in `description` (§3.5) |
+| `plugin.json` | present; **no `version`** ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)), **no `userConfig`** ([P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)), Fan Content disclaimer in `description` ([§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)) |
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)) |
 | README | install instructions in `owner/repo` form with the raw-URL trap warning ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), version floor, disclaimer |
@@ -65,14 +65,14 @@ Two properties of the existing scaffold worth preserving on purpose:
 
 1. Handlers never throw; every failure is a structured result ([D-10](./MCP-PRD.md#d-10--tool-handlers-never-throw)).
 2. Every outbound request carries the app-naming `User-Agent` and an `Accept` header; card
-   endpoints at 2/sec; HTTP 429 backs off, never retries immediately (`MCP-PRD.md` §3.4).
+   endpoints at 2/sec; HTTP 429 backs off, never retries immediately (`MCP-PRD.md` [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)).
 3. Handlers are plain functions; config is read once at the entry point and passed down; no
-   `process.env` below the entry point ([D-03](./MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions), `MCP-PRD.md` §3.2).
-4. Skills carry instructions, never card facts (`PLUGIN-PRD.md` §3.6).
+   `process.env` below the entry point ([D-03](./MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions), `MCP-PRD.md` [§3.2](./MCP-PRD.md#32-testability)).
+4. Skills carry instructions, never card facts (`PLUGIN-PRD.md` [§3.6](./PLUGIN-PRD.md#36-skills-carry-instructions-never-facts)).
 5. `dist/` is committed and must be rebuilt with every `src/` change until Slice 11 automates
    the check ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)).
 6. The verbatim Fan Content disclaimer stays on every user-facing surface (`PLUGIN-PRD.md`
-   §3.5).
+   [§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)).
 7. Run `claude plugin validate . --strict` before any push a friend might install from.
 
 ## 4. Phase 1 slices
@@ -105,9 +105,9 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   owns all config at the entry point. No tools yet.
 - **Work:**
   - `src/index.ts` entry point: assemble one config object — the `User-Agent` string (name,
-    version, and a way for Scryfall to contact the author, per `MCP-PRD.md` §4.1's
+    version, and a way for Scryfall to contact the author, per `MCP-PRD.md` [§4.1](./MCP-PRD.md#41-scryfall-rest-api)'s
     mitigation), and the cache-directory rule: `CLAUDE_PLUGIN_DATA` when set, otherwise a
-    platform user-cache directory (`PLUGIN-PRD.md` §4.5). Phase 1 writes no cache, but the
+    platform user-cache directory (`PLUGIN-PRD.md` [§4.5](./PLUGIN-PRD.md#45-persistent-data)). Phase 1 writes no cache, but the
     resolution rule is entry-point config and this is the slice that fixes its shape.
   - Instantiate the SDK server with `StdioServerTransport`; connect; no tools registered.
   - `npm install`, `npm run build`, `npm run typecheck` all clean.
@@ -116,7 +116,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     scripted stdio exchange).
   - ☑ `dist/index.js` runs from a directory with no `node_modules` (proves the bundle is
     self-contained).
-- **Binding refs:** `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript), [D-03](./MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions), §3.2; `PLUGIN-PRD.md` [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), §4.5.
+- **Binding refs:** `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript), [D-03](./MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions), [§3.2](./MCP-PRD.md#32-testability); `PLUGIN-PRD.md` [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [§4.5](./PLUGIN-PRD.md#45-persistent-data).
 - **Landed:** PR #2 (`8465832`). Config resolution shipped in `src/config.ts` — the
   `CLAUDE_PLUGIN_DATA`-else-platform-cache rule of
   [`PLUGIN-PRD.md` §4.5](./PLUGIN-PRD.md#45-persistent-data), resolved once at the entry point
@@ -133,7 +133,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     carries a machine-usable code and, for Scryfall 4xx responses, **Scryfall's own `details`
     text verbatim** (it is the model's correction signal — [D-10](./MCP-PRD.md#d-10--tool-handlers-never-throw), [CAP-01](./MCP-PRD.md#cap-01--card-search)).
   - Rate limiting: 2/sec for `/cards/search`, `/cards/named`, `/cards/random`,
-    `/cards/collection`; 10/sec elsewhere (`MCP-PRD.md` §3.4).
+    `/cards/collection`; 10/sec elsewhere (`MCP-PRD.md` [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)).
   - 429 handling: back off (the lockout is ~30 seconds), retry once after backoff, then
     return a structured failure. Never immediate retry.
   - Network errors and timeouts → structured failures, not exceptions.
@@ -142,7 +142,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   - ☑ Two back-to-back card-endpoint calls are spaced to ≤2/sec (criterion 11).
   - ☑ A 429 produces backoff then a clear structured failure (criterion 12).
   - ☑ A 400 response's `details` text survives verbatim into the failure result.
-- **Binding refs:** `MCP-PRD.md` §3.4, §4.1, [D-10](./MCP-PRD.md#d-10--tool-handlers-never-throw).
+- **Binding refs:** `MCP-PRD.md` [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance), [§4.1](./MCP-PRD.md#41-scryfall-rest-api), [D-10](./MCP-PRD.md#d-10--tool-handlers-never-throw).
 - **Landed:** PR #3 (`59fbd6a`). `src/scryfall/client.ts` plus `src/result.ts`'s success/failure
   union; evidence is `tests/scryfall/client.test.ts` against a mock transport. **No real 429 was
   ever provoked** — deliberately exceeding Scryfall's limit to observe the response is the thing
@@ -181,7 +181,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 
 #### Slice 4 — Price correctness
 
-- **Goal:** the three verified price traps of `MCP-PRD.md` §4.1.3 handled inside result
+- **Goal:** the three verified price traps of `MCP-PRD.md` [§4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps) handled inside result
   shaping — this is part of [CAP-01](./MCP-PRD.md#cap-01--card-search), not a later refinement.
 - **Work:**
   - Price resolution order `usd` → `usd_foil` → `usd_etched`, with the finish labeled so
@@ -197,7 +197,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     (criterion 6) — **see the caveat below; upstream data has since changed.**
   - ☑ A digital-only Arena card reports no paper price and states digital-only as the reason
     (criterion 7).
-- **Binding refs:** `MCP-PRD.md` §4.1.3, [D-06](./MCP-PRD.md#d-06--pricing-from-scryfall); [CAP-01](./MCP-PRD.md#cap-01--card-search) criteria 4–7.
+- **Binding refs:** `MCP-PRD.md` [§4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps), [D-06](./MCP-PRD.md#d-06--pricing-from-scryfall); [CAP-01](./MCP-PRD.md#cap-01--card-search) criteria 4–7.
 - **Landed:** PR #5 (`af319d1`). `src/scryfall/prices.ts` resolves `usd` → `usd_foil` →
   `usd_etched` and labels the finish; unavailability is always given a reason
   (`digital-only` / `no-price-data`), never a bare null.
@@ -241,11 +241,11 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   - A runnable checklist/script at polite rates covering criteria 1–12, including the live
     operator checks: `o:/^{T}: Add/`, `otag:ramp`, `function:removal`, `art:squirrel`,
     `atag:squirrel`, and the invalid `illustrationtag:dragon` failure path.
-  - Record the pass (and any drift found in §4.1's claims) in `MCP-PRD.md` §9.
+  - Record the pass (and any drift found in [§4.1](./MCP-PRD.md#41-scryfall-rest-api)'s claims) in `MCP-PRD.md` [§9](./MCP-PRD.md#9-revision-log).
 - **Done when:**
   - ☑ Criteria 1–12 each have a recorded pass with date.
-  - ☑ `MCP-PRD.md` §9 has the revision-log row.
-- **Binding refs:** [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance criteria; `MCP-PRD.md` §3.4, §9.
+  - ☑ `MCP-PRD.md` [§9](./MCP-PRD.md#9-revision-log) has the revision-log row.
+- **Binding refs:** [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance criteria; `MCP-PRD.md` [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance), [§9](./MCP-PRD.md#9-revision-log).
 - **Landed:** PR #7 (`14eadc1`). 13 of 13 checks pass, exit 0; full record in
   `docs/slices/TrackA-Slice6-results.md`. Criteria 2–9 are live; criteria 1, 10, 11 and 12 are
   unit-level by design — the last of those because provoking a real 429 is forbidden by
@@ -286,7 +286,7 @@ gates are open.
     rather than failing (criterion 7 — resolution only; Phase 1 writes nothing).
   - ☐ `claude plugin validate . --strict` passes (criterion 9).
 - **Binding refs:** [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) acceptance criteria; [P-06](./PLUGIN-PRD.md#p-06--cached-data-lives-in-the-plugin-data-directory), [P-08](./PLUGIN-PRD.md#p-08--version-scheme), [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key), [P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1);
-  `PLUGIN-PRD.md` §4.2.
+  `PLUGIN-PRD.md` [§4.2](./PLUGIN-PRD.md#42-marketplace-and-install-path).
 - **Watch out:** never demonstrate or document the raw-URL marketplace add — it downloads
   only `marketplace.json` and the relative source silently fails to resolve ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)'s trap).
 
@@ -301,7 +301,7 @@ gates are open.
     plausibly don't exist (`illustrationtag:`), the meaning-changing parameters (`unique`,
     `order`, `dir`), and narrow-don't-page guidance.
   - Exhaustive operator catalog in `reference/` — read on demand, not loaded up front
-    (progressive disclosure, `PLUGIN-PRD.md` §4.1).
+    (progressive disclosure, `PLUGIN-PRD.md` [§4.1](./PLUGIN-PRD.md#41-harness-features-relied-on)).
   - `description` + `when_to_use` ≤1,536 characters, key use case first, phrased to match
     plain Magic questions that never say "Scryfall."
   - Tool references use the scoped name form ([P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)).
@@ -310,8 +310,8 @@ gates are open.
   - ☐ `SKILL.md` renders ≤5,000 tokens so compaction re-attach keeps the whole body
     (criterion 3).
   - ☐ A review of the files finds **no card facts** — no oracle text, prices, legality, or
-    combo claims asserted as fact (criterion 4, §3.6).
-- **Binding refs:** [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) behavior and criteria 1–4; `PLUGIN-PRD.md` §3.1, §3.6, §4.1.
+    combo claims asserted as fact (criterion 4, [§3.6](./PLUGIN-PRD.md#36-skills-carry-instructions-never-facts)).
+- **Binding refs:** [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) behavior and criteria 1–4; `PLUGIN-PRD.md` [§3.1](./PLUGIN-PRD.md#31-context-budget), [§3.6](./PLUGIN-PRD.md#36-skills-carry-instructions-never-facts), [§4.1](./PLUGIN-PRD.md#41-harness-features-relied-on).
 - **Watch out:** bulk belongs in the reference files. A body past ~5,000 tokens silently
   loses its tail at the first compaction — the failure mode is invisible.
 
@@ -330,7 +330,7 @@ gates are open.
     card-fact questions produce tool calls, not answers from the skill (criterion 13); a
     structured failure produces a revised retry (criterion 12).
   - Tune the description on should-trigger vs. should-not-trigger hit rate.
-  - Record results in `PLUGIN-PRD.md` §9; update `MCP-PRD.md` [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (§7) and §9 with the
+  - Record results in `PLUGIN-PRD.md` [§9](./PLUGIN-PRD.md#9-revision-log); update `MCP-PRD.md` [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) ([§7](./MCP-PRD.md#7-open-questions)) and [§9](./MCP-PRD.md#9-revision-log) with the
     measured answer.
 - **Done when:**
   - ☐ Criteria 5–13 each have a recorded result with the baseline comparison.
@@ -345,17 +345,17 @@ gates are open.
 
 - **Goal:** the two open cost questions answered with numbers instead of estimates.
 - **Work:**
-  - `claude plugin details manabase` — record the full output in `PLUGIN-PRD.md` §9
+  - `claude plugin details manabase` — record the full output in `PLUGIN-PRD.md` [§9](./PLUGIN-PRD.md#9-revision-log)
     ([PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 10). Check [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s always-on ≤250 tokens ([PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 2).
   - **[PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) experiment:** temporarily remove `.mcp.json`, re-run `plugin details`, compare
     always-on totals — does an MCP server's tool schema count?
   - **[PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed):** `/doctor` and `/context` with the author's full plugin load installed — is the
     shared skill-listing budget close to overflow?
-  - Close or update [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)/[PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) in `PLUGIN-PRD.md` §7 and log in §9.
+  - Close or update [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)/[PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) in `PLUGIN-PRD.md` [§7](./PLUGIN-PRD.md#7-open-questions) and log in [§9](./PLUGIN-PRD.md#9-revision-log).
 - **Done when:**
   - ☐ Baseline recorded; [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 2 checked.
   - ☐ [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) and [PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) have measured answers in the PRD.
-- **Binding refs:** `PLUGIN-PRD.md` §3.1, §4.6, [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports), [PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed).
+- **Binding refs:** `PLUGIN-PRD.md` [§3.1](./PLUGIN-PRD.md#31-context-budget), [§4.6](./PLUGIN-PRD.md#46-context-cost-accounting), [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports), [PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed).
 
 #### Slice 11 — `dist/` honesty mechanism
 
@@ -364,7 +364,7 @@ gates are open.
 - **Work:** implement a CI check that rebuilds and diffs `dist/` on every push
   (**recommended** — it catches every path including a friend's PR, and relies on no local
   hook discipline; the alternatives [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) lists are a pre-commit hook or folding the build
-  into `claude plugin tag`). Record the decision in `PLUGIN-PRD.md` §7 (close [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)) and §9.
+  into `claude plugin tag`). Record the decision in `PLUGIN-PRD.md` [§7](./PLUGIN-PRD.md#7-open-questions) (close [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)) and [§9](./PLUGIN-PRD.md#9-revision-log).
 - **Done when:**
   - ☐ A push with stale `dist/` fails the check, demonstrated once deliberately.
   - ☐ [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in the PRD.
@@ -379,14 +379,14 @@ gates are open.
     document it ([PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) behavior).
   - A "run `/doctor` if the plugin stops firing" line — [PQ-04](./PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s likely answer; record in the
     PRD that documentation is the chosen mitigation, confirmed rather than assumed.
-  - Disclaimer surface check: `plugin.json` description, marketplace entry, README (§3.5).
+  - Disclaimer surface check: `plugin.json` description, marketplace entry, README ([§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)).
   - One friend installs from scratch following only the README; capture every point of
     friction as an issue.
 - **Done when:**
   - ☐ Friend install succeeds without author intervention.
   - ☐ [PQ-04](./PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) recorded as answered (or reopened with what the dry run revealed).
 - **Binding refs:** [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) "what the user sees when something is wrong"; [PQ-04](./PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed);
-  `PLUGIN-PRD.md` §3.5.
+  `PLUGIN-PRD.md` [§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not).
 
 #### Slice 13 — Release gate: the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover
 
@@ -394,7 +394,7 @@ gates are open.
   it happens when Slices 1–12 are done and stable, not merely done.
 - **Work:**
   - Set explicit semver in `plugin.json` — and **only** there, never also in the marketplace
-    entry (`plugin.json` wins silently, §4.3).
+    entry (`plugin.json` wins silently, [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates)).
   - `claude plugin tag --push` for the release tag.
   - Verify the changed update semantics: a push without a version bump ships nothing — now
     correct behavior, previously wrong ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)).
@@ -403,8 +403,8 @@ gates are open.
     route ([D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript) survives [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript); its version is independent by design).
 - **Done when:**
   - ☐ Version set, tag pushed, update semantics verified.
-  - ☐ `PLUGIN-PRD.md` §9 records the switchover; [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) has an explicit disposition.
-- **Binding refs:** [P-08](./PLUGIN-PRD.md#p-08--version-scheme), `PLUGIN-PRD.md` §4.3, [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable); `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript).
+  - ☐ `PLUGIN-PRD.md` [§9](./PLUGIN-PRD.md#9-revision-log) records the switchover; [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) has an explicit disposition.
+- **Binding refs:** [P-08](./PLUGIN-PRD.md#p-08--version-scheme), `PLUGIN-PRD.md` [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates), [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable); `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript).
 
 ## 5. Order and parallelism
 
@@ -435,8 +435,8 @@ output that can silently drift from `src/`).
 
 ## 6. Beyond Phase 1 — queued slice packs
 
-Both PRDs deliberately refuse to schedule anything past Phase 1 (`MCP-PRD.md` §6,
-`PLUGIN-PRD.md` §6), and this roadmap honors that: the packs below are *shapes of future
+Both PRDs deliberately refuse to schedule anything past Phase 1 (`MCP-PRD.md` [§6](./MCP-PRD.md#6-phases),
+`PLUGIN-PRD.md` [§6](./PLUGIN-PRD.md#6-roadmap)), and this roadmap honors that: the packs below are *shapes of future
 work*, not a schedule. Each pack starts with a **spec slice** — research plus appending the
 CAP/PC block per the owning PRD's template — and only then build slices. Phase assignment
 happens in those spec sessions.
@@ -444,18 +444,18 @@ happens in those spec sessions.
 | Pack | First slice (spec/research) | Blocking questions | Sequencing constraints |
 |---|---|---|---|
 | Combo discovery | Verify `/find-my-combos` and `/variants/` live; ask Commander Spellbook admins about rate limits and data licensing via their Discord | [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) | Anonymous, stateless — a natural early pick |
-| Archidekt deck reading | Read decks containing tokens, custom cards, spoilers to answer [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read); draft the three-way-ambiguous 404 error text per §3.6 | [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read) | Prerequisite for deck analysis, Arena export, and deck pricing workflows |
-| Decklist pricing | Spec against `POST /cards/collection` (75/batch); inherits every §4.1.3 price trap | — | Pairs naturally with deck reading |
+| Archidekt deck reading | Read decks containing tokens, custom cards, spoilers to answer [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read); draft the three-way-ambiguous 404 error text per [§3.6](./MCP-PRD.md#36-error-surface) | [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read) | Prerequisite for deck analysis, Arena export, and deck pricing workflows |
+| Decklist pricing | Spec against `POST /cards/collection` (75/batch); inherits every [§4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps) price trap | — | Pairs naturally with deck reading |
 | Arena-format export | Pure transformation spec | — | After deck reading |
 | Budget alternatives | Spec combining [CAP-01](./MCP-PRD.md#cap-01--card-search) search + pricing | — | After pricing |
-| Tag discovery | **The persistence decision:** storage layout under `${CLAUDE_PLUGIN_DATA}`, refresh trigger (lazy first-use vs. hook — [PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)'s recorded disagreement), whether first run blocks on download. Resolves [OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) and [PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook) together | [OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced), [PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook) | First capability needing local persistence; sets the pattern rules lookup reuses. Bulk files are gzipped JSONL — read `jsonl_download_uri` from the API, never construct URLs (§4.2) |
+| Tag discovery | **The persistence decision:** storage layout under `${CLAUDE_PLUGIN_DATA}`, refresh trigger (lazy first-use vs. hook — [PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)'s recorded disagreement), whether first run blocks on download. Resolves [OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) and [PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook) together | [OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced), [PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook) | First capability needing local persistence; sets the pattern rules lookup reuses. Bulk files are gzipped JSONL — read `jsonl_download_uri` from the API, never construct URLs ([§4.2](./MCP-PRD.md#42-scryfall-bulk-data)) |
 | Comprehensive Rules lookup | Spec the landing-page URL scrape, the parser (BOM, CRLF, subrule letter-skipping `l`/`o`, glossary block), staleness reporting | [OQ-08](./MCP-PRD.md#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled) (watch across a set boundary) | After or alongside the tag-discovery persistence decision (shares [OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s answer) |
-| Archidekt deck writing | Authenticated research against a **disposable** deck: replace-vs-append, category/commander/companion preservation, partial-failure blast radius ([OQ-04](./MCP-PRD.md#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api)). Re-verify the `userConfig` mechanism (§4.4 says re-verify, not trust) and draft [PQ-08](./PLUGIN-PRD.md#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected)'s credential-failure wording | [OQ-04](./MCP-PRD.md#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api), [PQ-08](./PLUGIN-PRD.md#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) | **Strictly last** ([D-09](./MCP-PRD.md#d-09--archidekt-writes-land-last)). Every read capability stable first |
-| Deck analysis (plugin skill) | Blocked entirely — needs the deck-reading CAP to exist first (`PLUGIN-PRD.md` §1, consequence 3) | — | After Archidekt deck reading |
+| Archidekt deck writing | Authenticated research against a **disposable** deck: replace-vs-append, category/commander/companion preservation, partial-failure blast radius ([OQ-04](./MCP-PRD.md#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api)). Re-verify the `userConfig` mechanism ([§4.4](./PLUGIN-PRD.md#44-user-configuration) says re-verify, not trust) and draft [PQ-08](./PLUGIN-PRD.md#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected)'s credential-failure wording | [OQ-04](./MCP-PRD.md#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api), [PQ-08](./PLUGIN-PRD.md#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) | **Strictly last** ([D-09](./MCP-PRD.md#d-09--archidekt-writes-land-last)). Every read capability stable first |
+| Deck analysis (plugin skill) | Blocked entirely — needs the deck-reading CAP to exist first (`PLUGIN-PRD.md` [§1](./PLUGIN-PRD.md#1-overview), consequence 3) | — | After Archidekt deck reading |
 | Deck optimize (plugin skill or agent) | The skill-vs-agent call is a context-budget question ([PQ-07](./PLUGIN-PRD.md#pq-07--is-deck-optimization-a-skill-or-an-agent)) | [PQ-07](./PLUGIN-PRD.md#pq-07--is-deck-optimization-a-skill-or-an-agent) | After deck analysis |
 
 Standing reminders for whichever pack goes first: the first hook component owns the
-exec-form/Windows-shell problem (`PLUGIN-PRD.md` §3.4); the first persistence component
+exec-form/Windows-shell problem (`PLUGIN-PRD.md` [§3.4](./PLUGIN-PRD.md#34-cross-platform-reach)); the first persistence component
 should use the bundled-manifest-comparison pattern rather than testing for file existence
-(`PLUGIN-PRD.md` §4.5); and any capability pricing a list uses `/cards/collection`, never a
-loop over `/cards/named` (`MCP-PRD.md` §4.1.2).
+(`PLUGIN-PRD.md` [§4.5](./PLUGIN-PRD.md#45-persistent-data)); and any capability pricing a list uses `/cards/collection`, never a
+loop over `/cards/named` (`MCP-PRD.md` [§4.1.2](./MCP-PRD.md#412-batch-resolution)).
