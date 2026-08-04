@@ -8,9 +8,11 @@ remembers, like regex and the Tagger tags.
 (PC-02) and a Scryfall query-craft skill (PC-01).
 
 The server half is done. `card_search` runs against live Scryfall, and all twelve of CAP-01's
-acceptance criteria are verified (2026-08-03). The plugin half is not: the query-craft skill is
-unwritten and nobody has yet installed this from a marketplace, so the two commands below are
-the intended path rather than a verified one. `docs/DEV-ROADMAP.md` tracks what remains.
+acceptance criteria are verified (2026-08-03). The two commands below are now a verified path,
+not merely the intended one: the install was performed end to end on a machine that had never
+installed it, and the server was connected and answering in the same session (2026-08-04,
+`docs/slices/TrackB-Slice7-results.md`). The plugin half is still incomplete — the query-craft
+skill is unwritten. `docs/DEV-ROADMAP.md` tracks what remains.
 
 ## Requirements
 
