@@ -16,7 +16,8 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/**/*.test.ts"
+    "test": "node --test tests/**/*.test.ts",
+    "acceptance": "node scripts/cap01-live.mjs"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
