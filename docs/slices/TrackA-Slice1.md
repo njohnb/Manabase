@@ -19,7 +19,7 @@ config contract, and the test harness that every later slice reuses.
   `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`; includes
   `src/**/*.ts` and `tests/**/*.ts`.
 - `.gitignore` deliberately does **not** ignore `dist/` — built output is committed
-  (PLUGIN-PRD P-09). Do not "fix" this.
+  (PLUGIN-PRD [P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript)). Do not "fix" this.
 - Plugin files exist at the repo root (`.claude-plugin/`, `.mcp.json`, `skills/`, `README.md`).
   They are another track's job — do not touch them.
 
@@ -53,7 +53,7 @@ correctness → tool wiring → live acceptance.
    read `process.env` or `process.platform`. It calls `resolveConfig(process.env,
    process.platform)` once and passes the result down. Nothing below the entry point reaches
    for the environment — that is what keeps every other module a plain testable function
-   (MCP-PRD D-03, §3.2).
+   (MCP-PRD [D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions), [§3.2](../MCP-PRD.md#32-testability)).
 3. **Config resolution** (`src/config.ts`):
    - `userAgent`: `manabase-mtg/<version> (+https://github.com/OWNER/manabase)`. Scryfall
      **requires** a User-Agent naming the application; default library agents are disallowed.
@@ -126,7 +126,7 @@ tests/                    mirrors src/; node --test; fixtures under tests/fixtur
 
 - No tools, no HTTP code, no Scryfall anything (Slices 2–5).
 - No new npm dependencies, dev or runtime.
-- No abstraction layers — the SDK transport is the abstraction (MCP-PRD D-04). No `ITransport`,
+- No abstraction layers — the SDK transport is the abstraction (MCP-PRD [D-04](../MCP-PRD.md#d-04--no-transport-abstraction-layer)). No `ITransport`,
   no factory, no config framework.
 - Do not touch `.claude-plugin/`, `.mcp.json`, `skills/`, `README.md`, or `docs/` other than
   this checklist.
@@ -171,8 +171,8 @@ mkdir -p /tmp/mb-smoke && cp dist/index.js /tmp/mb-smoke/ && printf '%s\n' '{"js
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4, Slice 1 (goal and done-when source).
-- `docs/MCP-PRD.md` D-02 (runtime), D-03/§3.2 (entry-point config, plain-function testability),
-  D-04 (no abstraction layers).
-- `docs/PLUGIN-PRD.md` P-09 (committed `dist/`, started as `node dist/index.js`), §4.5
+- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices), [Slice 1](../DEV-ROADMAP.md#slice-1--server-skeleton) (goal and done-when source).
+- [`docs/MCP-PRD.md`](../MCP-PRD.md) [D-02](../MCP-PRD.md#d-02--runtime-nodejs--typescript) (runtime), [D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions)/[§3.2](../MCP-PRD.md#32-testability) (entry-point config, plain-function testability),
+  [D-04](../MCP-PRD.md#d-04--no-transport-abstraction-layer) (no abstraction layers).
+- [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) (committed `dist/`, started as `node dist/index.js`), [§4.5](../PLUGIN-PRD.md#45-persistent-data)
   (`CLAUDE_PLUGIN_DATA` and the standalone fallback rule).

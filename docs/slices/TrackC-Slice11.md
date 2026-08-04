@@ -7,14 +7,14 @@
 committed bundle is what the plugin actually starts, and a stale or absent `dist/` produces a
 plugin whose tools are simply **absent** — no error in `/mcp`, no stack trace, nothing in the
 transcript. That is the least debuggable failure this project can ship, and it is the one
-`PLUGIN-PRD.md` P-09 knowingly created when it chose committed build output. This slice adds
+`PLUGIN-PRD.md` [P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) knowingly created when it chose committed build output. This slice adds
 the repo's first CI workflow to detect it on every path into `main`, and closes open question
-PQ-06 with the mechanism and the reasoning.
+[PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) with the mechanism and the reasoning.
 
 ## Preconditions (deliverables of Slice 1)
 
-Slice 11 depends on Slice 1 and nothing else — `DEV-ROADMAP.md` §5's graph has `S1 --> S11`.
-Slice 1 is what produced a real build to check:
+Slice 11 depends on [Slice 1](./TrackA-Slice1.md) and nothing else — `DEV-ROADMAP.md` [§5](../DEV-ROADMAP.md#5-order-and-parallelism)'s graph has `S1 --> S11`.
+[Slice 1](./TrackA-Slice1.md) is what produced a real build to check:
 
 - `package.json` with the esbuild bundle script and a committed `package-lock.json`.
 - `dist/index.js` built, committed, and deliberately not in `.gitignore`.
@@ -32,7 +32,7 @@ Manabase is a Magic: The Gathering MCP server (Scryfall-backed card search) that
 Claude Code plugin; `.mcp.json` starts it as `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` with no
 install step, no package fetch, and no build on the user's machine. Track C is the measurement
 and release track: 10 (context cost) · **11 (dist honesty)** · 12 (docs and friend dry-run) ·
-13 (release gate). Slice 11 feeds Slice 13 and is otherwise independent — it can land now, in
+13 (release gate). Slice 11 feeds [Slice 13](./TrackC-Slice13.md) and is otherwise independent — it can land now, in
 parallel with Slices 7, 8, and 10.
 
 This is the repo's **first** CI workflow. There is no `.github/` directory, no existing job, no
@@ -47,8 +47,8 @@ convention to match and none to inherit. Everything the workflow does is establi
 | `.nvmrc` | new — the one Node major CI and the author both build with |
 | `package.json` | modify — quote the test glob (requirement 9; one line) |
 | `docs/slices/TrackC-Slice11-results.md` | new — the recorded failing run and the recorded pass |
-| `docs/PLUGIN-PRD.md` | modify — close PQ-06 in §7; append one §9 revision-log row |
-| `docs/DEV-ROADMAP.md` | modify — retire standing rule 5; flip Slice 11 to ☑ |
+| [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) | modify — close [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) in [§7](../PLUGIN-PRD.md#7-open-questions); append one [§9](../PLUGIN-PRD.md#9-revision-log) revision-log row |
+| [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) | modify — retire standing rule 5; flip Slice 11 to ☑ |
 
 No file under `src/`, `tests/`, or `dist/` changes as part of this slice. If `dist/index.js`
 turns out to be stale on the first green run, that is a finding: rebuild and commit it in its
@@ -62,24 +62,24 @@ own commit, and say so in the results document.
    and the first symptom is a user saying the plugin "doesn't do anything." Someone reading the
    workflow in six months needs to know why it is worth the minutes.
 
-2. **The mechanism is a CI rebuild-and-diff, and that decision closes PQ-06.** PQ-06 offers
+2. **The mechanism is a CI rebuild-and-diff, and that decision closes [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest).** PQ-06 offers
    three candidates: a CI check that rebuilds and diffs, a pre-commit hook, or folding the
    build into the `claude plugin tag` release step. Adopt CI, and record the reasoning — a
    closed open question needs its rationale, not just its verdict:
    - **CI catches every path.** It runs on the author's PRs, on a direct push to `main`, and on
-     a PR from a friend's fork — the case P-11's `owner/repo` marketplace makes reachable. It
+     a PR from a friend's fork — the case [P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)'s `owner/repo` marketplace makes reachable. It
      depends on no local setup on any contributor's machine.
    - **A pre-commit hook was not chosen** because it is per-clone state. Git does not
      distribute hooks; a fresh clone, a second machine, a `--no-verify`, or any contributor who
      never ran the install step gets no protection at all, and the gap is silent. It also runs
      a full bundle on every commit, which makes `--no-verify` attractive.
    - **Folding the build into `claude plugin tag` was not chosen** because it checks at release
-     time only. P-08 leaves `plugin.json` `version` unset during development, so every commit
+     time only. [P-08](../PLUGIN-PRD.md#p-08--version-scheme) leaves `plugin.json` `version` unset during development, so every commit
      is an update the moment a friend has the plugin installed (the SHA fallback). Drift is
      shipped continuously, not at tags — a release-time gate is the right idea aimed at the
-     wrong moment. It is not incompatible with this slice and may be added at Slice 13; it is
+     wrong moment. It is not incompatible with this slice and may be added at [Slice 13](./TrackC-Slice13.md); it is
      not a substitute.
-   - PQ-06 is an **implementation** decision that §7 records because P-09 created the risk. Do
+   - [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is an **implementation** decision that [§7](../PLUGIN-PRD.md#7-open-questions) records because [P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) created the risk. Do
      **not** mint a new `P-` decision for it. §2 is locked; adding P-14 for a CI file would be
      a duplication, not a decision.
 
@@ -190,7 +190,7 @@ own commit, and say so in the results document.
    - Be precise about what the pin buys. **The Node version does not determine the bundle's
      bytes** — esbuild is a native Go binary and Node only launches its CLI wrapper. The pin
      exists because `npm test` runs the `.ts` test files directly through `node --test`, which
-     needs a Node with native TypeScript type-stripping (the Slice 1 spec fixes that floor at
+     needs a Node with native TypeScript type-stripping (the [Slice 1](./TrackA-Slice1.md) spec fixes that floor at
      Node ≥23), and because a toolchain version that drifts under the author is how
      "works on my machine" begins.
    - `package.json` `engines.node: ">=18"` and the build's `--target=node18` describe the
@@ -200,7 +200,7 @@ own commit, and say so in the results document.
 8. **The comparison is `git status --porcelain -- dist/`, not `git diff`.** After the rebuild,
    any non-empty output fails the step. `git diff --exit-code` alone is not sufficient: if
    `dist/index.js` were *absent* from the commit, the rebuild recreates it as an untracked file
-   and `git diff` reports nothing at all — and absent-`dist` is the exact failure P-09 fears,
+   and `git diff` reports nothing at all — and absent-`dist` is the exact failure [P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) fears,
    the one that yields a plugin with no tools and no error. `git status --porcelain` catches
    the modified case (` M`), the deleted case, and the untracked case (`??`) with one
    invocation. Use `git diff --stat -- dist/` only to *show* the damage, never to decide.
@@ -227,7 +227,7 @@ own commit, and say so in the results document.
    `tests/config.test.ts` is missing. A CI job that runs `npm test` unchanged would report green
    while never executing the config suite — a check that lies is worse than no check. Quote the
    pattern so it reaches Node: `"test": "node --test \"tests/**/*.test.ts\""`. If quoting
-   misbehaves on any platform, fall back to `node --test tests/`, which is what the Slice 1 spec
+   misbehaves on any platform, fall back to `node --test tests/`, which is what the [Slice 1](./TrackA-Slice1.md) spec
    originally specified and which discovers `*.test.ts` recursively. Confirm the fix by
    comparing suite and test counts (see acceptance criterion 5).
 
@@ -238,11 +238,11 @@ own commit, and say so in the results document.
     be. Gate last.
 
 11. **`npm run acceptance` must never run in CI. This is the one thing a well-meaning
-    implementer would add.** It hits live Scryfall. `MCP-PRD.md` §3.4 makes rate limits a hard
+    implementer would add.** It hits live Scryfall. `MCP-PRD.md` [§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) makes rate limits a hard
     constraint: a 429 locks access for ~30 seconds and sustained overage risks Scryfall banning
     the application **for every user of it**, not just the runner. The harness is deliberately
     slow (≥600 ms between calls) and is meant to be run by a human, once, deliberately — the
-    Slice 6 spec already rules out CI-wiring it in its own out-of-scope list. It stays a local
+    [Slice 6](./TrackA-Slice6.md) spec already rules out CI-wiring it in its own out-of-scope list. It stays a local
     `npm run acceptance`. Do not add it behind a `workflow_dispatch`, a schedule, or a label.
 
 12. **`claude plugin validate . --strict` stays a local pre-push step.** It needs Claude Code on
@@ -274,9 +274,9 @@ own commit, and say so in the results document.
     - Close the PR without merging and delete the branch. The deliberate breakage must never
       reach `main`, and the `src/` edit must not survive into any other branch.
 
-15. **Close the loop in `docs/PLUGIN-PRD.md` — this is a deliverable, not follow-up.** §7 open
-    questions are never deleted; they gain a dated answer the way PQ-06's own
-    "**Escalated 2026-08-04**" paragraph does. Append to the PQ-06 block:
+15. **Close the loop in [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) — this is a deliverable, not follow-up.** [§7](../PLUGIN-PRD.md#7-open-questions) open
+    questions are never deleted; they gain a dated answer the way [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s own
+    "**Escalated 2026-08-04**" paragraph does. Append to the [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) block:
 
     ```
     **Answered <date>.** A CI workflow (`.github/workflows/ci.yml`) reinstalls from the
@@ -288,7 +288,7 @@ own commit, and say so in the results document.
     docs/slices/TrackC-Slice11-results.md.
     ```
 
-    Then append **one** row to the §9 revision-log table. §9 is **append-only** — add a row,
+    Then append **one** row to the [§9](../PLUGIN-PRD.md#9-revision-log) revision-log table. §9 is **append-only** — add a row,
     change nothing else in the file:
 
     ```
@@ -301,12 +301,12 @@ own commit, and say so in the results document.
     detector it was traded against. |
     ```
 
-16. **Retire roadmap standing rule 5.** `DEV-ROADMAP.md` §3 rule 5 currently reads that `dist/`
+16. **Retire roadmap standing rule 5.** `DEV-ROADMAP.md` [§3](../DEV-ROADMAP.md#3-standing-rules--apply-to-every-slice-never-restated-per-slice) rule 5 currently reads that `dist/`
     "must be rebuilt with every `src/` change **until Slice 11 automates the check**." That
     clause is this slice. The manual-rebuild discipline stays binding right up until the check
     is green on `main` — not when the workflow file is written, not when the PR is open.
     Once it is green, instruct the same session to rewrite rule 5 so it points at the automated
-    check rather than at a promise, and to flip Slice 11's row in §4 to ☑ with the PR number.
+    check rather than at a promise, and to flip Slice 11's row in [§4](../DEV-ROADMAP.md#4-phase-1-slices) to ☑ with the PR number.
     The roadmap owns sequencing only; if it and the PRD ever disagree, the PRD wins.
 
 ## Interface contracts
@@ -339,25 +339,25 @@ directory, and the wall clock. That is why one `ubuntu-latest` job is sufficient
 Linux/Windows matrix would only buy runtime coverage of the *server*, which is not this slice's
 job.
 
-Repo layout is unchanged from the Slice 1 doc. This slice adds only `.github/`, `.gitattributes`,
+Repo layout is unchanged from the [Slice 1](./TrackA-Slice1.md) doc. This slice adds only `.github/`, `.gitattributes`,
 and `.nvmrc` at the root.
 
 ## Out of scope — do NOT
 
 - **No `npm run acceptance` in CI**, under any trigger — see requirement 11. This is the hard
   one; it will look like an obvious win.
-- No release automation, no publishing, no tagging, no `claude plugin tag` step. Slice 13 owns
-  the release gate and the P-08 switchover.
+- No release automation, no publishing, no tagging, no `claude plugin tag` step. [Slice 13](./TrackC-Slice13.md) owns
+  the release gate and the [P-08](../PLUGIN-PRD.md#p-08--version-scheme) switchover.
 - No Dependabot, no CodeQL, no coverage reporting, no badge in the README, no lint job — the
-  repo has no linter. Each is a separate decision and none is PQ-06's answer.
+  repo has no linter. Each is a separate decision and none is [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s answer.
 - No OS or Node matrix. One job, one runner (interface contracts, above).
 - No changes to `src/`, `tests/`, `dist/`, `tsconfig.json`, `.mcp.json`, `.claude-plugin/`,
   `skills/`, or `README.md`. The only `package.json` change is the quoted test glob.
 - No pre-commit hook alongside the CI check. Two mechanisms for one invariant means the weaker
-  one rots; the rejection is recorded in PQ-06's answer, not implemented as a belt-and-braces.
+  one rots; the rejection is recorded in [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s answer, not implemented as a belt-and-braces.
 - No widening of `.gitattributes` beyond the single `dist/` rule (requirement 5).
 - No new npm dependencies, dev or runtime.
-- No edits to `docs/PLUGIN-PRD.md` beyond the PQ-06 answer paragraph and the single §9 row; no
+- No edits to [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) beyond the [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) answer paragraph and the single [§9](../PLUGIN-PRD.md#9-revision-log) row; no
   edits to §2, §3, or §4 of either PRD.
 
 ## Acceptance criteria
@@ -379,10 +379,10 @@ and `.nvmrc` at the root.
    tree.
 7. `git grep -n acceptance -- .github/` returns nothing, and no workflow contains a
    `workflow_dispatch`, `schedule`, or label-gated path to the live harness.
-8. `docs/PLUGIN-PRD.md` §7 PQ-06 carries a dated answer naming the mechanism and both rejected
-   alternatives; §9 has exactly one new row. `git diff docs/PLUGIN-PRD.md` shows the appended
+8. `docs/PLUGIN-PRD.md` [§7](../PLUGIN-PRD.md#7-open-questions) [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) carries a dated answer naming the mechanism and both rejected
+   alternatives; [§9](../PLUGIN-PRD.md#9-revision-log) has exactly one new row. `git diff docs/PLUGIN-PRD.md` shows the appended
    paragraph and the appended row and nothing else. No new `P-` decision was created.
-9. `docs/DEV-ROADMAP.md` §3 rule 5 no longer says "until Slice 11 automates the check," and §4's
+9. `docs/DEV-ROADMAP.md` [§3](../DEV-ROADMAP.md#3-standing-rules--apply-to-every-slice-never-restated-per-slice) rule 5 no longer says "until Slice 11 automates the check," and [§4](../DEV-ROADMAP.md#4-phase-1-slices)'s
    Slice 11 row reads ☑ with the PR number.
 10. `docs/slices/TrackC-Slice11-results.md` records: date, the pinned Node version, both run
     URLs, the failing annotation verbatim, the `git diff --stat` output from the failing run,
@@ -436,19 +436,19 @@ git add -A && git status               # workflow + .gitattributes + .nvmrc + do
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4, Slice 11 (goal and done-when source); §3 rule 5 (the standing rule
-  this slice retires); §5 (the graph — `S1 --> S11 --> S13`, and the note that Slice 11 is more
+- `docs/DEV-ROADMAP.md` [§4](../DEV-ROADMAP.md#4-phase-1-slices), Slice 11 (goal and done-when source); [§3](../DEV-ROADMAP.md#3-standing-rules--apply-to-every-slice-never-restated-per-slice) rule 5 (the standing rule
+  this slice retires); [§5](../DEV-ROADMAP.md#5-order-and-parallelism) (the graph — `S1 --> S11 --> S13`, and the note that Slice 11 is more
   urgent than originally scheduled).
-- `docs/PLUGIN-PRD.md` P-09 (server ships as committed built JavaScript — the decision that
-  created this risk and named it the cheaper cost), PQ-06 (the open question this slice closes,
-  including its three candidate mechanisms and its 2026-08-04 escalation), P-08 (unset `version`
-  means every commit is an update — why release-time checking is too late), P-11 (`owner/repo`
-  marketplace — why a friend's fork PR is a real path), §9 (revision-log format, append-only).
-- `docs/slices/TrackA-Slice1.md` (the build command, the committed-`dist/` rule, and the repo
+- `docs/PLUGIN-PRD.md` [P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) (server ships as committed built JavaScript — the decision that
+  created this risk and named it the cheaper cost), [PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) (the open question this slice closes,
+  including its three candidate mechanisms and its 2026-08-04 escalation), [P-08](../PLUGIN-PRD.md#p-08--version-scheme) (unset `version`
+  means every commit is an update — why release-time checking is too late), [P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace) (`owner/repo`
+  marketplace — why a friend's fork PR is a real path), [§9](../PLUGIN-PRD.md#9-revision-log) (revision-log format, append-only).
+- [`docs/slices/TrackA-Slice1.md`](./TrackA-Slice1.md) (the build command, the committed-`dist/` rule, and the repo
   layout this slice adds to).
-- `docs/slices/TrackA-Slice6.md`, out-of-scope list (the existing, binding refusal to CI-wire
+- [`docs/slices/TrackA-Slice6.md`](./TrackA-Slice6.md), out-of-scope list (the existing, binding refusal to CI-wire
   the live acceptance harness) and requirement 7 (the §9 row template this document mirrors).
-- `docs/MCP-PRD.md` §3.4 (rate limits are hard constraints — why requirement 11 is not
+- `docs/MCP-PRD.md` [§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) (rate limits are hard constraints — why requirement 11 is not
   negotiable).
 - `CLAUDE.md`, "Environment" (`core.autocrlf=true`, no `.gitattributes`, CRLF working tree over
   LF blobs — the fact requirement 5 is built on).

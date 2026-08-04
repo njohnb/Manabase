@@ -8,7 +8,7 @@ usable: `tools/list` advertises `card_search` with a compact description and a J
 and `tools/call` dispatches to the Slice 3 handler — with every handler failure returned as a
 structured tool *result* the model can read and correct from, never as an MCP protocol error.
 
-## Preconditions (deliverables of Slice 4)
+## Preconditions (deliverables of [Slice 4](./TrackA-Slice4.md))
 
 - `src/scryfall/prices.ts` — trap-correct `resolvePrice` (foil/etched fallback with finish
   labeled, digital-only reason); its tests and fixtures pass.
@@ -37,12 +37,12 @@ price correctness → **tool wiring** → live acceptance.
 ## Requirements
 
 1. **Tool name: `card_search`.** The naming convention is `domain_verb_noun` in snake_case
-   (MCP-PRD D-11). The bare name is what the server registers; when running inside the
+   (MCP-PRD [D-11](../MCP-PRD.md#d-11--tool-naming-convention)). The bare name is what the server registers; when running inside the
    plugin, the harness exposes it as `mcp__plugin_manabase_mtg__card_search` — that scoping
    is the harness's job, not this code's.
 2. **Compact description.** Deep Scryfall-syntax teaching ships in the plugin's skill, not
    in the tool description — whether the description needs to grow is an open question that
-   gets *measured* later (MCP-PRD OQ-01); do not front-load syntax now. Use exactly:
+   gets *measured* later (MCP-PRD [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)); do not front-load syntax now. Use exactly:
    > Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall
    > itself — supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`,
    > `art:`, and regex (`o:/…/`). Returns per-card gameplay fields, format legalities, and a
@@ -63,19 +63,19 @@ price correctness → **tool wiring** → live acceptance.
      "required": ["q"]
    }
    ```
-4. **Dispatch, separated from transport so it is directly testable** (MCP-PRD D-03): all
+4. **Dispatch, separated from transport so it is directly testable** (MCP-PRD [D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions)): all
    logic lives in `dispatchToolCall`, a plain function; `registerTools` only installs thin
    SDK request handlers that delegate to it.
    - **Argument validation is minimal:** `args` must be an object with a string `q`. If not,
      return an **error-shaped tool result** (below) with code `bad_request` — do not validate
-     or interpret the query string itself (Scryfall evaluates syntax; MCP-PRD D-07).
+     or interpret the query string itself (Scryfall evaluates syntax; MCP-PRD [D-07](../MCP-PRD.md#d-07--three-way-cache-split)).
      Optional params pass through when they have the right primitive type; ignore unknown keys.
    - **Success:** `{ content: [{ type: "text", text: JSON.stringify(result.value) }] }`.
    - **Handler failure:** `{ isError: true, content: [{ type: "text", text:
      JSON.stringify({ error: result.error }) }] }` — the full `Failure.error` object,
      including Scryfall's verbatim `details`, so the model can correct a malformed query and
      retry. **A handler failure is never thrown and never becomes a JSON-RPC error**
-     (MCP-PRD D-10); a protocol error is opaque to the model, a structured result is
+     (MCP-PRD [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw)); a protocol error is opaque to the model, a structured result is
      actionable.
    - **Unknown tool name:** the one case that *is* a protocol-level error — throw within the
      SDK handler (harness misuse, not a query failure the model should retry).
@@ -111,12 +111,12 @@ This slice **consumes** (canonical, from earlier slices): `Config`/`resolveConfi
 `cardSearch`/`CardSearchParams`/`CardSearchData` (Slice 3). SDK imports:
 `Server` from `@modelcontextprotocol/sdk/server/index.js`, `StdioServerTransport` from
 `…/server/stdio.js`, `ListToolsRequestSchema` and `CallToolRequestSchema` from `…/types.js`.
-Repo layout is unchanged from the Slice 1 doc.
+Repo layout is unchanged from the [Slice 1](./TrackA-Slice1.md) doc.
 
 ## Out of scope — do NOT
 
 - No second tool, no syntax-reference resource, no `outputSchema`/`structuredContent` — one
-  tool, text-JSON results. (Whether a syntax resource is needed is OQ-01, measured in Track B.)
+  tool, text-JSON results. (Whether a syntax resource is needed is [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model), measured in Track B.)
 - No zod or any schema library — the JSON Schema above is a literal.
 - No long description, no examples-in-description, no query preprocessing.
 - No changes to handler, client, or price logic. No plugin-file changes
@@ -134,7 +134,7 @@ Repo layout is unchanged from the Slice 1 doc.
    server stays up. **Never a JSON-RPC error for a handler failure.**
 4. `dispatchToolCall` with missing/non-string `q` returns an error-shaped result (not a
    throw); with an unknown tool name, `tools/call` yields a protocol error.
-5. All unit tests pass with no server or transport constructed (D-03), no network.
+5. All unit tests pass with no server or transport constructed ([D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions)), no network.
 6. `npm run typecheck`, `npm test`, `npm run build` pass; `dist/index.js` recommitted and
    still runs from a directory with no `node_modules`.
 
@@ -174,9 +174,9 @@ git add -A && git status
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4, Slice 5.
-- `docs/MCP-PRD.md` D-03 (dispatch testable without transport), D-07 (no query validation),
-  D-10 (failures as structured results, never protocol errors), D-11 (tool naming), OQ-01
+- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices), [Slice 5](../DEV-ROADMAP.md#slice-5--tool-registration--wiring).
+- [`docs/MCP-PRD.md`](../MCP-PRD.md) [D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions) (dispatch testable without transport), [D-07](../MCP-PRD.md#d-07--three-way-cache-split) (no query validation),
+  [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw) (failures as structured results, never protocol errors), [D-11](../MCP-PRD.md#d-11--tool-naming-convention) (tool naming), [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
   (description stays compact until measured).
-- `docs/PLUGIN-PRD.md` P-12 (scoped tool name `mcp__plugin_manabase_mtg__card_search` — the
+- [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key) (scoped tool name `mcp__plugin_manabase_mtg__card_search` — the
   harness's doing; register the bare name).

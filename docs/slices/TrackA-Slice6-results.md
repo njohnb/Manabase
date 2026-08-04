@@ -1,4 +1,4 @@
-# Track A — Slice 6 results: live CAP-01 acceptance pass
+# Track A — Slice 6 results: live [CAP-01](../MCP-PRD.md#cap-01--card-search) acceptance pass
 
 **Run date:** 2026-08-03
 **Node:** v22.17.1
@@ -13,7 +13,7 @@ no retries, no 429 provoked.
 
 Assertions run on `JSON.parse(content[0].text)` — the actual tool payload — never on raw stdout.
 
-| # | Query / action | CAP-01 criterion | 2026-07-29 baseline | Observed 2026-08-03 | Result |
+| # | Query / action | [CAP-01](../MCP-PRD.md#cap-01--card-search) criterion | 2026-07-29 baseline | Observed 2026-08-03 | Result |
 |---|---|---|---|---|---|
 | 1 | `o:/^{T}: Add/` | 2 (regex unmangled) | 1,554 | `total_cards=1555` | PASS |
 | 2 | `otag:ramp` | 3 | 2,260 | `total_cards=2274` | PASS |
@@ -22,7 +22,7 @@ Assertions run on `JSON.parse(content[0].text)` — the actual tool payload — 
 | 5 | `atag:squirrel` (alias of #4) | 3 | 192 | `total_cards=194` — identical to `art:squirrel` | PASS |
 | 6 | `f:commander t:creature cmc=1` | 9 (pagination reported, not resolved) | 1,197 | `total_cards=1197`, `has_more=true`, `cards.length=175` (exactly one page), `note="1197 cards match; showing page 1. Narrow the query or request a specific page for more."` | PASS |
 | 7 | `usd<1 t:land` | 9 | 803 | `total_cards=802`, `has_more=true`, `cards.length=175`, note present | PASS |
-| 8 | `illustrationtag:dragon` | 8 (structured failure, D-10) | HTTP 400 | `isError=true`, `error.code="bad_request"`, `error.status=400`, `error.details="All of your terms were ignored."` — and the **next** `tools/call` on the same server process succeeded (`total_cards=1`), so a failure does not wedge the connection | PASS |
+| 8 | `illustrationtag:dragon` | 8 (structured failure, [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw)) | HTTP 400 | `isError=true`, `error.code="bad_request"`, `error.status=400`, `error.details="All of your terms were ignored."` — and the **next** `tools/call` on the same server process succeeded (`total_cards=1`), so a failure does not wedge the connection | PASS |
 | 9 | `!"Gaea's Cradle" set:jgp`, `unique=prints` | 4 (foil-only price) | `usd_foil "3999.00"` | `total_cards=1`, `price={"available":true,"usd":"3999.00","finish":"foil"}` | PASS |
 | 10 | `is:etched`, `unique=prints` | 5 (etched price) | 1,074 etched-only cards | `total_cards=1205`; 137 of the 175 first-page cards resolved `finish:"etched"`; first = Abaddon the Despoiler (40k) `{"available":true,"usd":"0.42","finish":"etched"}` | PASS |
 | 11 | `!"Black Lotus"` | 6 (paper vs. MTGO printing) | LEA paper printing, `usd` populated | **Drifted** — default rollup returned Vintage Masters (vma): `{"available":false,"reason":"digital-only"}` (correct: never a bare no-price). `!"Black Lotus" game:paper` → Unlimited Edition (2ed): `{"available":false,"reason":"no-price-data"}` — no paper Lotus printing carries USD upstream any more. Substitute probe `t:land usd>=1 game:paper unique=prints` → Abandoned Air Temple (tla) `{"available":true,"usd":"5.72","finish":"nonfoil"}` | PASS (with drift) |
@@ -31,17 +31,17 @@ Assertions run on `JSON.parse(content[0].text)` — the actual tool payload — 
 
 ## Criteria evidence split
 
-Three of the twelve CAP-01 criteria are proven at unit level rather than live, by design:
+Three of the twelve [CAP-01](../MCP-PRD.md#cap-01--card-search) criteria are proven at unit level rather than live, by design:
 
 - **Criterion 1** (handler callable with no MCP server started and no transport constructed,
-  D-03) — `tests/tools/card-search.test.ts`. Re-run in this session: pass.
+  [D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions)) — `tests/tools/card-search.test.ts`. Re-run in this session: pass.
 - **Criterion 10** (`User-Agent` and `Accept` headers on every request) and **criterion 11**
   (≤ 2 requests/second spacing) — `tests/scryfall/client.test.ts`, asserted against the mock
   transport. The harness's own ≥ 600 ms spacing is operational politeness, not the evidence.
 - **Criterion 12** (429 → backoff, structured failure, never an immediate retry) —
   `tests/scryfall/client.test.ts`. **No real 429 was provoked.** Deliberately exceeding
   Scryfall's rate limit to observe the response is precisely what the rate-limit constraint
-  (§3.4) prohibits; a sustained overage risks a ban affecting every user of the application.
+  ([§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)) prohibits; a sustained overage risks a ban affecting every user of the application.
 
 Criteria 2–9 are the live evidence in the table above.
 
@@ -56,9 +56,9 @@ neither is a defect in this server, and neither required a code change.
 1. **`!"Black Lotus"` no longer returns a paper printing by default.** The 2026-07-29 record
    states that search excludes digital-only printings by default and that a bare
    `!"Black Lotus"` yields the LEA paper printing. Live, the `unique=cards` rollup returns the
-   MTGO **Vintage Masters (vma)** printing. The server handled it exactly as §4.1.3 trap 3
+   MTGO **Vintage Masters (vma)** printing. The server handled it exactly as [§4.1.3](../MCP-PRD.md#413-price-fields--three-verified-traps) trap 3
    requires: `{"available":false,"reason":"digital-only"}` — the reason is stated, and it is
-   never reported as a bare "no price". CAP-01 criterion 6's substance (a digital printing must
+   never reported as a bare "no price". [CAP-01](../MCP-PRD.md#cap-01--card-search) criterion 6's substance (a digital printing must
    not be silently priced as unavailable-without-reason) therefore holds.
 2. **No paper Black Lotus printing carries a USD price any more.** All three paper printings
    return `usd`, `usd_foil` and `usd_etched` as `null`, with only EUR populated:

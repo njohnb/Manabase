@@ -7,7 +7,7 @@
 with the required headers, enforced rate limits, disciplined 429 backoff, and never-throw
 structured results. After this slice, no other module in the codebase ever calls `fetch`.
 
-## Preconditions (deliverables of Slice 1)
+## Preconditions (deliverables of [Slice 1](./TrackA-Slice1.md))
 
 - `package-lock.json` committed; `npm install` works.
 - `tsconfig.json` has `allowImportingTsExtensions: true`; relative imports use `.ts`
@@ -36,9 +36,9 @@ handler → price correctness → tool wiring → live acceptance.
 
 1. **Never throw.** The client returns a `Result` for every outcome — HTTP errors, network
    failures, JSON parse failures, everything. A thrown exception higher up becomes an opaque
-   MCP protocol error, which the model cannot correct from (MCP-PRD D-10). Wrap the entire
+   MCP protocol error, which the model cannot correct from (MCP-PRD [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw)). Wrap the entire
    request path; the `unexpected` code is the backstop, never a rethrow.
-2. **Required headers on every request** (Scryfall enforces these; MCP-PRD §3.4):
+2. **Required headers on every request** (Scryfall enforces these; MCP-PRD [§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)):
    - `User-Agent: config.userAgent`
    - `Accept: application/json`
 3. **Rate limits are hard constraints, not guidance.** Scryfall enforces per-endpoint limits
@@ -122,25 +122,25 @@ export function createScryfallClient(config: Config, deps?: ClientDeps): Scryfal
 ```
 
 This slice **consumes**: `Config` from `src/config.ts` (Slice 1). Repo layout is unchanged
-from the Slice 1 doc.
+from the [Slice 1](./TrackA-Slice1.md) doc.
 
 ## Out of scope — do NOT
 
 - No card types, no result shaping, no `card_search` (Slice 3).
 - No POST support — `/cards/collection` arrives with a later capability; adding it now is
-  speculative abstraction (MCP-PRD D-04).
+  speculative abstraction (MCP-PRD [D-04](../MCP-PRD.md#d-04--no-transport-abstraction-layer)).
 - No caching, no persistence, no reading `process.env` (config arrives as a parameter).
 - No new npm dependencies. No changes to `src/index.ts` or plugin files.
 
 ## Acceptance criteria
 
-Unit-level ownership of CAP-01 criteria 10–12 (MCP-PRD §5; Slice 6 re-checks them live):
+Unit-level ownership of [CAP-01](../MCP-PRD.md#cap-01--card-search) criteria 10–12 (MCP-PRD [§5](../MCP-PRD.md#5-capabilities); Slice 6 re-checks them live):
 
-1. **[CAP-01 #10]** Every request carries `User-Agent` (containing `manabase-mtg/`) and
+1. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #10]** Every request carries `User-Agent` (containing `manabase-mtg/`) and
    `Accept` headers — asserted from the mock's captured requests.
-2. **[CAP-01 #11]** Two back-to-back card-endpoint calls are spaced ≥500 ms apart (asserted
+2. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #11]** Two back-to-back card-endpoint calls are spaced ≥500 ms apart (asserted
    via injected `now`/`sleep`, not wall-clock).
-3. **[CAP-01 #12]** A 429 produces one 30,000 ms backoff then a retry; a second 429 returns
+3. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #12]** A 429 produces one 30,000 ms backoff then a retry; a second 429 returns
    `{ ok: false, error: { code: "rate_limited", ... } }`. No immediate retry ever occurs.
 4. A 400 response body's `details` text survives verbatim into `error.details`.
 5. 5xx → `upstream_unavailable`; a rejecting `fetchImpl` → `network`; no test observes a
@@ -174,6 +174,6 @@ git add -A && git status   # dist/index.js current, tree clean after commit
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4, Slice 2.
-- `docs/MCP-PRD.md` §3.4 (rate limits, 429, headers — the binding table), §4.1 (endpoint
-  facts), D-10 (never throw, structured failures).
+- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices), [Slice 2](../DEV-ROADMAP.md#slice-2--scryfall-client).
+- [`docs/MCP-PRD.md`](../MCP-PRD.md) [§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) (rate limits, 429, headers — the binding table), [§4.1](../MCP-PRD.md#41-scryfall-rest-api) (endpoint
+  facts), [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw) (never throw, structured failures).

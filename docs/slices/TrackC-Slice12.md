@@ -6,31 +6,31 @@
 **Goal.** Make `README.md` sufficient for a non-author, and prove it with one real install
 performed by someone who is not the author and who receives no help. Everything else in this
 slice — the troubleshooting section, the `/doctor` line, the three-place disclaimer check — is
-preparation for that single test. The dry run is the acceptance gate, and Slice 13 (the P-08
-release switchover) does not open until its result is recorded in `docs/PLUGIN-PRD.md`.
+preparation for that single test. The dry run is the acceptance gate, and [Slice 13](./TrackC-Slice13.md) (the [P-08](../PLUGIN-PRD.md#p-08--version-scheme)
+release switchover) does not open until its result is recorded in [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md).
 
 ## Preconditions
 
-`docs/DEV-ROADMAP.md` §5 puts three edges into this slice — 6 → 12, 9 → 12, 10 → 12. Each is a
+`docs/DEV-ROADMAP.md` [§5](../DEV-ROADMAP.md#5-order-and-parallelism) puts three edges into this slice — 6 → 12, 9 → 12, 10 → 12. Each is a
 genuine prerequisite, not a courtesy ordering.
 
-- **Slice 6 — live CAP-01 acceptance (done, PR #7).** Every claim the README makes about what
-  the server actually returns rests on `docs/slices/TrackA-Slice6-results.md`. Without it the
+- **[Slice 6](./TrackA-Slice6.md) — live [CAP-01](../MCP-PRD.md#cap-01--card-search) acceptance (done, PR #7).** Every claim the README makes about what
+  the server actually returns rests on [`docs/slices/TrackA-Slice6-results.md`](./TrackA-Slice6-results.md). Without it the
   README is asserting behavior nobody has watched, and a friend's "it gave me a weird answer"
   cannot be separated from "the server is wrong."
-- **Slice 9 — PC-01 evals.** `skills/scryfall-query-craft/SKILL.md` must exist *and* have been
+- **[Slice 9](./TrackB-Slice9.md) — [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals.** `skills/scryfall-query-craft/SKILL.md` must exist *and* have been
   measured against a without-skill baseline. **A friend cannot dry-run a plugin whose skill has
   not been evaluated:** the single most valuable observation the dry run can make is whether the
   skill fires unprompted on someone else's machine, on their phrasing — and that observation is
-  uninterpretable without a recorded baseline to compare it against. Absent Slice 9, "Claude
+  uninterpretable without a recorded baseline to compare it against. Absent [Slice 9](./TrackB-Slice9.md), "Claude
   didn't reach for it" is indistinguishable between a budget-trimmed listing, a weak
   `description`, and a prompt the skill was never meant to catch.
-- **Slice 10 — context-cost measurement.** The docs cannot state a context cost that has not
-  been measured. More pointedly, PQ-04's chosen mitigation is a README line telling the user to
-  run `/doctor`, and that line is only worth writing if Slice 10 established what a *healthy*
-  listing looks like on the author's own machine (PQ-02). Otherwise the friend runs `/doctor`,
+- **[Slice 10](./TrackC-Slice10.md) — context-cost measurement.** The docs cannot state a context cost that has not
+  been measured. More pointedly, [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s chosen mitigation is a README line telling the user to
+  run `/doctor`, and that line is only worth writing if [Slice 10](./TrackC-Slice10.md) established what a *healthy*
+  listing looks like on the author's own machine ([PQ-02](../PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed)). Otherwise the friend runs `/doctor`,
   reads a number, and has nothing to compare it to.
-- **Inherited from Slice 7 via Slice 9 — name it anyway.** The plugin must already have been
+- **Inherited from [Slice 7](./TrackB-Slice7.md) via [Slice 9](./TrackB-Slice9.md) — name it anyway.** The plugin must already have been
   installed from the marketplace at least once, by the author, on a profile that had never seen
   it. This slice must not be the first time anyone installs the plugin. If it is, a failed
   friend install cannot be attributed: documentation defect and packaging defect look identical
@@ -40,7 +40,7 @@ genuine prerequisite, not a courtesy ordering.
 
 Manabase is a Magic: The Gathering MCP server (Scryfall-backed card search) that ships inside a
 Claude Code plugin. Track A built the server, Track B built the thing a user installs, Track C
-measures and releases it. This is slice 12 of 13 — the last gate before the P-08 switchover.
+measures and releases it. This is slice 12 of 13 — the last gate before the [P-08](../PLUGIN-PRD.md#p-08--version-scheme) switchover.
 
 **A README that is correct for the author is not the test.** The author has a warm plugin cache,
 Node already on `PATH`, a machine that has resolved `${CLAUDE_PLUGIN_DATA}` before, and — the
@@ -57,7 +57,7 @@ careful self-review of the README.
 | `README.md` | modify — troubleshooting section, `/doctor` line, stale status text, disclaimer and install form verified |
 | `docs/slices/TrackC-Slice12-results.md` | new — the recorded dry run, the friend's verbatim outputs, the issue index |
 | GitHub issues on `njohnb/Manabase` | new — one per point of friction, filed during or immediately after the run |
-| `docs/PLUGIN-PRD.md` | modify — PQ-04's disposition appended to its §7 entry; one appended §9 revision-log row |
+| [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) | modify — [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s disposition appended to its [§7](../PLUGIN-PRD.md#7-open-questions) entry; one appended [§9](../PLUGIN-PRD.md#9-revision-log) revision-log row |
 
 ## Requirements
 
@@ -67,7 +67,7 @@ careful self-review of the README.
    layout block marks `skills/scryfall-query-craft/` as "(placeholder — not written yet)." After
    Slices 7–10 both statements are false. Correct them to what those slices actually recorded,
    citing the results docs. **Keep "Status: pre-release."** — declaring the plugin public is
-   Slice 13's act, not this one's.
+   [Slice 13](./TrackC-Slice13.md)'s act, not this one's.
 
 2. **The troubleshooting section is the substantive writing in this slice.** The README already
    has an *If something is wrong* section with three bullets; expand it to cover the four failure
@@ -88,7 +88,7 @@ careful self-review of the README.
       one and it needs the plainest writing in the file: **a server that fails to start produces
       no error the user will ever see — the tools are simply missing.** Say that outright. A user
       who does not know it will spend their time hunting for an error message that does not
-      exist. Phase 1 can only document this (PLUGIN-PRD PC-02, *what the user sees when something
+      exist. Phase 1 can only document this (PLUGIN-PRD [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server), *what the user sees when something
       is wrong*); do not spec a fix here. Checks, cheapest first: `node --version` in a terminal,
       because Node on `PATH` is the plugin's only runtime prerequisite and its absence produces
       exactly this symptom on a fresh machine; then `/mcp` for connected-vs-not; then
@@ -101,7 +101,7 @@ careful self-review of the README.
       without it the advice reads as superstition: the skill listing is capped at a fraction of
       the context window, and when it overflows Claude Code drops the descriptions of the
       least-used skills while keeping their names — the skill stays invocable, nothing errors,
-      but automatic invocation stops (PLUGIN-PRD §3.1). Give the two honest remedies: invoke it
+      but automatic invocation stops (PLUGIN-PRD [§3.1](../PLUGIN-PRD.md#31-context-budget)). Give the two honest remedies: invoke it
       explicitly as `/manabase:scryfall-query-craft`, or reduce what else is installed. Say that
       **this plugin cannot raise the budget on the user's behalf** — a plugin's root
       `settings.json` supports only the `agent` and `subagentStatusLine` keys — so nobody goes
@@ -109,46 +109,46 @@ careful self-review of the README.
    4. **A stale install.** Symptom: a fix that is supposedly shipped is not present, or the
       behavior changed halfway through a session. Checks: `/plugin` shows the installed version —
       during development `version` is unset, so it resolves to the source commit SHA and every
-      commit is an update (P-08); `/plugin update` pulls it. The trap this entry exists to
+      commit is an update ([P-08](../PLUGIN-PRD.md#p-08--version-scheme)); `/plugin update` pulls it. The trap this entry exists to
       pre-empt: **a mid-session plugin update leaves the running server on the old
       `${CLAUDE_PLUGIN_ROOT}` until `/reload-plugins`**, so an update can be installed and not yet
       in effect, which reads to the user as "the update did nothing."
 
    Keep the existing Scryfall-outage bullet. An unreachable upstream is a structured failure the
-   model can act on, not a dead server and not a stack trace (PC-02, MCP-PRD D-10), and Scryfall
+   model can act on, not a dead server and not a stack trace ([PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server), MCP-PRD [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw)), and Scryfall
    being down is a total outage for Phase 1 — the README should keep saying so plainly.
 
 3. **Invent no commands.** `/mcp`, `/doctor`, `/context`, `/plugin`, `/plugin update`,
    `/reload-plugins`, `/manabase:scryfall-query-craft`, and `claude --debug` are all named in
-   `docs/PLUGIN-PRD.md` or `docs/MCP-PRD.md`; `node --version` is plain shell. Anything beyond
+   [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) or [`docs/MCP-PRD.md`](../MCP-PRD.md); `node --version` is plain shell. Anything beyond
    that list you must confirm in-session against live documentation or your own terminal before
    it goes in the README, or phrase it as something the reader checks rather than something you
    assert. A troubleshooting section that names a flag that does not exist is worse than no
    troubleshooting section, because it burns the reader's trust at the exact moment they are
    already stuck.
 
-4. **PQ-04's answer is "documentation is the chosen mitigation" — and this slice confirms it
-   rather than assumes it.** PQ-04 asks how the author would detect that a *friend's* skill
+4. **[PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s answer is "documentation is the chosen mitigation" — and this slice confirms it
+   rather than assumes it.** [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) asks how the author would detect that a *friend's* skill
    listing has been budget-trimmed; the degradation is silent and `/doctor` is local, so the
    author cannot observe it remotely. The concrete artifact is requirement 2.3's line: run
    `/doctor` if the plugin stops firing. **The dry run is the confirmation step.** The friend is
    asked to run `/doctor` once and paste the output back whether or not anything appears wrong —
    that paste is the only way this project ever observes someone else's budget. Three outcomes,
    and all three are recordable results:
-   - The friend's listing is healthy and `/doctor` reports it legibly → **PQ-04 answered.**
+   - The friend's listing is healthy and `/doctor` reports it legibly → **[PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) answered.**
      Documentation is the chosen mitigation; the README line is the artifact; the friend's output
      is the evidence.
-   - The friend's listing is trimmed and `/doctor` surfaces it → **PQ-04 answered**, and more
+   - The friend's listing is trimmed and `/doctor` surfaces it → **[PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) answered**, and more
      strongly: the mitigation was exercised in anger rather than in theory. Record what they saw.
    - The friend's listing is trimmed and `/doctor` does *not* surface it — or the friend cannot
-     tell from the output whether it is trimmed — → **PQ-04 reopens**, in `docs/PLUGIN-PRD.md`
-     §7, with the specific gap the dry run revealed written down.
+     tell from the output whether it is trimmed — → **[PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) reopens**, in `docs/PLUGIN-PRD.md`
+     [§7](../PLUGIN-PRD.md#7-open-questions), with the specific gap the dry run revealed written down.
 
    Reopening is not a slice failure. **Only an unrecorded outcome is a failure.** Do not close
-   PQ-04 by asserting the README line is sufficient without having watched a non-author use it.
+   [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) by asserting the README line is sufficient without having watched a non-author use it.
 
 5. **The disclaimer surface check is a three-place verbatim check, and it is mechanical.**
-   PLUGIN-PRD §3.5 requires the Fan Content disclaimer on `plugin.json`'s `description`, the
+   PLUGIN-PRD [§3.5](../PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not) requires the Fan Content disclaimer on `plugin.json`'s `description`, the
    marketplace entry, and the README. The canonical string is reproduced under *Interface
    contracts* below. Compare by normalizing runs of whitespace to a single space and then
    comparing the resulting strings — the README wraps the disclaimer across three lines and the
@@ -159,14 +159,14 @@ careful self-review of the README.
 
    One thing to check and **record rather than change**: `marketplace.json` carries the
    disclaimer on `plugins[0].description` but not on the catalog's own top-level `description`.
-   §3.5 names "the marketplace entry," which is the plugin entry, so the requirement is met.
-   §3.5 is locked; if you believe the catalog description also needs it, that is a PRD question,
+   [§3.5](../PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not) names "the marketplace entry," which is the plugin entry, so the requirement is met.
+   [§3.5](../PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not) is locked; if you believe the catalog description also needs it, that is a PRD question,
    not a quiet edit.
 
 6. **The raw-URL trap must never appear in the README, in any framing.** Adding the marketplace
    by a direct URL to `marketplace.json` downloads only that one file and the plugin's relative
    source silently fails to resolve — a partial, confusing failure rather than a clean one
-   (P-11). The README's current warning blockquote states the rule *without showing a URL*, which
+   ([P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)). The README's current warning blockquote states the rule *without showing a URL*, which
    is correct and must stay that way. **Review the finished README specifically for this**,
    because the natural instinct when documenting a trap is to demonstrate it, and a "don't do
    this" example is a copyable example. Always `owner/repo`.
@@ -179,7 +179,7 @@ careful self-review of the README.
      later reader can judge for themselves how much help was baked into it.
    - **Who the friend is:** someone who did not watch this project get built and has not read
      the PRDs. A colleague who has seen the roadmap is a warm reader and produces a warm result.
-     Confirm before starting that they are on Claude Code **2.1.207 or later** (P-10) — below the
+     Confirm before starting that they are on Claude Code **2.1.207 or later** ([P-10](../PLUGIN-PRD.md#p-10--minimum-supported-claude-code-version)) — below the
      floor the plugin is unsupported, not merely degraded, and the run would be data about a
      configuration this project does not claim to serve.
    - **What they are asked to do**, in this order:
@@ -191,7 +191,7 @@ careful self-review of the README.
         **including the ones they resolved themselves in ten seconds.**
    - **What is recorded:** their OS and Claude Code version; whether Node was already installed;
      the two install commands exactly as they typed them; whether `/mcp` showed the server
-     connected in the first session; whether *any* prompt appeared at enable time (PC-02
+     connected in the first session; whether *any* prompt appeared at enable time ([PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server)
      criterion 2 says zero, and this run is the first time a non-author has been in a position
      to observe it); the questions they asked and whether the tools were called; the `/doctor`
      output verbatim; and every hesitation in their own words, ordered so the sequence is
@@ -219,7 +219,7 @@ careful self-review of the README.
    memory.** A remembered friction reliably decays into "it was fine, they figured it out," and
    that sentence is precisely the information this slice is spending a friend's afternoon to buy.
    File the ten-second ones too: a ten-second friction repeated across 5–20 installs is the
-   adoption risk PLUGIN-PRD §1 names as the primary one. The results doc indexes the issues by
+   adoption risk PLUGIN-PRD [§1](../PLUGIN-PRD.md#1-overview) names as the primary one. The results doc indexes the issues by
    number; the issue is the record, the results doc is the index.
 
 9. **Draw the fix-here / file-for-later line so the slice can actually close.**
@@ -229,8 +229,8 @@ careful self-review of the README.
      same commit as the results doc. They do not need re-verifying with the friend; they are
      documentation, and the friend is spent.
    - **Filed, not fixed:** anything requiring a change to `src/`, `dist/`, `.claude-plugin/`,
-     `.mcp.json`, or the skill. Those are a new slice or a Slice 13 blocker, and the issue must
-     say which. The reason is not bureaucratic: a code change reopens Slice 6's or Slice 9's
+     `.mcp.json`, or the skill. Those are a new slice or a [Slice 13](./TrackC-Slice13.md) blocker, and the issue must
+     say which. The reason is not bureaucratic: a code change reopens [Slice 6](./TrackA-Slice6.md)'s or [Slice 9](./TrackB-Slice9.md)'s
      recorded evidence, and this slice has no harness to re-run it against. A packaging defect
      fixed quietly inside a docs slice is a change nothing verified.
    - **The judgment call, stated explicitly:** if the friend's install failed outright for a
@@ -238,12 +238,12 @@ careful self-review of the README.
      victory. File it, fix it in its owning slice, then re-run the dry run — **with a different
      friend**, because the first one now knows the answer and is no longer a cold reader.
 
-10. **Close the loop in `docs/PLUGIN-PRD.md`, in the same session.** Two edits, and only two.
-    - **§7:** append PQ-04's dated disposition to its existing entry. §7's preamble is binding —
+10. **Close the loop in [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md), in the same session.** Two edits, and only two.
+    - **[§7](../PLUGIN-PRD.md#7-open-questions):** append [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s dated disposition to its existing entry. §7's preamble is binding —
       "Questions stay here until answered — they are not dropped" — so the question text stays
       and the answer is appended beneath it, whether that answer is *answered* or *reopened with
       what the dry run revealed*.
-    - **§9:** append exactly one row. The table is **append-only**; §2 and §3 are locked; §4 is a
+    - **[§9](../PLUGIN-PRD.md#9-revision-log):** append exactly one row. The table is **append-only**; §2 and §3 are locked; §4 is a
       dated research record that is appended to, never overwritten. Row template:
 
     ```
@@ -262,10 +262,10 @@ careful self-review of the README.
     ```
 
 11. **Record the run in `docs/slices/TrackC-Slice12-results.md`**, following the shape of
-    `docs/slices/TrackA-Slice6-results.md`: a header block (date, friend's OS and Claude Code
+    [`docs/slices/TrackA-Slice6-results.md`](./TrackA-Slice6-results.md): a header block (date, friend's OS and Claude Code
     version, Node present beforehand yes/no, result), the handover message verbatim, a
     step-by-step timeline of the install with the friend's own words quoted, the `/doctor` output
-    verbatim in a fenced block, a table of friction issues with links, the PQ-04 disposition and
+    verbatim in a fenced block, a table of friction issues with links, the [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) disposition and
     the evidence for it, and a *What the README got wrong* section listing what was fixed here
     versus what was filed under requirement 9. Quote the friend; do not paraphrase them. Their
     phrasing is the finding.
@@ -276,8 +276,8 @@ No code interfaces. For a docs slice the contracts are canonical strings that mu
 verbatim in specific places, reproduced here exactly as they exist in the repository so the
 checks are mechanical rather than interpretive.
 
-**1. The Fan Content disclaimer** — required verbatim by MCP-PRD §3.3 and required on three
-plugin surfaces by PLUGIN-PRD §3.5. One line, as stored:
+**1. The Fan Content disclaimer** — required verbatim by MCP-PRD [§3.3](../MCP-PRD.md#33-legal-and-terms-of-service) and required on three
+plugin surfaces by PLUGIN-PRD [§3.5](../PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not). One line, as stored:
 
 ```
 Manabase is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
@@ -294,7 +294,7 @@ Where it appears, and how it is embedded:
 `approved/endorsed` has no spaces around the slash; `©` is U+00A9 and is followed immediately by
 `Wizards` with no space. Do not "improve" the punctuation — verbatim means verbatim.
 
-**2. The install commands.** Exactly two, `owner/repo` form, never a raw URL (P-11):
+**2. The install commands.** Exactly two, `owner/repo` form, never a raw URL ([P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)):
 
 ```
 /plugin marketplace add njohnb/Manabase
@@ -305,11 +305,11 @@ The second is `<plugin-name>@<marketplace-name>`; both are `manabase` here — t
 in `plugin.json` and the marketplace's `name` in `marketplace.json`.
 
 **3. The version floor.** "Claude Code 2.1.207 or later" — a hard floor, not a recommendation
-(P-10). The README already states it this way and links P-10; keep both the wording and the
+([P-10](../PLUGIN-PRD.md#p-10--minimum-supported-claude-code-version)). The README already states it this way and links P-10; keep both the wording and the
 link. Below the floor the plugin is unsupported rather than degraded.
 
 **4. The scoped tool name.** `mcp__plugin_manabase_mtg__card_search`, server registered as
-`plugin:manabase:mtg` (P-12). That scoped form is what permission rules, `allowed-tools` entries,
+`plugin:manabase:mtg` ([P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key)). That scoped form is what permission rules, `allowed-tools` entries,
 and hook matchers must use — a matcher written against the bare server key never fires. The
 README already says this; it must survive any editing done here.
 
@@ -319,11 +319,11 @@ README already says this; it must survive any editing done here.
   `.mcp.json`, `skills/`, `tests/`, or `scripts/`. If the dry run demands one, requirement 9 says
   file it, do not fix it here.
 - **Do not rewrite the README wholesale.** It is currently accurate about the things it covers.
-  This slice adds the troubleshooting depth PC-02 requires, corrects the stale status text, and
+  This slice adds the troubleshooting depth [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) requires, corrects the stale status text, and
   fixes what the dry run exposes. A rewrite destroys the artifact under test, and a rewrite
   *mid-run* invalidates the run outright.
-- **No edits to `docs/PLUGIN-PRD.md` beyond requirement 10's two.** No edits at all to
-  `docs/MCP-PRD.md` — this slice answers no OQ. Update `docs/DEV-ROADMAP.md`'s Slice 12 status
+- **No edits to [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) beyond requirement 10's two.** No edits at all to
+  [`docs/MCP-PRD.md`](../MCP-PRD.md) — this slice answers no OQ. Update [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md)'s Slice 12 status
   row and nothing else in that file; if the roadmap and the PRD ever disagree, the PRD wins.
 - **No new documentation surfaces.** No CONTRIBUTING, no issue templates, no wiki, no docs site,
   no quickstart video. The deliverable is one README that works for a cold reader.
@@ -332,9 +332,9 @@ README already says this; it must survive any editing done here.
 - **Do not coach the friend, pre-install anything on their machine, or pick someone who watched
   the project get built.** Each of those converts the one test this slice has into a
   demonstration.
-- **Do not open the release gate.** Setting `version` in `plugin.json` is Slice 13's act (P-08);
+- **Do not open the release gate.** Setting `version` in `plugin.json` is [Slice 13](./TrackC-Slice13.md)'s act ([P-08](../PLUGIN-PRD.md#p-08--version-scheme));
   doing it here would make every subsequent commit ship nothing to anyone already installed.
-- No CI work (Slice 11), no context-cost re-measurement (Slice 10), no eval re-runs (Slice 9).
+- No CI work ([Slice 11](./TrackC-Slice11.md)), no context-cost re-measurement ([Slice 10](./TrackC-Slice10.md)), no eval re-runs ([Slice 9](./TrackB-Slice9.md)).
 
 ## Acceptance criteria
 
@@ -343,7 +343,7 @@ README already says this; it must survive any editing done here.
    look and `claude --debug` as where to read why; and it states outright that a server that
    fails to start surfaces no error — the tools are simply absent.
 2. `README.md` contains a "run `/doctor` if the plugin stops firing" line with the budget-trim
-   mechanism stated (PQ-04's artifact).
+   mechanism stated ([PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s artifact).
 3. The disclaimer check script in *Verification steps* reports OK for all three surfaces.
 4. `README.md` gives the install path only in `owner/repo` form; a review of the finished file
    finds no `marketplace.json` URL anywhere in it, including inside warnings and examples.
@@ -357,9 +357,9 @@ README already says this; it must survive any editing done here.
    containing the five elements of requirement 8, and each issue is labeled *fix here* or *filed
    for later* per requirement 9.
 8. `docs/slices/TrackC-Slice12-results.md` exists with the handover message, the timeline in the
-   friend's own words, the verbatim `/doctor` output, the issue index, and the PQ-04 evidence.
-9. `docs/PLUGIN-PRD.md` §7's PQ-04 entry carries a dated disposition — answered or reopened —
-   and §9 has exactly one new appended row. `git diff docs/PLUGIN-PRD.md` shows those two changes
+   friend's own words, the verbatim `/doctor` output, the issue index, and the [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) evidence.
+9. `docs/PLUGIN-PRD.md` [§7](../PLUGIN-PRD.md#7-open-questions)'s [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) entry carries a dated disposition — answered or reopened —
+   and [§9](../PLUGIN-PRD.md#9-revision-log) has exactly one new appended row. `git diff docs/PLUGIN-PRD.md` shows those two changes
    and nothing else.
 10. `claude plugin validate . --strict` passes, and every relative link in `README.md` resolves.
 11. Tree committed clean, with `dist/` untouched by this slice.
@@ -420,17 +420,17 @@ git add -A && git status
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4, Slice 12; §5 (Slice 12 needs 6, 9, and 10, and gates Slice 13); §2
-  and §3 (standing rules — never restated per slice, and they apply here unchanged).
-- `docs/PLUGIN-PRD.md` PC-02, *what the user sees when something is wrong* (the troubleshooting
-  section's owning behavior); PQ-04 (the question this slice disposes of); §3.1 (the silent
-  skill-listing degradation and why `/doctor` is the instrument); §3.5 (the three disclaimer
-  surfaces and the zero-prompt requirement); §4.1 (`/reload-plugins` semantics, server toggling
-  in `/mcp`, scoped tool names); §4.2 (the install path and the raw-URL trap); §4.3 (version
-  resolution and update semantics); §7 (append, never drop); §9 (append-only revision log).
-- `docs/PLUGIN-PRD.md` P-08 (version stays unset until Slice 13), P-10 (2.1.207 floor), P-11
-  (`owner/repo`, never a raw URL), P-12 (scoped tool name), P-13 (zero prompts at enable time).
-- `docs/MCP-PRD.md` §3.3 (the disclaimer, verbatim, and its origin), D-10 (structured failures,
+- `docs/DEV-ROADMAP.md` [§4](../DEV-ROADMAP.md#4-phase-1-slices), Slice 12; [§5](../DEV-ROADMAP.md#5-order-and-parallelism) (Slice 12 needs 6, 9, and 10, and gates [Slice 13](./TrackC-Slice13.md)); [§2](../DEV-ROADMAP.md#2-current-state-verified-2026-08-04)
+  and [§3](../DEV-ROADMAP.md#3-standing-rules--apply-to-every-slice-never-restated-per-slice) (standing rules — never restated per slice, and they apply here unchanged).
+- `docs/PLUGIN-PRD.md` [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server), *what the user sees when something is wrong* (the troubleshooting
+  section's owning behavior); [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) (the question this slice disposes of); [§3.1](../PLUGIN-PRD.md#31-context-budget) (the silent
+  skill-listing degradation and why `/doctor` is the instrument); [§3.5](../PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not) (the three disclaimer
+  surfaces and the zero-prompt requirement); [§4.1](../PLUGIN-PRD.md#41-harness-features-relied-on) (`/reload-plugins` semantics, server toggling
+  in `/mcp`, scoped tool names); [§4.2](../PLUGIN-PRD.md#42-marketplace-and-install-path) (the install path and the raw-URL trap); [§4.3](../PLUGIN-PRD.md#43-versioning-and-updates) (version
+  resolution and update semantics); [§7](../PLUGIN-PRD.md#7-open-questions) (append, never drop); [§9](../PLUGIN-PRD.md#9-revision-log) (append-only revision log).
+- `docs/PLUGIN-PRD.md` [P-08](../PLUGIN-PRD.md#p-08--version-scheme) (version stays unset until [Slice 13](./TrackC-Slice13.md)), [P-10](../PLUGIN-PRD.md#p-10--minimum-supported-claude-code-version) (2.1.207 floor), [P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)
+  (`owner/repo`, never a raw URL), [P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key) (scoped tool name), [P-13](../PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1) (zero prompts at enable time).
+- `docs/MCP-PRD.md` [§3.3](../MCP-PRD.md#33-legal-and-terms-of-service) (the disclaimer, verbatim, and its origin), [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw) (structured failures,
   which is what the Scryfall-outage bullet is describing).
-- `docs/slices/TrackA-Slice6.md` and `docs/slices/TrackA-Slice6-results.md` — the format this
+- [`docs/slices/TrackA-Slice6.md`](./TrackA-Slice6.md) and [`docs/slices/TrackA-Slice6-results.md`](./TrackA-Slice6-results.md) — the format this
   slice's results doc follows, and the evidence the README's server claims rest on.

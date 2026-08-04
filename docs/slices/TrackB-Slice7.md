@@ -4,19 +4,19 @@
 > everything binding is inlined. PRD references are pointers for deeper context only.
 
 **Goal.** Prove the two-command install end to end against the real public repo, and record
-what was observed. Seven of PC-02's ten acceptance criteria — 1, 2, 3, 4, 6, 7 and 9 — are
+what was observed. Seven of [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s ten acceptance criteria — 1, 2, 3, 4, 6, 7 and 9 — are
 install-surface claims that no unit test can reach: they are true or false only on a machine
-that actually installed the plugin from a marketplace. Nothing in `docs/PLUGIN-PRD.md` has ever
+that actually installed the plugin from a marketplace. Nothing in [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) has ever
 been verified; this is the slice that changes that, and the deliverable is the record, not code.
 
-## Preconditions (deliverables of Slice 5; Track A closed)
+## Preconditions (deliverables of [Slice 5](./TrackA-Slice5.md); Track A closed)
 
 - `dist/index.js` current, committed, self-contained, and serving `card_search` end-to-end over
   stdio — verified 2026-08-04 from a directory containing no `node_modules`.
 - `.claude-plugin/plugin.json`: `name: "manabase"`, `displayName: "Manabase"`, Fan Content
-  disclaimer in `description`, **no `version`** (P-08), **no `userConfig`** (P-13).
+  disclaimer in `description`, **no `version`** ([P-08](../PLUGIN-PRD.md#p-08--version-scheme)), **no `userConfig`** ([P-13](../PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)).
 - `.claude-plugin/marketplace.json`: `name: "manabase"`, one plugin entry, `source: "./"`
-  (relative — P-11), disclaimer present.
+  (relative — [P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present.
 - `.mcp.json` at the repo root: one stdio server, key `mtg`, `node`
   `${CLAUDE_PLUGIN_ROOT}/dist/index.js`.
 - `README.md` carries the `owner/repo` install form and the raw-URL warning.
@@ -24,7 +24,7 @@ been verified; this is the slice that changes that, and the deliverable is the r
 - The GitHub repo `njohnb/Manabase` exists and is **public** (verified 2026-08-04 via
   `gh repo view njohnb/Manabase --json visibility`). Default branch `main`.
 
-Nothing in Slice 8 (`SKILL.md`) is required. The skill directory is an empty placeholder and
+Nothing in [Slice 8](./TrackB-Slice8.md) (`SKILL.md`) is required. The skill directory is an empty placeholder and
 stays that way; a plugin with no skill installs and serves tools fine.
 
 ## Context
@@ -32,16 +32,16 @@ stays that way; a plugin with no skill installs and serves tools fine.
 Manabase is a Magic: The Gathering MCP server (Scryfall-backed card search) that ships inside a
 Claude Code plugin; the harness starts it as `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` when the
 plugin is enabled. This is slice 1 of 3 in Track B: **install verification** → `SKILL.md`
-authoring → PC-01 evals. It is the first slice in the project whose evidence comes from a
-harness rather than from a test runner, and the first that touches `docs/PLUGIN-PRD.md` §9.
+authoring → [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals. It is the first slice in the project whose evidence comes from a
+harness rather than from a test runner, and the first that touches [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [§9](../PLUGIN-PRD.md#9-revision-log).
 
 ## Deliverables
 
 | File | Action |
 |---|---|
 | `docs/slices/TrackB-Slice7-results.md` | new — the recorded run: date, environment, per-criterion observation, drift |
-| `docs/PLUGIN-PRD.md` | append **one** revision-log row to §9 (template in requirement 15). Nothing else in that file changes |
-| `docs/DEV-ROADMAP.md` | Slice 7 status ☐ → ☑; tick only the done-when boxes actually observed; add a **Landed** note in the Track A house style |
+| [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) | append **one** revision-log row to [§9](../PLUGIN-PRD.md#9-revision-log) (template in requirement 15). Nothing else in that file changes |
+| [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) | Slice 7 status ☐ → ☑; tick only the done-when boxes actually observed; add a **Landed** note in the Track A house style |
 | `README.md` | modify — one sentence. The status paragraph currently says "nobody has yet installed this from a marketplace"; after this slice that is false |
 | `src/config.ts`, `dist/index.js` | **a decision, not a mandate** — the `OWNER` placeholder, requirement 12 |
 
@@ -62,7 +62,7 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    | Half | Items | Instrument |
    |---|---|---|
    | Automatable | criterion 9 (validate), criterion 4 (offline start), criterion 6 (no writes under the plugin root), criterion 7 (standalone cache resolution) | shell, run by anyone including an agent |
-   | Human-in-the-loop | criterion 1 (`/plugin marketplace add`, `/plugin install`, `/mcp`), criterion 2 (zero prompts), criterion 3 (calling the scoped tool from a session), the P-08 update loop | a Claude Code session on the author's machine |
+   | Human-in-the-loop | criterion 1 (`/plugin marketplace add`, `/plugin install`, `/mcp`), criterion 2 (zero prompts), criterion 3 (calling the scoped tool from a session), the [P-08](../PLUGIN-PRD.md#p-08--version-scheme) update loop | a Claude Code session on the author's machine |
 
 2. **The cold-profile observation is available exactly once — do not burn it.** Criterion 1
    says *"on a machine with the plugin never installed."* The author's machine is currently in
@@ -74,7 +74,7 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    `claude plugin uninstall manabase` + `claude plugin marketplace remove manabase` + deleting
    `~/.claude/plugins/cache/manabase/` and `~/.claude/plugins/data/manabase-manabase/` is a
    *warm-cache approximation*, not the same observation — say so in the results if you have to
-   fall back to it. The second genuinely cold observation belongs to Slice 12's friend dry-run;
+   fall back to it. The second genuinely cold observation belongs to [Slice 12](./TrackC-Slice12.md)'s friend dry-run;
    do not spend it here.
 
 3. **Pre-flight, before any install.** Push `main` so the marketplace resolves current HEAD
@@ -82,7 +82,7 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    string is `njohnb/Manabase` in `owner/repo` form. **Never add the marketplace by a raw URL
    to `marketplace.json`** — that downloads only that one file, and `source: "./"` then
    resolves against nothing, producing a partial, confusing failure rather than a clean one
-   (P-11's trap, PLUGIN-PRD §4.2). The results document must not contain a URL form even as a
+   ([P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)'s trap, PLUGIN-PRD [§4.2](../PLUGIN-PRD.md#42-marketplace-and-install-path)). The results document must not contain a URL form even as a
    rejected alternative. After adding, confirm the resolved marketplace *name* with
    `claude plugin marketplace list` rather than assuming it: the install target is
    `manabase@<marketplace-name>`, and the name comes from `marketplace.json`'s `name` field,
@@ -100,13 +100,13 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    ```
 
    Without `--strict` the same run reports `✔ Validation passed with warnings`, exit 0. The
-   single warning is P-08's **deliberate** unset `version`, which stays unset until Slice 13.
-   So PC-02 criterion 9 and P-08 are in direct conflict for the whole of Phase 1, as is
+   single warning is [P-08](../PLUGIN-PRD.md#p-08--version-scheme)'s **deliberate** unset `version`, which stays unset until [Slice 13](./TrackC-Slice13.md).
+   So [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 and [P-08](../PLUGIN-PRD.md#p-08--version-scheme) are in direct conflict for the whole of Phase 1, as is
    `CLAUDE.md`'s standing rule to run `--strict` before any push. **Do not mark criterion 9
    passed.** Re-run both forms, record both verbatim, and record the disposition: *no errors,
    exactly one warning, and that warning is the decision itself.* Then add a done-when to
-   Slice 13 in the roadmap — re-run `--strict` after semver is set and expect a clean pass.
-   Whether PC-02 criterion 9 should be reworded to exempt the pre-release window is a question
+   [Slice 13](./TrackC-Slice13.md) in the roadmap — re-run `--strict` after semver is set and expect a clean pass.
+   Whether [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 should be reworded to exempt the pre-release window is a question
    for the PRD's owner; raise it, do not answer it by editing a §5 criterion in this slice.
 
 5. **Criterion 1 — the server is connected after two commands, with no extra command, no file
@@ -122,8 +122,8 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    `plugin:manabase:mtg` with a connected marker (this form is verified: other installed
    plugins list exactly that way on this machine).
 
-6. **Criterion 2 — enabling the plugin produces zero configuration prompts** (P-13; PLUGIN-PRD
-   §3.5). `plugin.json` declares no `userConfig`, so there is nothing to ask. The evidence is
+6. **Criterion 2 — enabling the plugin produces zero configuration prompts** ([P-13](../PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1); PLUGIN-PRD
+   [§3.5](../PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)). `plugin.json` declares no `userConfig`, so there is nothing to ask. The evidence is
    negative and therefore easy to record sloppily: capture the full install/enable transcript
    and state explicitly that no prompt appeared, rather than omitting the topic. Do not pass
    `--config` to the CLI installer; using it at all would invalidate the observation.
@@ -132,7 +132,7 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    that installed the plugin, call `mcp__plugin_manabase_mtg__card_search` with a real query
    (one call — Scryfall politeness still binds) and record the tool name exactly as the harness
    reports it. The server registers the bare `card_search`; the scoping is the harness's doing
-   (P-12). **Trap: do this from a scratch directory outside the Manabase working tree.** This
+   ([P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key)). **Trap: do this from a scratch directory outside the Manabase working tree.** This
    repo's own root `.mcp.json` declares a server keyed `mtg`, so a session started *inside*
    `C:\Projects\Manabase` also loads it as a **project-scoped** server — whose tools would be
    `mcp__mtg__card_search`, an entirely different name — and it cannot start there anyway.
@@ -148,12 +148,12 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    but a criterion-3 observation taken in that directory proves the wrong thing.
 
 8. **Criterion 4 — the server starts and serves with no network access, proving no package
-   fetch in the startup path** (P-09). Run this against the **installed** copy at the path
+   fetch in the startup path** ([P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript)). Run this against the **installed** copy at the path
    `claude plugin list --json` reports as `installPath`, not against the repo working tree —
    the shipped artifact is what the criterion is about. Turn the machine's network off the
    elevation-free way (Wi-Fi off / Ethernet unplugged; do not attempt an adapter or firewall
-   change that needs admin), then drive the installed bundle over stdio exactly as Slice 1 and
-   Slice 5 did: `initialize` → `notifications/initialized` → `tools/list`, and confirm
+   change that needs admin), then drive the installed bundle over stdio exactly as [Slice 1](./TrackA-Slice1.md) and
+   [Slice 5](./TrackA-Slice5.md) did: `initialize` → `notifications/initialized` → `tools/list`, and confirm
    `card_search` is listed. The bundle is self-contained by construction — esbuild `--bundle`,
    the MCP SDK stays a **devDependency**, and `.mcp.json` runs bare `node` with no install step
    — so there is nothing in the startup path to fetch; this run is the demonstration of it. As
@@ -162,7 +162,7 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    (**not** a claim of it — see requirement 13).
 
 9. **Criterion 6 — no file is created or modified under `${CLAUDE_PLUGIN_ROOT}` during a
-   session** (P-06). This needs a real before/after observation, not an assertion. The
+   session** ([P-06](../PLUGIN-PRD.md#p-06--cached-data-lives-in-the-plugin-data-directory)). This needs a real before/after observation, not an assertion. The
    installed root is `installPath` from `claude plugin list --json`; on this machine the cache
    layout is `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`, so it will be
    `…/cache/manabase/manabase/<resolved-version>/`. Take a content hash sweep before and after
@@ -184,7 +184,7 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
    can tell the sweep actually saw the tree.
 
 10. **Criterion 7 — standalone, with `CLAUDE_PLUGIN_DATA` unset, the cache path *resolves*
-    rather than failing** (PLUGIN-PRD §4.5). **Resolution only. Phase 1 writes no cache — do
+    rather than failing** (PLUGIN-PRD [§4.5](../PLUGIN-PRD.md#45-persistent-data)). **Resolution only. Phase 1 writes no cache — do
     not spec, add, or look for a cache write, and do not add logging to `src/` to observe
     this.** Two pieces of evidence, both cheap:
     - Run the same resolution the entry point runs, importing the source directly (the
@@ -208,11 +208,11 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
     strings; re-run `npm test` in this session and record the pass. Note in the results that no
     directory was created, because nothing creates it.
 
-11. **The P-08 update loop, while `version` is unset.** With no `version` in `plugin.json`,
+11. **The [P-08](../PLUGIN-PRD.md#p-08--version-scheme) update loop, while `version` is unset.** With no `version` in `plugin.json`,
     Claude Code falls back to the git commit SHA of the plugin source, so every pushed commit
     is an update — but only for `github`, `url`, `git-subdir` and relative-path sources inside
     a git-hosted marketplace; anything else resolves to the literal `unknown` and never
-    updates. P-11's relative `./` source is what keeps this repo inside that set, and
+    updates. [P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)'s relative `./` source is what keeps this repo inside that set, and
     `claude plugin list --json` is where you can see it either way (an installed plugin whose
     fallback failed shows `"version": "unknown"` — that shape is present on this machine for an
     unrelated plugin, so it is a real failure mode, not a hypothetical). Verify the loop:
@@ -223,7 +223,7 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
     3. Run `/plugin update manabase`. If it reports the plugin is already current, refresh the
        marketplace clone first (`claude plugin marketplace update manabase`) and retry —
        **record which was required.** Whether a marketplace refresh is a precondition of the
-       SHA loop is not stated in PLUGIN-PRD §4.3, and it is precisely the operational detail
+       SHA loop is not stated in PLUGIN-PRD [§4.3](../PLUGIN-PRD.md#43-versioning-and-updates), and it is precisely the operational detail
        that makes "every commit is an update" true or false in practice.
     4. Confirm the reported `version` is now the new HEAD SHA and `installPath` has moved to a
        new directory (each version is its own cache directory; the previous one is orphaned and
@@ -233,19 +233,19 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
        keeps the running server on the old `CLAUDE_PLUGIN_ROOT` until `/reload-plugins`, and a
        reload keeps the connection alive when the server configuration is unchanged.
 
-    **This behavior changes at Slice 13.** Once `plugin.json` carries explicit semver, version
+    **This behavior changes at [Slice 13](./TrackC-Slice13.md).** Once `plugin.json` carries explicit semver, version
     becomes the cache key and a push *without* a bump ships nothing — correct then, wrong now.
     Say so in the results so the next reader does not treat today's observation as permanent.
 
 12. **The `OWNER` placeholder in `src/config.ts` — decide it in this session; do not leave it
     undecided.** The outbound User-Agent is still
-    `manabase-mtg/0.0.0 (+https://github.com/OWNER/manabase)`. Slice 1 deliberately left the
+    `manabase-mtg/0.0.0 (+https://github.com/OWNER/manabase)`. [Slice 1](./TrackA-Slice1.md) deliberately left the
     owner unsubstituted and assigned the substitution to **Track B** before release, and
     Scryfall requires a User-Agent that names the application and gives it a contactable
     identity. This is the first slice where the owner is both known and verified public
     (`njohnb/Manabase`). Recommended: fix it here and make it the update-loop payload of
     requirement 11 — a one-line `src/config.ts` change, `npm run build`, `npm test`,
-    `npm run typecheck`, commit the rebuilt `dist/index.js` (P-09: `dist/` is committed and
+    `npm run typecheck`, commit the rebuilt `dist/index.js` ([P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript): `dist/` is committed and
     must be rebuilt with every `src/` change), push. That makes step 4's "the new bytes
     actually landed" check concrete: the string `github.com/njohnb` is absent from the
     pre-update `dist/index.js` and present afterward. `tests/config.test.ts` asserts only that
@@ -257,37 +257,37 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
     `OWNER`.
 
 13. **What this slice does *not* close. State it in the results; a reader must not conclude
-    PC-02 is done.** Three of PC-02's ten criteria are out of scope here:
+    [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) is done.** Three of PC-02's ten criteria are out of scope here:
     - **Criterion 5** (contents of `${CLAUDE_PLUGIN_DATA}` survive a `/plugin update` and are
       *still used*): not assigned to this slice by the roadmap, and unverifiable while Phase 1
       writes nothing — "still used" has no observer. Since the update loop runs anyway, you may
       drop a sentinel file into `~/.claude/plugins/data/manabase-manabase/` and record whether
       it survived; label it **supplementary harness observation, not criterion 5**. Note also
-      that PLUGIN-PRD §4.5 says criteria 5 *and* 7 "still require Slice 7" while the roadmap
+      that PLUGIN-PRD [§4.5](../PLUGIN-PRD.md#45-persistent-data) says criteria 5 *and* 7 "still require Slice 7" while the roadmap
       assigns only 7 — that is documentation drift and belongs in the results.
     - **Criterion 8** (unreachable upstream → structured failure, not a dead server): no Phase 1
       slice claims it. Requirement 8's offline `tools/call` is evidence toward it; record it as
       such without ticking the box.
     - **Criterion 10** (`claude plugin details manabase` recorded as the cost baseline):
-      **owned by Slice 10**, together with PQ-01 and PQ-02. Do not run the measurement here —
-      running it early with no `SKILL.md` present produces a baseline that Slice 8 immediately
+      **owned by [Slice 10](./TrackC-Slice10.md)**, together with [PQ-01](../PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) and [PQ-02](../PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed). Do not run the measurement here —
+      running it early with no `SKILL.md` present produces a baseline that [Slice 8](./TrackB-Slice8.md) immediately
       invalidates.
 
 14. **Record the run** in `docs/slices/TrackB-Slice7-results.md`, mirroring
-    `TrackA-Slice6-results.md`: run date; environment (OS, Claude Code version — the floor is
-    2.1.207, P-10, and the author's machine reads 2.1.219 as of 2026-08-04 — Node version,
+    [`TrackA-Slice6-results.md`](./TrackA-Slice6-results.md): run date; environment (OS, Claude Code version — the floor is
+    2.1.207, [P-10](../PLUGIN-PRD.md#p-10--minimum-supported-claude-code-version), and the author's machine reads 2.1.219 as of 2026-08-04 — Node version,
     whether the profile was cold or a warm-cache approximation); the resolved plugin id,
     version SHA and `installPath`; a per-criterion table covering 1, 2, 3, 4, 6, 7 and 9 with
     the **observed** evidence, not the claim restated; the update-loop record; an explicit
     **Not claimed by this slice** section for criteria 5, 8 and 10; and a **Drift** section
-    listing every divergence from the 2026-07-29 harness research in PLUGIN-PRD §4 (or "none").
+    listing every divergence from the 2026-07-29 harness research in PLUGIN-PRD [§4](../PLUGIN-PRD.md#4-harness-and-delivery) (or "none").
     The `--strict` conflict, and anything the raw command output contradicts, go in Drift.
-    **Do not overwrite PLUGIN-PRD §4** — it is a dated research record; divergences are
-    recorded here and summarized in the §9 row.
+    **Do not overwrite PLUGIN-PRD [§4](../PLUGIN-PRD.md#4-harness-and-delivery)** — it is a dated research record; divergences are
+    recorded here and summarized in the [§9](../PLUGIN-PRD.md#9-revision-log) row.
 
-15. **Close the loop in the PRD.** Append **one** row to the `docs/PLUGIN-PRD.md` §9
-    revision-log table. §9 is append-only and **nothing else in that file changes in this
-    slice** — no §5 criterion edited, no §4 claim rewritten, no §7 question closed:
+15. **Close the loop in the PRD.** Append **one** row to the [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [§9](../PLUGIN-PRD.md#9-revision-log)
+    revision-log table. [§9](../PLUGIN-PRD.md#9-revision-log) is append-only and **nothing else in that file changes in this
+    slice** — no [§5](../PLUGIN-PRD.md#5-components) criterion edited, no [§4](../PLUGIN-PRD.md#4-harness-and-delivery) claim rewritten, no [§7](../PLUGIN-PRD.md#7-open-questions) question closed:
 
     ```
     | <date> | **PC-02's install surface verified for the first time.** Criteria 1, 2, 3, 4, 6
@@ -304,13 +304,13 @@ harness rather than from a test runner, and the first that touches `docs/PLUGIN-
     installs does not exist" stops being true. |
     ```
 
-16. **Roadmap and README, minimally.** In `docs/DEV-ROADMAP.md`: flip Slice 7's status, tick
+16. **Roadmap and README, minimally.** In [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md): flip Slice 7's status, tick
     only the done-when boxes actually observed (leave criterion 9's box unticked with a note if
     requirement 4 holds), add a **Landed** paragraph in the Track A house style, and add the
-    `--strict` re-run to Slice 13's work list. Update §2's "the plugin has never been installed
+    `--strict` re-run to [Slice 13](./TrackC-Slice13.md)'s work list. Update [§2](../DEV-ROADMAP.md#2-current-state-verified-2026-08-04)'s "the plugin has never been installed
     from a marketplace" line. In `README.md`, correct the status paragraph's claim that the two
     commands are "the intended path rather than a verified one" — **one sentence.** Full README
-    work, including the troubleshooting section, is Slice 12's; do not start it here.
+    work, including the troubleshooting section, is [Slice 12](./TrackC-Slice12.md)'s; do not start it here.
 
 ## Interface contracts
 
@@ -320,35 +320,35 @@ failure mode:
 
 | Thing | Value | Owner |
 |---|---|---|
-| Marketplace source (as typed) | `njohnb/Manabase` — `owner/repo`, never a URL | P-11 |
-| Marketplace name | `manabase` (`marketplace.json` `name`) — confirm with `claude plugin marketplace list` | P-11 |
-| Plugin name / install id | `manabase` / `manabase@manabase` | P-12 |
-| MCP server key | `mtg`; registers as `plugin:manabase:mtg` | P-12 |
-| Scoped tool name | `mcp__plugin_manabase_mtg__card_search` | P-12 |
-| Server command | `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` | P-09 |
-| `${CLAUDE_PLUGIN_ROOT}` | `claude plugin list --json` → `installPath`; on this machine `~/.claude/plugins/cache/manabase/manabase/<version>/` | PLUGIN-PRD §4.3 |
-| `${CLAUDE_PLUGIN_DATA}` | `~/.claude/plugins/data/manabase-manabase/`, created on first reference, survives updates | P-06, §4.5 |
-| Standalone cache fallback | `%LOCALAPPDATA%\manabase` (win32), `~/Library/Caches/manabase` (darwin), `$XDG_CACHE_HOME/manabase` else `~/.cache/manabase` | §4.5 |
-| Wire behavior asserted offline | `initialize` → `notifications/initialized` → `tools/list` returns exactly one tool, `card_search` | Slice 5 |
+| Marketplace source (as typed) | `njohnb/Manabase` — `owner/repo`, never a URL | [P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace) |
+| Marketplace name | `manabase` (`marketplace.json` `name`) — confirm with `claude plugin marketplace list` | [P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace) |
+| Plugin name / install id | `manabase` / `manabase@manabase` | [P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key) |
+| MCP server key | `mtg`; registers as `plugin:manabase:mtg` | [P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key) |
+| Scoped tool name | `mcp__plugin_manabase_mtg__card_search` | [P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key) |
+| Server command | `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` | [P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) |
+| `${CLAUDE_PLUGIN_ROOT}` | `claude plugin list --json` → `installPath`; on this machine `~/.claude/plugins/cache/manabase/manabase/<version>/` | PLUGIN-PRD [§4.3](../PLUGIN-PRD.md#43-versioning-and-updates) |
+| `${CLAUDE_PLUGIN_DATA}` | `~/.claude/plugins/data/manabase-manabase/`, created on first reference, survives updates | [P-06](../PLUGIN-PRD.md#p-06--cached-data-lives-in-the-plugin-data-directory), [§4.5](../PLUGIN-PRD.md#45-persistent-data) |
+| Standalone cache fallback | `%LOCALAPPDATA%\manabase` (win32), `~/Library/Caches/manabase` (darwin), `$XDG_CACHE_HOME/manabase` else `~/.cache/manabase` | [§4.5](../PLUGIN-PRD.md#45-persistent-data) |
+| Wire behavior asserted offline | `initialize` → `notifications/initialized` → `tools/list` returns exactly one tool, `card_search` | [Slice 5](./TrackA-Slice5.md) |
 
-Repo layout is unchanged from the Slice 1 doc; this slice adds only `docs/slices/`
+Repo layout is unchanged from the [Slice 1](./TrackA-Slice1.md) doc; this slice adds only `docs/slices/`
 documents.
 
 ## Out of scope — do NOT
 
-- **Do not write `skills/scryfall-query-craft/SKILL.md` or any part of it** — Slice 8. The
+- **Do not write `skills/scryfall-query-craft/SKILL.md` or any part of it** — [Slice 8](./TrackB-Slice8.md). The
   placeholder directory ships empty and that is fine.
-- **Do not run `claude plugin details`** or take any context-cost measurement — Slice 10, and a
+- **Do not run `claude plugin details`** or take any context-cost measurement — [Slice 10](./TrackC-Slice10.md), and a
   baseline taken before the skill exists is worse than none.
 - **Do not set `version` in `plugin.json`**, and never set it in both `plugin.json` and the
-  marketplace entry — `plugin.json` wins silently. The switchover is Slice 13 (P-08).
-- **Do not add a CI check for `dist/`** — Slice 11 (PQ-06).
+  marketplace entry — `plugin.json` wins silently. The switchover is [Slice 13](./TrackC-Slice13.md) ([P-08](../PLUGIN-PRD.md#p-08--version-scheme)).
+- **Do not add a CI check for `dist/`** — [Slice 11](./TrackC-Slice11.md) ([PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)).
 - **Do not declare `userConfig`, `defaultEnabled`, `settings.json`, hooks, agents, or a second
   MCP server.** Phase 1 is one skill and one server.
-- **Do not edit `docs/PLUGIN-PRD.md` beyond the single appended §9 row**, and do not edit
-  `docs/MCP-PRD.md` at all.
+- **Do not edit [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) beyond the single appended [§9](../PLUGIN-PRD.md#9-revision-log) row**, and do not edit
+  [`docs/MCP-PRD.md`](../MCP-PRD.md) at all.
 - **Do not demonstrate, document, or even mention as an option the raw-URL marketplace add**
-  (P-11).
+  ([P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)).
 - **Do not provoke Scryfall.** The tool calls in this slice are a handful, for name and
   round-trip evidence only; ≥600 ms apart, no loops, no `npm run acceptance` re-run needed.
 - No new dependencies, no new npm scripts, no changes to handler/client/price logic.
@@ -356,7 +356,7 @@ documents.
 ## Acceptance criteria
 
 1. `docs/slices/TrackB-Slice7-results.md` exists and records, per criterion, the **observed**
-   evidence for PC-02 criteria 1, 2, 3, 4, 6 and 7, plus the criterion 9 disposition — each
+   evidence for [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criteria 1, 2, 3, 4, 6 and 7, plus the criterion 9 disposition — each
    with the command or session action that produced it.
 2. The install was performed from `njohnb/Manabase` in `owner/repo` form; no URL form appears
    anywhere in the deliverables.
@@ -368,10 +368,10 @@ documents.
 5. The offline run is recorded against the **installed** `installPath` copy, showing
    `card_search` in `tools/list` with the network down.
 6. `claude plugin validate .` and `claude plugin validate . --strict` are both recorded
-   verbatim, with the conflict against P-08 stated and criterion 9 **not** marked passed.
-7. `docs/PLUGIN-PRD.md` §9 has exactly one new row; `git diff docs/PLUGIN-PRD.md` shows one
+   verbatim, with the conflict against [P-08](../PLUGIN-PRD.md#p-08--version-scheme) stated and criterion 9 **not** marked passed.
+7. [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [§9](../PLUGIN-PRD.md#9-revision-log) has exactly one new row; `git diff docs/PLUGIN-PRD.md` shows one
    appended table row and nothing else.
-8. `docs/DEV-ROADMAP.md` Slice 7 is ☑ with only the observed boxes ticked, and §2's
+8. [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) Slice 7 is ☑ with only the observed boxes ticked, and [§2](../DEV-ROADMAP.md#2-current-state-verified-2026-08-04)'s
    "never been installed" statement is corrected. `README.md`'s stale status sentence is fixed.
 9. `npm test` and `npm run typecheck` pass in this session. If requirement 12's fix landed,
    `npm run build` was re-run and `dist/index.js` is committed with it.
@@ -388,7 +388,7 @@ if requirement 12's `src/config.ts` change lands — `npm test` (67 tests, 19 su
 `npm run typecheck` must both be clean in the same session as the recorded run, and the number
 recorded in the results.
 
-Keep the record honest in the same way the Slice 6 harness is kept honest: paste actual command
+Keep the record honest in the same way the [Slice 6](./TrackA-Slice6.md) harness is kept honest: paste actual command
 output rather than paraphrasing it, and where a criterion was met by a *different* route than
 the PRD's wording describes (CLI instead of slash command, warm cache instead of cold), record
 the route, not the conclusion.
@@ -466,24 +466,24 @@ git add -A && git status   # results doc + §9 row + roadmap + README (+ src/dis
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4, Slice 7 (goal, work, and the seven done-when items); §3 standing
-  rules (never restated per slice); §5 dependency graph — Slice 7 needs only Slice 5, and gates
+- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices), Slice 7 (goal, work, and the seven done-when items); [§3](../DEV-ROADMAP.md#3-standing-rules--apply-to-every-slice-never-restated-per-slice) standing
+  rules (never restated per slice); [§5](../DEV-ROADMAP.md#5-order-and-parallelism) dependency graph — Slice 7 needs only [Slice 5](./TrackA-Slice5.md), and gates
   Slices 9 and 10.
-- `docs/PLUGIN-PRD.md` **PC-02** — the ten acceptance criteria; this slice claims 1, 2, 3, 4, 6,
-  7 and qualifies 9. §9 revision log (append-only).
-- `docs/PLUGIN-PRD.md` **P-06** (cache lives in `${CLAUDE_PLUGIN_DATA}`, never
-  `${CLAUDE_PLUGIN_ROOT}`, which is replaced on update and GC'd ~14 days later), **P-08**
+- [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) **[PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server)** — the ten acceptance criteria; this slice claims 1, 2, 3, 4, 6,
+  7 and qualifies 9. [§9](../PLUGIN-PRD.md#9-revision-log) revision log (append-only).
+- [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) **[P-06](../PLUGIN-PRD.md#p-06--cached-data-lives-in-the-plugin-data-directory)** (cache lives in `${CLAUDE_PLUGIN_DATA}`, never
+  `${CLAUDE_PLUGIN_ROOT}`, which is replaced on update and GC'd ~14 days later), **[P-08](../PLUGIN-PRD.md#p-08--version-scheme)**
   (`version` unset during development → commit-SHA fallback; explicit semver at first release,
-  after which a push without a bump ships nothing), **P-09** (committed built JS, started as
+  after which a push without a bump ships nothing), **[P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript)** (committed built JS, started as
   `node` from the plugin root, no package fetch in the startup path, SDK stays a devDependency),
-  **P-11** (repo is its own marketplace, added as `owner/repo`; the raw-URL trap), **P-12**
+  **[P-11](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)** (repo is its own marketplace, added as `owner/repo`; the raw-URL trap), **[P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key)**
   (plugin name `manabase`, server key `mtg`, scoped tool
-  `mcp__plugin_manabase_mtg__card_search`), **P-13** (no `userConfig` in Phase 1 → zero prompts).
-- `docs/PLUGIN-PRD.md` §4.2 (install path, catalog schema, source types, precedence, the
-  raw-URL trap, `validate --strict`), §4.3 (version resolution order, the conditional SHA
-  fallback, update semantics and the per-version cache directory), §4.5 (persistent data,
-  standalone fallback rule, and the note that criteria 5 and 7 await this slice), §3.5 (zero
+  `mcp__plugin_manabase_mtg__card_search`), **[P-13](../PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)** (no `userConfig` in Phase 1 → zero prompts).
+- [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [§4.2](../PLUGIN-PRD.md#42-marketplace-and-install-path) (install path, catalog schema, source types, precedence, the
+  raw-URL trap, `validate --strict`), [§4.3](../PLUGIN-PRD.md#43-versioning-and-updates) (version resolution order, the conditional SHA
+  fallback, update semantics and the per-version cache directory), [§4.5](../PLUGIN-PRD.md#45-persistent-data) (persistent data,
+  standalone fallback rule, and the note that criteria 5 and 7 await this slice), [§3.5](../PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not) (zero
   prompts; Fan Content disclaimer on `plugin.json`, the marketplace entry, and the README).
-- `docs/slices/TrackA-Slice1.md` — canonical repo layout, the config contract, and the
+- [`docs/slices/TrackA-Slice1.md`](./TrackA-Slice1.md) — canonical repo layout, the config contract, and the
   `OWNER`-substitution deferral referenced in requirement 12.
-- `docs/slices/TrackA-Slice6-results.md` — the shape this slice's results document follows.
+- [`docs/slices/TrackA-Slice6-results.md`](./TrackA-Slice6-results.md) — the shape this slice's results document follows.

@@ -5,7 +5,7 @@
 
 **Goal.** Declare the plugin public: set explicit semver in `plugin.json` for the first time,
 prove that the update semantics inverted in both directions, push the release tag, and close
-Phase 1 in `docs/PLUGIN-PRD.md` — §7 with an explicit disposition for `PQ-05`, §9 with the row
+Phase 1 in [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) — [§7](../PLUGIN-PRD.md#7-open-questions) with an explicit disposition for [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable), [§9](../PLUGIN-PRD.md#9-revision-log) with the row
 that marks the phase closed. Nothing is built. The entire output is a version string, a tag,
 and two records — and this is the only slice in the roadmap whose mistakes other people
 install.
@@ -20,8 +20,8 @@ failure mode.
 
 **A. The server (Slices 1–6) — recorded, then re-proven once.**
 
-- ☐ `CAP-01`'s twelve acceptance criteria all have a recorded pass; `docs/slices/TrackA-Slice6-results.md`
-  exists and `docs/MCP-PRD.md` §9 carries the Slice 6 row.
+- ☐ [`CAP-01`](../MCP-PRD.md#cap-01--card-search)'s twelve acceptance criteria all have a recorded pass; [`docs/slices/TrackA-Slice6-results.md`](./TrackA-Slice6-results.md)
+  exists and `docs/MCP-PRD.md` [§9](../MCP-PRD.md#9-revision-log) carries the [Slice 6](./TrackA-Slice6.md) row.
 - ☐ No `src/` change since that recorded pass — or requirement 1(d) below re-runs it live.
 - ☐ Criteria 1, 10, 11, 12 are unit-level by design and stay that way. Criterion 12 (429 →
   backoff) rests on a mock permanently: deliberately provoking a real 429 is forbidden, not
@@ -29,51 +29,51 @@ failure mode.
 
 **B. The plugin (Slices 7–9) — every `PC` criterion has a recorded disposition.**
 
-- ☐ `PC-02` criteria **1, 2, 3, 4, 6, 7, 9** verified live in Slice 7, with a date, on a machine
+- ☐ [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criteria **1, 2, 3, 4, 6, 7, 9** verified live in [Slice 7](./TrackB-Slice7.md), with a date, on a machine
   or profile that had never installed the plugin.
-- ☐ `PC-02` criterion **10** (`claude plugin details manabase`) recorded in `PLUGIN-PRD.md` §9 by
-  Slice 10.
-- ☐ `PC-02` criterion **8** (unreachable upstream → structured failure, not a dead server) —
+- ☐ [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion **10** (`claude plugin details manabase`) recorded in `PLUGIN-PRD.md` [§9](../PLUGIN-PRD.md#9-revision-log) by
+  [Slice 10](./TrackC-Slice10.md).
+- ☐ [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion **8** (unreachable upstream → structured failure, not a dead server) —
   evidence is unit-level: `tests/scryfall/client.test.ts` maps a fetch rejection to a `network`
   failure with no status, and `tests/tools/card-search.test.ts` passes `network` /
   `upstream_unavailable` / `rate_limited` through unchanged. Confirm that is *recorded* as the
   evidence rather than assumed by everyone.
-- ☐ `PC-02` criterion **5** (`${CLAUDE_PLUGIN_DATA}` survives a `/plugin update`) — **not
-  exercisable in Phase 1**: nothing writes to that directory, which `PLUGIN-PRD.md` §9's
+- ☐ [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion **5** (`${CLAUDE_PLUGIN_DATA}` survives a `/plugin update`) — **not
+  exercisable in Phase 1**: nothing writes to that directory, which `PLUGIN-PRD.md` [§9](../PLUGIN-PRD.md#9-revision-log)'s
   2026-08-04 row already states. This criterion needs a recorded disposition — "not exercisable
   in Phase 1, nothing writes there, first exercised by the capability that needs persistence" —
   not a pass. Recording it is the gate condition; passing it is not.
-- ☐ `PC-01` criteria **1–4** (static: description length, always-on cost, `SKILL.md` token
-  budget, no card facts) checked against the files in Slice 8.
-- ☐ `PC-01` criteria **5–13** measured in Slice 9 in **fresh sessions**, each against a recorded
-  without-skill baseline, results in `PLUGIN-PRD.md` §9. A criterion whose baseline was assumed
+- ☐ [`PC-01`](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criteria **1–4** (static: description length, always-on cost, `SKILL.md` token
+  budget, no card facts) checked against the files in [Slice 8](./TrackB-Slice8.md).
+- ☐ [`PC-01`](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criteria **5–13** measured in [Slice 9](./TrackB-Slice9.md) in **fresh sessions**, each against a recorded
+  without-skill baseline, results in `PLUGIN-PRD.md` [§9](../PLUGIN-PRD.md#9-revision-log). A criterion whose baseline was assumed
   rather than run is not verified.
-- ☐ `docs/MCP-PRD.md` `OQ-01` answered in that document's §7 and logged in its §9 — Slice 9 owns
+- ☐ `docs/MCP-PRD.md` [`OQ-01`](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) answered in that document's [§7](../MCP-PRD.md#7-open-questions) and logged in its [§9](../MCP-PRD.md#9-revision-log) — [Slice 9](./TrackB-Slice9.md) owns
   it, and it is the one open question that lives in the *other* PRD but closes on plugin
   evidence.
 
 **C. The release track (Slices 10–12).**
 
-- ☐ Slice 10: `PQ-01` and `PQ-02` have **measured** answers in `PLUGIN-PRD.md` §7, and the
-  `plugin details` output is in §9.
-- ☐ Slice 11: `PQ-06` closed in §7; the `dist/` honesty mechanism exists, was demonstrated to
+- ☐ [Slice 10](./TrackC-Slice10.md): [`PQ-01`](../PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) and [`PQ-02`](../PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) have **measured** answers in `PLUGIN-PRD.md` [§7](../PLUGIN-PRD.md#7-open-questions), and the
+  `plugin details` output is in [§9](../PLUGIN-PRD.md#9-revision-log).
+- ☐ [Slice 11](./TrackC-Slice11.md): [`PQ-06`](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in [§7](../PLUGIN-PRD.md#7-open-questions); the `dist/` honesty mechanism exists, was demonstrated to
   fail once against a deliberately stale `dist/`, and is **green on the exact commit being
   released**. A mechanism that has never failed has never been shown to work.
-- ☐ Slice 12: a friend installed from scratch following only the README, without author
-  intervention; `PQ-04` recorded as answered or reopened with what the dry run revealed; the
+- ☐ [Slice 12](./TrackC-Slice12.md): a friend installed from scratch following only the README, without author
+  intervention; [`PQ-04`](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) recorded as answered or reopened with what the dry run revealed; the
   README's troubleshooting and `/doctor` lines are present.
 - ☐ Every point of friction the friend hit is either fixed or filed. "Filed and knowingly
   shipped" is acceptable; "noticed and forgotten" is not.
 
 **D. Open questions — every Phase 1 question has a disposition, and none is silent.**
 
-- ☐ Answered during Phase 1 and confirmed still current: `PQ-01`, `PQ-02` (Slice 10), `PQ-04`
-  (Slice 12), `PQ-06` (Slice 11), and `MCP-PRD.md` `OQ-01` (Slice 9).
+- ☐ Answered during Phase 1 and confirmed still current: [`PQ-01`](../PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports), [`PQ-02`](../PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) ([Slice 10](./TrackC-Slice10.md)), [`PQ-04`](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)
+  ([Slice 12](./TrackC-Slice12.md)), [`PQ-06`](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) ([Slice 11](./TrackC-Slice11.md)), and `MCP-PRD.md` [`OQ-01`](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) ([Slice 9](./TrackB-Slice9.md)).
 - ☐ Deliberately deferred past Phase 1 by their own *Resolves by* clauses, and **re-read to
-  confirm each still says so**: `PQ-03`, `PQ-07`, `PQ-08`, and `MCP-PRD.md` `OQ-02`–`OQ-09`. A
+  confirm each still says so**: [`PQ-03`](../PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook), [`PQ-07`](../PLUGIN-PRD.md#pq-07--is-deck-optimization-a-skill-or-an-agent), [`PQ-08`](../PLUGIN-PRD.md#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected), and `MCP-PRD.md` [`OQ-02`](../MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)–[`OQ-09`](../MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists). A
   question whose resolver has since happened but whose entry still reads "deferred" is drift,
   and this is the last session that will notice.
-- ☐ `PQ-05` is this slice's to dispose of (requirement 11). It is the only one that must move.
+- ☐ [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) is this slice's to dispose of (requirement 11). It is the only one that must move.
 
 **E. Stability, which is not a slice and therefore has no status column.**
 
@@ -87,9 +87,9 @@ Manabase is a Magic: The Gathering MCP server (Scryfall-backed card search) that
 Claude Code plugin. This is slice 13 of 13 — the terminal node of the dependency graph, needing
 Slices 11 and 12, and needed by nothing.
 
-**This is a phase boundary, not a task inside Phase 1.** `PLUGIN-PRD.md` §6 and `P-08` both say
+**This is a phase boundary, not a task inside Phase 1.** `PLUGIN-PRD.md` [§6](../PLUGIN-PRD.md#6-roadmap) and [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme) both say
 so explicitly: `version` stays unset while the author iterates, and setting explicit semver *is*
-the act of declaring the plugin public. Phase 1 is `PC-01` and `PC-02` together — a server
+the act of declaring the plugin public. Phase 1 is [`PC-01`](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) and [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) together — a server
 nobody has installed is shippable but useless — so the phase does not close when the code is
 written, it closes when the thing a user installs has been verified and versioned.
 
@@ -99,7 +99,7 @@ install, and they cannot be quietly withdrawn. That is why the ordering in Requi
 binding rather than stylistic: everything is checked **before** the tag is pushed, never after.
 
 **What opens next: nothing.** Closing Phase 1 does not schedule Phase 2 — `docs/DEV-ROADMAP.md`
-§6's queued packs are *shapes* of future work, each of which starts with its own spec slice that
+[§6](../DEV-ROADMAP.md#6-beyond-phase-1--queued-slice-packs)'s queued packs are *shapes* of future work, each of which starts with its own spec slice that
 does the research and appends a `CAP` or `PC` block, and phase assignment happens in those
 sessions. The boundary is a boundary, not a to-do list.
 
@@ -109,10 +109,10 @@ sessions. The boundary is a boundary, not a to-do list.
 |---|---|
 | `.claude-plugin/plugin.json` | modify — add `version`, explicit semver. The **only** file that gets one. |
 | `.claude-plugin/marketplace.json` | verify unchanged — it carries no `version` today and must carry none when this slice ends |
-| `docs/slices/TrackC-Slice13-results.md` | new — the recorded release (pre-flight in order, version and why, both update-semantics tests, tag behavior, `PQ-05` reasoning) |
-| `docs/PLUGIN-PRD.md` | §7 — append a dated disposition paragraph to `PQ-05`; §9 — append **one** revision-log row (template below) |
-| `README.md` | modify — the "Status: pre-release" paragraph only. Nothing else; Slice 12 owns docs polish. |
-| `docs/DEV-ROADMAP.md` | mark Slice 13 ☑ with a Landed note and update §2's current-state statement. Status tracking only — §9 is the binding record. |
+| `docs/slices/TrackC-Slice13-results.md` | new — the recorded release (pre-flight in order, version and why, both update-semantics tests, tag behavior, [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) reasoning) |
+| [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) | [§7](../PLUGIN-PRD.md#7-open-questions) — append a dated disposition paragraph to [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable); [§9](../PLUGIN-PRD.md#9-revision-log) — append **one** revision-log row (template below) |
+| `README.md` | modify — the "Status: pre-release" paragraph only. Nothing else; [Slice 12](./TrackC-Slice12.md) owns docs polish. |
+| [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) | mark Slice 13 ☑ with a Landed note and update [§2](../DEV-ROADMAP.md#2-current-state-verified-2026-08-04)'s current-state statement. Status tracking only — [§9](../PLUGIN-PRD.md#9-revision-log) is the binding record. |
 | the release tag | pushed via `claude plugin tag --push`, **last**, after everything above passes |
 
 ## Requirements
@@ -122,12 +122,12 @@ sessions. The boundary is a boundary, not a to-do list.
    - **(a)** `git status` clean, on `main`, HEAD pushed, local and remote agree.
    - **(b)** `npm run typecheck && npm test && npm run build`, then `git status` again — still
      clean means `dist/` was already current. This is the local half of the same question
-     Slice 11's CI check asks; run both, they fail differently.
-   - **(c)** Slice 11's check is **green on the exact commit SHA being released**, not on an
+     [Slice 11](./TrackC-Slice11.md)'s CI check asks; run both, they fail differently.
+   - **(c)** [Slice 11](./TrackC-Slice11.md)'s check is **green on the exact commit SHA being released**, not on an
      ancestor and not on a branch that has since moved.
    - **(d)** `npm run acceptance` — one fresh live pass, every check PASS, exit 0. This is the
      only check that proves the artifact being released still works against reality, and drift
-     since the Slice 6 record is a finding to write down, not a formality to wave through.
+     since the [Slice 6](./TrackA-Slice6.md) record is a finding to write down, not a formality to wave through.
      Politeness still binds: ≥600 ms between calls, no retries, and **never** provoke a 429.
    - **(e)** `claude plugin validate . --strict` passes. **Before tagging, not after** — a tag
      pushed on a manifest that fails validation is a public artifact that cannot install, and it
@@ -166,7 +166,7 @@ sessions. The boundary is a boundary, not a to-do list.
      it: version numbers are free, a bad tag is not.
 
 3. **Set `version` in `.claude-plugin/plugin.json`, and only there.** That single line is the
-   switchover (`P-08`). With `version` unset, Claude Code falls back to the git commit SHA and
+   switchover ([`P-08`](../PLUGIN-PRD.md#p-08--version-scheme)). With `version` unset, Claude Code falls back to the git commit SHA and
    **every commit is an update** — right for the phase where the author is iterating. With it
    set, users get changes **only** on a bump, and forgetting to bump silently ships nothing —
    wrong then, right once other people depend on it.
@@ -180,10 +180,10 @@ sessions. The boundary is a boundary, not a to-do list.
 
 5. **`package.json`'s `version` is independent by design. Do not sync it.** It is `0.0.0` today
    and it may stay `0.0.0` through this release. It serves the npm/`npx` route
-   (`MCP-PRD.md` `D-02`), which `P-09` deliberately kept alive as the **secondary channel** for
+   (`MCP-PRD.md` [`D-02`](../MCP-PRD.md#d-02--runtime-nodejs--typescript)), which [`P-09`](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) deliberately kept alive as the **secondary channel** for
    anyone wiring the server into a non-Claude MCP client by hand — a different audience on a
    different cadence. Syncing the two numbers is the obvious-looking move and it is exactly what
-   `P-09` rejected `npx` to avoid: two numbers that must be bumped in lockstep is the same
+   [`P-09`](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) rejected `npx` to avoid: two numbers that must be bumped in lockstep is the same
    problem wearing a hat. Bump `package.json` here only if the **npm artifact** changed, never
    because the plugin version changed.
 
@@ -192,7 +192,7 @@ sessions. The boundary is a boundary, not a to-do list.
    cannot read `package.json` at runtime. It is not decorative: it is interpolated into the
    `User-Agent` Scryfall sees on every outbound request. Change one without the other and the app
    names itself with a version that does not exist; change either without rebuilding and
-   committing `dist/` and the drift is invisible to everything except Slice 11's check — which is
+   committing `dist/` and the drift is invisible to everything except [Slice 11](./TrackC-Slice11.md)'s check — which is
    precisely the drift that check exists to catch, so expect it to catch you. Sequence:
    `package.json` → `APP_VERSION` → `npm run build` → commit `dist/` → CI green → restart
    pre-flight at 1(a).
@@ -225,7 +225,7 @@ sessions. The boundary is a boundary, not a to-do list.
    requirement 7: 7 proves SHA→semver, a one-time event; 9 proves semver→semver, which is the
    semantics every user lives with from now on.
 
-10. **Tag last, and dry-run first.** `PLUGIN-PRD.md` §4.3 records (verified) only that
+10. **Tag last, and dry-run first.** `PLUGIN-PRD.md` [§4.3](../PLUGIN-PRD.md#43-versioning-and-updates) records (verified) only that
     `claude plugin tag` creates a release git tag for a plugin and supports `--push`,
     `--dry-run`, and a `%s` version placeholder in the message. It does **not** record the tag
     name format, where the command reads the version from, or whether it validates or builds
@@ -237,13 +237,13 @@ sessions. The boundary is a boundary, not a to-do list.
     (never an intermediate), it points at the commit actually released, and it is the last write
     of the session.
 
-11. **`PQ-05` gets an explicit disposition, and "still open" is an acceptable one.** `PQ-05` asks
+11. **[`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) gets an explicit disposition, and "still open" is an acceptable one.** `PQ-05` asks
     whether the plugin should be submitted to Anthropic's `claude-plugins-community` marketplace
     once it is stable. The gate is not "decide yes or no" — it is **decide deliberately and write
     the reasoning down**. An open question that is silently left alone at a phase boundary is the
     failure mode: the phase closes, the context that would have answered it evaporates, and a
     later session cannot tell whether it was weighed and deferred or simply forgotten. Append a
-    dated paragraph to the existing §7 entry — append, never rewrite; the original framing is the
+    dated paragraph to the existing [§7](../PLUGIN-PRD.md#7-open-questions) entry — append, never rewrite; the original framing is the
     record of what was known then. Acceptable dispositions, and what each must state:
     - **Deliberately still open** — say what would change the answer and when it gets revisited.
       The argument against is already in the entry: a public listing invites an audience larger
@@ -252,11 +252,11 @@ sessions. The boundary is a boundary, not a to-do list.
     - **Yes** — note that it is reversible in one direction only, and that it changes *which*
       marketplace users add, not the two-command install.
     - **No** — record the reasoning; the question is then answered and stops being open. Do not
-      restructure §8 to accommodate it; the §7 entry plus the §9 row is the record.
+      restructure [§8](../PLUGIN-PRD.md#8-out-of-scope) to accommodate it; the [§7](../PLUGIN-PRD.md#7-open-questions) entry plus the [§9](../PLUGIN-PRD.md#9-revision-log) row is the record.
 
-12. **Close Phase 1 in `docs/PLUGIN-PRD.md` §9.** Append **one** row. §9 is **append-only**; §2
-    and §3 are **locked** and are not touched by this slice. Setting a version *executes* `P-08`
-    — it does not amend it, so `P-08`'s text does not change and no new `P-` decision is created.
+12. **Close Phase 1 in `docs/PLUGIN-PRD.md` [§9](../PLUGIN-PRD.md#9-revision-log).** Append **one** row. §9 is **append-only**; §2
+    and §3 are **locked** and are not touched by this slice. Setting a version *executes* [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme)
+    — it does not amend it, so [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme)'s text does not change and no new `P-` decision is created.
 
     ```
     | <date> | **P-08 switchover — the plugin is public.** Set `version` <semver> in
@@ -279,7 +279,7 @@ sessions. The boundary is a boundary, not a to-do list.
     never reuse a version string — a reused string reads as "already current" and the fix reaches
     nobody, which is worse than the original defect because it looks fixed. If a friend needs
     holding at a known-good commit while the fix lands, plugin sources accept a full
-    40-character `sha` that wins over `ref` (§4.2); pinning is available on **plugin** sources,
+    40-character `sha` that wins over `ref` ([§4.2](../PLUGIN-PRD.md#42-marketplace-and-install-path)); pinning is available on **plugin** sources,
     not on the marketplace source. Unused here, recorded because this is the situation it exists
     for.
 
@@ -292,7 +292,7 @@ are three independent numbers and one hand-maintained mirror.
 |---|---|---|---|
 | `.claude-plugin/plugin.json` `version` | **Yes — first time, and only here** | nothing | Claude Code's version resolution; the `/plugin update` cache key |
 | `.claude-plugin/marketplace.json` entry | **No — must stay absent** | would be silently overridden by `plugin.json` | resolution step 2, never reached once step 1 exists |
-| `package.json` `version` | Only if the npm artifact changed | `APP_VERSION`, by hand | the npm/`npx` route (`D-02`, secondary channel per `P-09`) |
+| `package.json` `version` | Only if the npm artifact changed | `APP_VERSION`, by hand | the npm/`npx` route ([`D-02`](../MCP-PRD.md#d-02--runtime-nodejs--typescript), secondary channel per [`P-09`](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript)) |
 | `APP_VERSION` in `src/config.ts` | Only alongside `package.json` | `package.json`, and `dist/` | the `User-Agent` Scryfall sees on every request |
 
 - **Coupled:** `package.json` ↔ `APP_VERSION` ↔ `dist/`. Move one, move all three, in that order,
@@ -301,32 +301,32 @@ are three independent numbers and one hand-maintained mirror.
   them; inventing one is a regression dressed as tidiness.
 - **Must not exist:** a `version` in the marketplace entry.
 
-**Resolution order the harness uses** (verified, §4.3): `plugin.json` `version` → marketplace
+**Resolution order the harness uses** (verified, [§4.3](../PLUGIN-PRD.md#43-versioning-and-updates)): `plugin.json` `version` → marketplace
 entry `version` → the git commit SHA of the plugin's source → the literal `unknown`. The SHA step
 is **conditional** — it applies to `github`, `url`, `git-subdir`, and relative-path sources
 **inside a git-hosted marketplace**, and an npm source or a non-git local directory resolves to
-`unknown` instead. This repo qualifies because `P-11` keeps the source a relative `./` path in a
+`unknown` instead. This repo qualifies because [`P-11`](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace) keeps the source a relative `./` path in a
 git-hosted marketplace. After this slice, resolution stops at step one and the condition stops
 mattering *for this plugin* — but it still governs anyone who forks the repo without a version,
-so leave `P-11` and the source type alone.
+so leave [`P-11`](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace) and the source type alone.
 
 Nothing in `src/`, `tests/`, `skills/`, `.mcp.json`, or `dist/` changes in this slice unless
 pre-flight 1(h) or requirement 6 forced it.
 
 ## Out of scope — do NOT
 
-- **No npm publish.** The npm route survives `P-09` as the secondary channel for non-Claude MCP
-  clients (`MCP-PRD.md` `D-02`) and **its version is independent by design**. Publishing it is an
+- **No npm publish.** The npm route survives [`P-09`](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) as the secondary channel for non-Claude MCP
+  clients (`MCP-PRD.md` [`D-02`](../MCP-PRD.md#d-02--runtime-nodejs--typescript)) and **its version is independent by design**. Publishing it is an
   optional, unscheduled follow-up with its own audience and its own release decision. It is not
   part of declaring the plugin public and it must not ride along on this session's tag.
-- **No community-marketplace submission in this session**, even if `PQ-05` is answered "yes." The
+- **No community-marketplace submission in this session**, even if [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) is answered "yes." The
   *answer* is the deliverable; the submission is separate work with someone else's review and
   automated safety screening in the loop.
 - **No feature work.** No new capability, no skill edits, no server behavior changes. A release
   gate that also changes behavior is not a gate. If pre-flight finds a defect, fix it in the slice
   that owns it, land it normally, and re-open the gate from 1(a).
-- **No edits to `docs/PLUGIN-PRD.md`** beyond the appended `PQ-05` paragraph in §7 and the single
-  §9 row. §2 and §3 are locked. `P-08`'s text does not change.
+- **No edits to [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md)** beyond the appended [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) paragraph in [§7](../PLUGIN-PRD.md#7-open-questions) and the single
+  [§9](../PLUGIN-PRD.md#9-revision-log) row. §2 and §3 are locked. [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme)'s text does not change.
 - **No new decision block.** Nothing here is a new `P-`; if this session finds itself drafting
   one, it has found scope belonging to a different slice.
 - **No syncing `package.json` to the plugin version.** Listed twice on purpose (requirement 5),
@@ -350,20 +350,20 @@ pre-flight 1(h) or requirement 6 forced it.
 5. Positive test B recorded: after a patch bump, the update landed **and** carried the withheld
    commit with it.
 6. `claude plugin validate . --strict`, `npm test`, `npm run acceptance` (all PASS, exit 0), and
-   Slice 11's CI check all passed **before** the tag was pushed, and the results doc shows that
+   [Slice 11](./TrackC-Slice11.md)'s CI check all passed **before** the tag was pushed, and the results doc shows that
    ordering rather than merely listing the outcomes.
 7. The release tag exists on the remote, names the final released version, and the observed
    behavior of `claude plugin tag` — dry-run output, tag name format, where it read the version
    from — is written down.
 8. The Fan Content disclaimer is verbatim identical across `plugin.json` `description`, the
    marketplace entry's `description`, and the README.
-9. `docs/PLUGIN-PRD.md` §7's `PQ-05` has a dated disposition paragraph, and
-   `git diff docs/PLUGIN-PRD.md` shows exactly that paragraph plus one appended §9 row —
+9. `docs/PLUGIN-PRD.md` [§7](../PLUGIN-PRD.md#7-open-questions)'s [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) has a dated disposition paragraph, and
+   `git diff docs/PLUGIN-PRD.md` shows exactly that paragraph plus one appended [§9](../PLUGIN-PRD.md#9-revision-log) row —
    nothing else.
 10. `docs/slices/TrackC-Slice13-results.md` exists and records, in order: the pre-flight results,
     the version chosen and why, both update-semantics tests with the harness's exact wording, the
-    tag command's observed behavior, and the `PQ-05` reasoning.
-11. Tree clean and pushed; `docs/DEV-ROADMAP.md` Slice 13 marked ☑ with a Landed note and §2's
+    tag command's observed behavior, and the [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) reasoning.
+11. Tree clean and pushed; [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) Slice 13 marked ☑ with a Landed note and [§2](../DEV-ROADMAP.md#2-current-state-verified-2026-08-04)'s
     current-state statement updated.
 
 ## Testing requirements
@@ -382,7 +382,7 @@ update-semantics observations, and they are only evidence if they are made **fro
   boundary between them is the entire experiment.
 - **`npm test` and `npm run acceptance` are pre-flight, not this slice's testing.** They prove the
   artifact still works; they say nothing about whether the switchover happened.
-- The previous version's cache directory is marked **orphaned and removed 14 days later** (§4.3),
+- The previous version's cache directory is marked **orphaned and removed 14 days later** ([§4.3](../PLUGIN-PRD.md#43-versioning-and-updates)),
   which is a grace period for sessions that already loaded it. Finding an old version's directory
   still present is expected, not a failed uninstall.
 
@@ -429,15 +429,15 @@ machine, not in this repo's shell.
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4 Slice 13 (the work), §5 (Slice 13 is the terminal node, needing 11 and
-  12), §6 (the queued packs that this boundary does *not* schedule), §3 (standing rules).
-- `docs/PLUGIN-PRD.md` `P-08` (version scheme, the SHA fallback and its condition, the
-  never-both-places prohibition), `P-09` (committed build output; npm as the secondary channel),
-  `P-11` (relative source in a git-hosted marketplace — what keeps the SHA fallback legal),
-  §3.5 (the three disclaimer surfaces), §4.2 (marketplace precedence, `sha` pinning, `validate
-  --strict`), §4.3 (resolution order, update semantics, cache directories, release tagging),
-  §6 (the switchover as phase boundary), `PQ-05` (community marketplace), `PQ-06` (the `dist/`
-  honesty mechanism Slice 11 closed), §9 (revision log — append-only).
-- `docs/MCP-PRD.md` `D-02` (Node runtime; the npm/`npx` route this slice does not exercise),
-  §3.4 (rate limits are hard constraints — binding on pre-flight 1(d)), §6 (phases).
-- `docs/slices/TrackA-Slice6.md` — the closing-verification pattern this slice follows.
+- `docs/DEV-ROADMAP.md` [§4](../DEV-ROADMAP.md#4-phase-1-slices) Slice 13 (the work), [§5](../DEV-ROADMAP.md#5-order-and-parallelism) (Slice 13 is the terminal node, needing 11 and
+  12), [§6](../DEV-ROADMAP.md#6-beyond-phase-1--queued-slice-packs) (the queued packs that this boundary does *not* schedule), [§3](../DEV-ROADMAP.md#3-standing-rules--apply-to-every-slice-never-restated-per-slice) (standing rules).
+- `docs/PLUGIN-PRD.md` [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme) (version scheme, the SHA fallback and its condition, the
+  never-both-places prohibition), [`P-09`](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) (committed build output; npm as the secondary channel),
+  [`P-11`](../PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace) (relative source in a git-hosted marketplace — what keeps the SHA fallback legal),
+  [§3.5](../PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not) (the three disclaimer surfaces), [§4.2](../PLUGIN-PRD.md#42-marketplace-and-install-path) (marketplace precedence, `sha` pinning, `validate
+  --strict`), [§4.3](../PLUGIN-PRD.md#43-versioning-and-updates) (resolution order, update semantics, cache directories, release tagging),
+  [§6](../PLUGIN-PRD.md#6-roadmap) (the switchover as phase boundary), [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) (community marketplace), [`PQ-06`](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) (the `dist/`
+  honesty mechanism [Slice 11](./TrackC-Slice11.md) closed), [§9](../PLUGIN-PRD.md#9-revision-log) (revision log — append-only).
+- `docs/MCP-PRD.md` [`D-02`](../MCP-PRD.md#d-02--runtime-nodejs--typescript) (Node runtime; the npm/`npx` route this slice does not exercise),
+  [§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) (rate limits are hard constraints — binding on pre-flight 1(d)), [§6](../MCP-PRD.md#6-phases) (phases).
+- [`docs/slices/TrackA-Slice6.md`](./TrackA-Slice6.md) — the closing-verification pattern this slice follows.
