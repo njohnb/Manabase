@@ -15484,7 +15484,7 @@ var StdioServerTransport = class {
 import { homedir } from "node:os";
 var APP_VERSION = "0.0.0";
 function resolveConfig(env, platform) {
-  const userAgent = `manabase-mtg/${APP_VERSION} (+https://github.com/OWNER/manabase)`;
+  const userAgent = `manabase-mtg/${APP_VERSION} (+https://github.com/njohnb/manabase)`;
   const scryfallBaseUrl = "https://api.scryfall.com";
   return {
     userAgent,

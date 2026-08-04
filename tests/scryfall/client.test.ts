@@ -4,7 +4,7 @@ import type { Config } from "../../src/config.ts";
 import { createScryfallClient } from "../../src/scryfall/client.ts";
 
 const config: Config = {
-  userAgent: "manabase-mtg/0.0.0 (+https://github.com/OWNER/manabase)",
+  userAgent: "manabase-mtg/0.0.0 (+https://github.com/njohnb/manabase)",
   cacheDir: "unused",
   scryfallBaseUrl: "https://scryfall.test",
 };
