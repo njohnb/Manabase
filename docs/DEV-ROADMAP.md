@@ -32,11 +32,14 @@ place as work lands.
 [CAP-01](./MCP-PRD.md#cap-01--card-search) end to end: all twelve acceptance criteria are
 verified, nine of them live against real Scryfall (`docs/slices/TrackA-Slice6-results.md`).
 
-**Tracks B and C have not started.** The server works; the thing a user installs does not exist
-yet. `SKILL.md` is unwritten, the plugin has never been installed from a marketplace, and no
-context-cost measurement has been taken — so every
-[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) and
-[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) acceptance criterion is still unverified.
+**Track B has started.** Slice 7 landed 2026-08-04: the plugin **has** now been installed from a
+marketplace, on a cold profile, and six of
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s ten acceptance criteria (1, 2, 3, 4, 6, 7)
+are verified against a real harness, with criterion 9 explicitly not met — see
+`docs/slices/TrackB-Slice7-results.md`. What remains: `SKILL.md` is still unwritten and no
+context-cost measurement has been taken, so every
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) acceptance criterion, and
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5, 8 and 10, are still unverified.
 
 | Area | State |
 |---|---|
@@ -87,7 +90,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 4 | Price correctness | A — server | ☑ PR #5 |
 | 5 | Tool registration & wiring | A — server | ☑ PR #6 |
 | 6 | Live [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance pass | A — server | ☑ PR #7 |
-| 7 | Plugin install verification | B — plugin | ☐ |
+| 7 | Plugin install verification | B — plugin | ☑ PR #13 |
 | 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☐ |
 | 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☐ |
 | 10 | Context-cost measurement | C — release | ☐ |
@@ -270,25 +273,47 @@ gates are open.
   which are install-surface criteria, not tool criteria.
 - **Work:**
   - Push to the public GitHub repo. On a machine or profile that has never installed the
-    plugin: `/plugin marketplace add <owner>/manabase`, `/plugin install manabase@manabase`.
+    plugin: `/plugin marketplace add njohnb/Manabase`, `/plugin install manabase@manabase`.
   - Verify the update loop while `version` is unset: push a commit, confirm
     `/plugin update` picks it up ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)'s SHA fallback in action).
 - **Done when ([PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criteria):**
-  - ☐ `/mcp` shows the server connected with no extra command, file edit, or restart
+  - ☑ `/mcp` shows the server connected with no extra command, file edit, or restart
     (criterion 1).
-  - ☐ Enabling produced **zero** configuration prompts (criterion 2, [P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)).
-  - ☐ Tools callable as `mcp__plugin_manabase_mtg__*` (criterion 3, [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)).
-  - ☐ Server starts and serves with no network access — no package fetch in the startup path
+  - ☑ Enabling produced **zero** configuration prompts (criterion 2, [P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)).
+  - ☑ Tools callable as `mcp__plugin_manabase_mtg__*` (criterion 3, [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)).
+  - ☑ Server starts and serves with no network access — no package fetch in the startup path
     (criterion 4, [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript)).
-  - ☐ No file created or modified under `${CLAUDE_PLUGIN_ROOT}` during a session
+  - ☑ No file created or modified under `${CLAUDE_PLUGIN_ROOT}` during a session
     (criterion 6, [P-06](./PLUGIN-PRD.md#p-06--cached-data-lives-in-the-plugin-data-directory)).
-  - ☐ Standalone run with `CLAUDE_PLUGIN_DATA` unset resolves the platform cache directory
+  - ☑ Standalone run with `CLAUDE_PLUGIN_DATA` unset resolves the platform cache directory
     rather than failing (criterion 7 — resolution only; Phase 1 writes nothing).
-  - ☐ `claude plugin validate . --strict` passes (criterion 9).
+  - ☐ `claude plugin validate . --strict` passes (criterion 9). **Left unticked deliberately:**
+    it fails on the single warning that is [P-08](./PLUGIN-PRD.md#p-08--version-scheme)'s
+    deliberate unset `version`, so the criterion and the decision are in conflict until the
+    Slice 13 switchover. Re-run there.
 - **Binding refs:** [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) acceptance criteria; [P-06](./PLUGIN-PRD.md#p-06--cached-data-lives-in-the-plugin-data-directory), [P-08](./PLUGIN-PRD.md#p-08--version-scheme), [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key), [P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1);
   `PLUGIN-PRD.md` [§4.2](./PLUGIN-PRD.md#42-marketplace-and-install-path).
 - **Watch out:** never demonstrate or document the raw-URL marketplace add — it downloads
   only `marketplace.json` and the relative source silently fails to resolve ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)'s trap).
+- **Landed:** PR #13 (`77b7e83`) carried the `OWNER` fix; the record is
+  `docs/slices/TrackB-Slice7-results.md`. Six of seven done-when boxes ticked from a **cold**
+  profile — the install genuinely worked in two commands with no restart and no configuration
+  prompt, which had never been observed before. The half worth carrying forward is the update
+  loop: [P-08](./PLUGIN-PRD.md#p-08--version-scheme)'s SHA fallback resolved live, and
+  `/plugin update` picked up a pushed commit **without** a prior marketplace refresh — the
+  operational detail [`PLUGIN-PRD.md` §4.3](./PLUGIN-PRD.md#43-versioning-and-updates) leaves
+  unstated, and the thing that makes "every commit is an update" true in practice today. All of
+  it inverts at Slice 13.
+- **Four findings the spec did not predict**, all in the results doc's Drift section: the
+  resolved version is a **12-character** abbreviated SHA, not the 40-character form assumed by
+  this slice's own acceptance criteria; the installed plugin root contains a **fetched
+  `node_modules/`** (3,759 files against 57 of repo content), so
+  [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript)'s no-fetch guarantee
+  covers startup — proven offline — but not install; `${CLAUDE_PLUGIN_DATA}` is created by the
+  harness **at install time**, not on first reference as
+  [§4.5](./PLUGIN-PRD.md#45-persistent-data) states; and `npm test` as written **does not run on
+  Node v22.17.1**, needing `--experimental-strip-types` (67/19 pass with it), which makes
+  `package.json`'s `engines: >=18.0.0` an understatement.
 
 #### Slice 8 — [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring
 
@@ -398,11 +423,17 @@ gates are open.
   - `claude plugin tag --push` for the release tag.
   - Verify the changed update semantics: a push without a version bump ships nothing — now
     correct behavior, previously wrong ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)).
+  - **Re-run `claude plugin validate . --strict` and expect a clean pass.** It fails today on
+    the deliberate unset `version`, which is why Slice 7 left
+    [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 unticked; setting semver here
+    is what resolves the conflict.
   - Decide [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) (community-marketplace submission) explicitly, or record it as deliberately
     still open. Optional follow-up, unscheduled: npm publish as the secondary non-Claude
     route ([D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript) survives [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript); its version is independent by design).
 - **Done when:**
   - ☐ Version set, tag pushed, update semantics verified.
+  - ☐ `claude plugin validate . --strict` passes cleanly, closing out
+    [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 (left unticked by Slice 7).
   - ☐ `PLUGIN-PRD.md` [§9](./PLUGIN-PRD.md#9-revision-log) records the switchover; [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) has an explicit disposition.
 - **Binding refs:** [P-08](./PLUGIN-PRD.md#p-08--version-scheme), `PLUGIN-PRD.md` [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates), [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable); `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript).
 
@@ -427,11 +458,13 @@ The critical path is 1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13. Slice 
 main parallelism opportunity — it needs only Slice 3's tool shape. Slice 11 (CI) can land any
 time after Slice 1 produces a real build.
 
-**As of 2026-08-04, Slices 1–6 are done and the next item on the critical path is Slice 7.**
-Three slices are unblocked and can run in parallel: **7** (install verification, needed Slice 5),
-**8** (`SKILL.md`, needed only Slice 3), and **11** (`dist/` CI check, needed only Slice 1 —
-and now more urgent than when it was scheduled, because `dist/index.js` is real committed build
-output that can silently drift from `src/`).
+**As of 2026-08-04, Slices 1–7 are done and the next item on the critical path is Slice 9**,
+which needs Slice 8. Two slices are unblocked and can run in parallel: **8** (`SKILL.md`, needed
+only Slice 3) and **11** (`dist/` CI check, needed only Slice 1 — and now more urgent than when
+it was scheduled, because `dist/index.js` is real committed build output that can silently drift
+from `src/`; Slice 7 hit the CRLF false-alarm form of exactly that). Slice 10 (context cost) is
+also unblocked now that Slice 7 has landed, but it should wait for Slice 8: a baseline measured
+before `SKILL.md` exists is one Slice 8 immediately invalidates.
 
 ## 6. Beyond Phase 1 — queued slice packs
 
