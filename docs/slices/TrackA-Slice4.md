@@ -8,7 +8,7 @@ implementation. Price correctness is part of the search capability itself, not a
 three verified Scryfall behaviors each silently produce wrong prices for thousands of cards —
 including some of the most expensive cards in Magic — if handled naively.
 
-## Preconditions (deliverables of Slice 3)
+## Preconditions (deliverables of [Slice 3](./TrackA-Slice3.md))
 
 - `src/scryfall/types.ts` exports `ScryfallPrices`, `ScryfallCard`, `ScryfallCardFace`,
   `ScryfallList` (wire types; `ScryfallCard` carries `digital: boolean`, `games: string[]`,
@@ -25,7 +25,7 @@ Manabase is a Magic: The Gathering MCP server (Scryfall-backed card search) that
 Claude Code plugin. This is slice 4 of 6 in Track A: skeleton → HTTP client → search handler →
 **price correctness** → tool wiring → live acceptance.
 
-## The three verified traps (MCP-PRD §4.1.3, verified live 2026-07-29)
+## The three verified traps (MCP-PRD [§4.1.3](../MCP-PRD.md#413-price-fields--three-verified-traps), verified live 2026-07-29)
 
 1. **The price object is exactly** `usd`, `usd_foil`, `usd_etched`, `eur`, `eur_foil`, `tix`
    — all string-or-null. **`eur_etched` does not exist** in the live API even though
@@ -61,7 +61,7 @@ Claude Code plugin. This is slice 4 of 6 in Track A: skeleton → HTTP client �
    1. **Digital first.** If the printing is not available on paper — `card.digital === true`,
       or `card.games` does not include `"paper"` — return
       `{ available: false, reason: "digital-only" }`. The *reason* is the point: the model
-      must be able to tell the user "digital-only", not just "no price" (CAP-01 criterion 7).
+      must be able to tell the user "digital-only", not just "no price" ([CAP-01](../MCP-PRD.md#cap-01--card-search) criterion 7).
    2. Otherwise resolve in order, returning the first non-null with its finish labeled:
       `prices.usd` → `{ available: true, usd, finish: "nonfoil" }`;
       `prices.usd_foil` → `{ …, finish: "foil" }`;
@@ -95,13 +95,13 @@ export function resolvePrice(card: ScryfallCard): PriceInfo;
 ```
 
 Consumes `ScryfallCard` / `ScryfallPrices` from `src/scryfall/types.ts` (Slice 3). Repo layout
-is unchanged from the Slice 1 doc.
+is unchanged from the [Slice 1](./TrackA-Slice1.md) doc.
 
 ## Out of scope — do NOT
 
 - No `eur`/`tix` surfacing, no currency selection, no per-condition pricing, no price
   history — Scryfall carries one number per printing per finish and that limitation is
-  accepted (MCP-PRD D-06). `tix` exists on the wire type; the resolver ignores it.
+  accepted (MCP-PRD [D-06](../MCP-PRD.md#d-06--pricing-from-scryfall)). `tix` exists on the wire type; the resolver ignores it.
 - No `eur_etched` field anywhere (it does not exist — trap 1).
 - No query rewriting to force `game:paper` — the handler passes queries through untouched
   (Slice 3 requirement 1); paper-vs-digital is handled at *price resolution*, not by editing
@@ -111,16 +111,16 @@ is unchanged from the Slice 1 doc.
 
 ## Acceptance criteria
 
-Unit-level ownership of CAP-01 criteria 4–7 (MCP-PRD §5; Slice 6 re-checks them live):
+Unit-level ownership of [CAP-01](../MCP-PRD.md#cap-01--card-search) criteria 4–7 (MCP-PRD [§5](../MCP-PRD.md#5-capabilities); Slice 6 re-checks them live):
 
-1. **[CAP-01 #4]** The Gaea's Cradle `jgp` fixture (`usd: null, usd_foil: "3999.00"`)
+1. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #4]** The Gaea's Cradle `jgp` fixture (`usd: null, usd_foil: "3999.00"`)
    resolves to `{ available: true, usd: "3999.00", finish: "foil" }` — not "no price".
-2. **[CAP-01 #5]** The etched-only fixture (only `usd_etched` non-null) resolves to
+2. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #5]** The etched-only fixture (only `usd_etched` non-null) resolves to
    `finish: "etched"`.
-3. **[CAP-01 #6]** The Black Lotus MTGO fixture (`digital: true`, `games: ["mtgo"]`, only
+3. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #6]** The Black Lotus MTGO fixture (`digital: true`, `games: ["mtgo"]`, only
    `tix` non-null) resolves to `{ available: false, reason: "digital-only" }` — the resolver
    never mistakes a digital printing's null paper prices for missing data.
-4. **[CAP-01 #7]** The Arena-only fixture (all prices null, `games: ["arena"]`) resolves to
+4. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #7]** The Arena-only fixture (all prices null, `games: ["arena"]`) resolves to
    `reason: "digital-only"` — the reason is stated, not just the absence.
 5. The ordinary-nonfoil fixture resolves to `finish: "nonfoil"`; the paper-no-price fixture
    (paper printing, all three null) resolves to `reason: "no-price-data"` — the two
@@ -156,6 +156,6 @@ git add -A && git status   # clean after commit, dist/index.js current
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4, Slice 4.
-- `docs/MCP-PRD.md` §4.1.3 (the three verified traps — the authoritative record), §5 CAP-01
-  criteria 4–7, D-06 (Scryfall as sole price source, limitation accepted).
+- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices), [Slice 4](../DEV-ROADMAP.md#slice-4--price-correctness).
+- [`docs/MCP-PRD.md`](../MCP-PRD.md) [§4.1.3](../MCP-PRD.md#413-price-fields--three-verified-traps) (the three verified traps — the authoritative record), [§5](../MCP-PRD.md#5-capabilities) [CAP-01](../MCP-PRD.md#cap-01--card-search)
+  criteria 4–7, [D-06](../MCP-PRD.md#d-06--pricing-from-scryfall) (Scryfall as sole price source, limitation accepted).

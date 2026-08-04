@@ -1,32 +1,32 @@
-# Track B — Slice 9: PC-01 evals
+# Track B — Slice 9: [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals
 
 > Self-contained implementation spec. You do not need to read the PRDs to build this slice;
 > everything binding is inlined. PRD references are pointers for deeper context only.
 
-**Goal.** Measure PC-01's behavioral acceptance criteria 5–13 against a **without-skill
+**Goal.** Measure [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral acceptance criteria 5–13 against a **without-skill
 baseline**, in **fresh sessions**, and record both numbers — then use that measurement to
-answer the empirical half of `docs/MCP-PRD.md` OQ-01. Slice 5 made a bet: keep the
+answer the empirical half of [`docs/MCP-PRD.md`](../MCP-PRD.md) [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model). [Slice 5](./TrackA-Slice5.md) made a bet: keep the
 `card_search` tool description compact and put the deep Scryfall teaching in the skill. Nothing
 has tested it. This slice is where that bet is allowed to lose. Track B's plugin half of Phase 1
-closes when the results are recorded in `docs/PLUGIN-PRD.md` §9 and OQ-01 carries a dated,
+closes when the results are recorded in [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [§9](../PLUGIN-PRD.md#9-revision-log) and [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) carries a dated,
 measured answer.
 
 ## Preconditions
 
-**Deliverables of Slice 7 (plugin install verification):**
+**Deliverables of [Slice 7](./TrackB-Slice7.md) (plugin install verification):**
 
 - The plugin installed from the marketplace in `owner/repo` form (`njohnb/Manabase`) on a
   machine or profile that had never installed it; `/mcp` shows the server connected.
-- Tools reachable under the scoped name `mcp__plugin_manabase_mtg__card_search` (P-12). That
+- Tools reachable under the scoped name `mcp__plugin_manabase_mtg__card_search` ([P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key)). That
   exact string is what an eval assertion matches on; a grader written against the bare
   `card_search` will mis-grade every case.
 - `claude plugin validate . --strict` passes; enabling produced zero configuration prompts.
 
-**Deliverables of Slice 8 (`SKILL.md` authoring):**
+**Deliverables of [Slice 8](./TrackB-Slice8.md) (`SKILL.md` authoring):**
 
 - `skills/scryfall-query-craft/SKILL.md` exists, with the exhaustive operator catalog in
   `skills/scryfall-query-craft/reference/`.
-- PC-01 criteria 1–4 recorded as passing: `description` + `when_to_use` ≤ 1,536 characters,
+- [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criteria 1–4 recorded as passing: `description` + `when_to_use` ≤ 1,536 characters,
   `SKILL.md` ≤ 5,000 tokens, no card facts asserted anywhere in the skill files, tool
   references in the scoped form.
 
@@ -39,20 +39,20 @@ measured answer.
 ## Context
 
 Manabase is a Magic: The Gathering MCP server (Scryfall-backed card search) shipped inside a
-Claude Code plugin. Track A delivered the server: CAP-01 is `delivered`, all twelve criteria
-verified, nine of them live (`docs/slices/TrackA-Slice6-results.md`). Track B delivers the thing
-a user installs — Slice 7 proves it installs, Slice 8 writes the skill, and this slice is the
+Claude Code plugin. Track A delivered the server: [CAP-01](../MCP-PRD.md#cap-01--card-search) is `delivered`, all twelve criteria
+verified, nine of them live ([`docs/slices/TrackA-Slice6-results.md`](./TrackA-Slice6-results.md)). Track B delivers the thing
+a user installs — [Slice 7](./TrackB-Slice7.md) proves it installs, [Slice 8](./TrackB-Slice8.md) writes the skill, and this slice is the
 only one that produces evidence the skill actually *works*.
 
-Slice 9 needs **both** Slice 7 (an installed plugin exposing the scoped tool) and Slice 8 (a
-skill to measure). It sits on the critical path `1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13`: Slice 12's
-friend dry-run and Slice 13's release gate are both downstream, so a stalled Slice 9 stalls the
+Slice 9 needs **both** [Slice 7](./TrackB-Slice7.md) (an installed plugin exposing the scoped tool) and [Slice 8](./TrackB-Slice8.md) (a
+skill to measure). It sits on the critical path `1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13`: [Slice 12](./TrackC-Slice12.md)'s
+friend dry-run and [Slice 13](./TrackC-Slice13.md)'s release gate are both downstream, so a stalled Slice 9 stalls the
 release.
 
-Two things this slice is *not*. It is not skill authoring — Slice 8 owns the prose, though
+Two things this slice is *not*. It is not skill authoring — [Slice 8](./TrackB-Slice8.md) owns the prose, though
 tuning the `description` is in scope here because tuning is only meaningful against measured
-trigger rates (requirement 9). And it is not context-cost measurement — PC-01 criterion 2,
-`claude plugin details`, `/context`, `/doctor`, PQ-01 and PQ-02 all belong to Slice 10.
+trigger rates (requirement 9). And it is not context-cost measurement — [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 2,
+`claude plugin details`, `/context`, `/doctor`, [PQ-01](../PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) and [PQ-02](../PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) all belong to [Slice 10](./TrackC-Slice10.md).
 
 ## Deliverables
 
@@ -60,10 +60,10 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
 |---|---|
 | `evals/evals.json` | new — the 17 behavioral eval cases, conforming to `skill-creator`'s schema |
 | `evals/trigger-evals.json` | new — the 20-query should-trigger / should-not-trigger set (flat array; `skill-creator`'s description-optimization shape) |
-| `docs/slices/TrackB-Slice9-results.md` | new — both runs, case by case, with the tuning history and the OQ-01 verdict |
-| `docs/PLUGIN-PRD.md` | append **one** §9 revision-log row (template below). Nothing else. |
-| `docs/MCP-PRD.md` | append **one** dated status paragraph under §7 OQ-01 **and one** §9 row. Nothing else. |
-| `docs/DEV-ROADMAP.md` | tick Slice 9's two done-when boxes, set the §4 status cell, add a `Landed:` line — sequencing only |
+| `docs/slices/TrackB-Slice9-results.md` | new — both runs, case by case, with the tuning history and the [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) verdict |
+| [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) | append **one** [§9](../PLUGIN-PRD.md#9-revision-log) revision-log row (template below). Nothing else. |
+| [`docs/MCP-PRD.md`](../MCP-PRD.md) | append **one** dated status paragraph under [§7](../MCP-PRD.md#7-open-questions) [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) **and one** [§9](../MCP-PRD.md#9-revision-log) row. Nothing else. |
+| [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) | tick Slice 9's two done-when boxes, set the [§4](../DEV-ROADMAP.md#4-phase-1-slices) status cell, add a `Landed:` line — sequencing only |
 | `skills/scryfall-query-craft/SKILL.md` | modify **only if** a measured failure forces it (requirement 9); any edit voids every preceding run |
 
 ## Requirements
@@ -79,7 +79,7 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
    *task-execution* evals (one subagent per case, with-skill and without-skill, graded against
    written expectations) from `evals/evals.json`, and it runs *description optimization* from a
    separate flat array of `{query, should_trigger}` items. Criteria 5–10, 12 and 13 are measured
-   by the first; criterion 11 and any description tuning are measured by the second. PC-01's
+   by the first; criterion 11 and any description tuning are measured by the second. [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s
    eval-method preamble names only `evals/evals.json` because that is where the *cases* live —
    it does not forbid the second file, and the trigger loop cannot read the first file's shape.
 
@@ -118,7 +118,7 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
    loop cases, where the user hands the model an invalid operator on purpose. Pass conditions
    are graded from the transcript, on the emitted `q` — never from the prose answer.
 
-   | # | Prompt (verbatim in `evals.json`) | Exercises | Pass condition | PC-01 criterion |
+   | # | Prompt (verbatim in `evals.json`) | Exercises | Pass condition | [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion |
    |---|---|---|---|---|
    | 1 | "im building my first commander deck (mono green, azusa) and im broke. what creatures could i run that cost 2 mana or less and are like a buck or less each? needs to actually be legal in the format" | legality + type + cost + price, combined | one `card_search` call whose `q` carries a format operator, a type operator, a mana-value comparison **and** a USD comparison together; no client-side filtering of a broad result; no "narrow it down for me" reply | 6 (and 5) |
    | 2 | "putting together a modern budget artifact deck for FNM next week. artifact creatures, mana value 3 or under, under $2 each — ive got maybe $60 total" | same, different format and thresholds | as above | 6 (and 5) |
@@ -139,7 +139,7 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
    | 17 | "what does rhystic study say word for word? i keep misremembering the wording when i explain it to new players" | card fact → tool call | as above, on oracle text | 13 |
 
    Cases 13 and 14 are the only ones that name an operator, and they name the one the repo has
-   verified returns HTTP 400 — `illustrationtag:` (MCP-PRD §4.1.1, re-verified 2026-08-03).
+   verified returns HTTP 400 — `illustrationtag:` (MCP-PRD [§4.1.1](../MCP-PRD.md#411-search-endpoint), re-verified 2026-08-03).
    That is deliberate: criterion 12 needs a *reliably* malformed first query, and inventing a
    second invalid operator to vary the shape is forbidden. If a third failure case is wanted,
    confirm the 400 with **one** polite live call before the run; never guess an operator into
@@ -191,7 +191,7 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
      the rule is cross-set: in *any* case, a stated price, legality or oracle text must be
      preceded by a `card_search` call whose payload contains it. A model that answers case 7 with
      a list of card names it never searched for fails criterion 13 there too. This is PLUGIN-PRD
-     §3.6 measured behaviorally rather than reviewed statically — criterion 4 read the files,
+     [§3.6](../PLUGIN-PRD.md#36-skills-carry-instructions-never-facts) measured behaviorally rather than reviewed statically — criterion 4 read the files,
      this reads the behavior.
    - **Criterion 12 — a structured failure produces a revised retry.** Cases 13 and 14 are the
      direct probes, but the rule is cross-set: any call anywhere in the run that comes back
@@ -200,25 +200,25 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
      grading it as a failed call will mis-score criteria 5, 8 and 12 at once.
 
 9. **Description tuning is in scope, and it invalidates whatever it follows.** The
-   `description` + `when_to_use` frontmatter is PC-01 criterion 1's surface, authored in Slice 8,
+   `description` + `when_to_use` frontmatter is [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1's surface, authored in [Slice 8](./TrackB-Slice8.md),
    and requirement 7's rates are the only honest basis for changing it. Rules:
    - Tune on both rates jointly. `run_loop` selects on the held-out test score rather than the
      train score precisely to avoid a description that memorizes the trigger set; do not override
      that with a hand-picked winner that scores better on train.
    - **Re-check the ≤ 1,536-character budget after every tune, before the next run.** The cap is
-     the harness's truncation point for `description` + `when_to_use` combined (PLUGIN-PRD §3.1);
+     the harness's truncation point for `description` + `when_to_use` combined (PLUGIN-PRD [§3.1](../PLUGIN-PRD.md#31-context-budget));
      an optimizer that produces a longer description has produced one whose tail the model never
      sees, and nothing errors.
    - **Any change to the skill — description or body — voids every run that preceded it.** Re-run
      the full behavioral set in fresh sessions and report only post-change numbers. Record each
      tuning iteration with its before/after rates in the results doc, but report a single final
      run to the PRDs. Never assemble a headline number out of two different skill versions.
-   - If criteria 6–9 fail in a way tuning cannot fix, that is a **Slice 8 defect surfaced here**:
+   - If criteria 6–9 fail in a way tuning cannot fix, that is a **[Slice 8](./TrackB-Slice8.md) defect surfaced here**:
      fix the body, record the fix, re-run everything. Do not accumulate body edits between runs.
 
 10. **Politeness still binds, and parallelism is the wrong shape here.** Every behavioral case
     drives real `card_search` calls at live Scryfall. Card endpoints are capped at 2/sec and
-    **deliberately provoking a 429 is forbidden** (MCP-PRD §3.4) — a 429 locks access for ~30
+    **deliberately provoking a 429 is forbidden** (MCP-PRD [§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)) — a 429 locks access for ~30
     seconds and sustained overage risks a ban affecting every user of the application. Specifics:
     - `skill-creator`'s documented loop says to *spawn all runs, with-skill and baseline, in the
       same turn*. **Override that for this skill.** Run cases sequentially, one configuration at
@@ -239,12 +239,12 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
       the same politeness rules apply to it.
 
 11. **What would mean the compact description has to grow — and where that reopens work.**
-    OQ-01 asked how Scryfall syntax reaches the model. Slice 5 took the compact side: the shipped
+    [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) asked how Scryfall syntax reaches the model. [Slice 5](./TrackA-Slice5.md) took the compact side: the shipped
     description in `src/tools/register.ts` names the operator *families* (`t:`, `o:`, `f:`,
     `cmc`, `usd`, `otag:`, `art:`, regex) and the pagination contract, and nothing more. Read it
     before designing the grading, because it is exactly what the without-skill baseline has.
     Four outcomes, and only one of them is "grow the description":
-    - **With-skill measurably above baseline across families → the split works.** OQ-01 answers
+    - **With-skill measurably above baseline across families → the split works.** [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) answers
       yes; the description stays.
     - **With-skill ≈ baseline on a family → the skill adds nothing there.** The tool description
       is already sufficient for that family. That argues for a *shorter* skill, not a longer
@@ -253,13 +253,13 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
       works, and that is the delta the whole slice exists to produce.
     - **With-skill high, baseline near zero, *and* a realistic path where the skill never
       fires** — the description had to be narrowed to control over-triggering, or the skill
-      listing gets budget-trimmed on a loaded machine (PLUGIN-PRD §3.1, PQ-04). Then the tool
+      listing gets budget-trimmed on a loaded machine (PLUGIN-PRD [§3.1](../PLUGIN-PRD.md#31-context-budget), [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)). Then the tool
       description is the only surface left and it has to carry more. **That reopens work in the
       server, not just the skill**: `src/tools/register.ts`, a rebuilt and recommitted
       `dist/index.js`, and MCP-PRD's own note that tool-description length is a product concern.
       It is also not free — a tool schema cannot be budget-trimmed the way a skill description
-      can (PQ-01), so every character is paid in every session forever. **This slice does not
-      make that change.** Record the finding, say plainly in the OQ-01 status paragraph that the
+      can ([PQ-01](../PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)), so every character is paid in every session forever. **This slice does not
+      make that change.** Record the finding, say plainly in the [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) status paragraph that the
       description must grow, and let it be its own slice.
 
 12. **Both PRDs are updated in the same session.** A slice that resolves an open question updates
@@ -267,7 +267,7 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
     not a substitute. **Both §9 tables are append-only** — do not edit an existing row, reorder,
     renumber, or reword a rationale.
 
-    `docs/PLUGIN-PRD.md` §9 — one appended row:
+    [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [§9](../PLUGIN-PRD.md#9-revision-log) — one appended row:
 
     ```
     | <date> | **PC-01 behavioral criteria 5–13 measured** against a without-skill baseline in
@@ -283,9 +283,9 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
     evidence `docs/MCP-PRD.md` OQ-01 was waiting on. |
     ```
 
-    `docs/MCP-PRD.md` §7, OQ-01 — one appended dated paragraph, **below** the existing
-    "Status 2026-08-03" paragraph, which stays exactly as written. §7's rule is that questions
-    stay until answered, and §4's discipline is dated addenda rather than overwrites:
+    [`docs/MCP-PRD.md`](../MCP-PRD.md) [§7](../MCP-PRD.md#7-open-questions), [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) — one appended dated paragraph, **below** the existing
+    "Status 2026-08-03" paragraph, which stays exactly as written. [§7](../MCP-PRD.md#7-open-questions)'s rule is that questions
+    stay until answered, and [§4](../MCP-PRD.md#4-external-dependencies)'s discipline is dated addenda rather than overwrites:
 
     ```
     **Status <date>: measured.** <One or two sentences: with-skill vs. without-skill rates on the
@@ -297,7 +297,7 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
     docs/PLUGIN-PRD.md §9.
     ```
 
-    `docs/MCP-PRD.md` §9 — one appended row:
+    [`docs/MCP-PRD.md`](../MCP-PRD.md) [§9](../MCP-PRD.md#9-revision-log) — one appended row:
 
     ```
     | <date> | **OQ-01 answered empirically.** PC-01's behavioral criteria measured with and
@@ -310,16 +310,16 @@ trigger rates (requirement 9). And it is not context-cost measurement — PC-01 
     superseded by a dated result rather than overwritten. |
     ```
 
-    **Do not change PC-01's `Status` field.** PLUGIN-PRD §5's component-block template is
+    **Do not change [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s `Status` field.** PLUGIN-PRD [§5](../PLUGIN-PRD.md#5-components)'s component-block template is
     reproduced verbatim for every component and says "Do not modify it"; its status vocabulary is
-    `proposed | specified | deferred` and has no `delivered` value. Record delivery in §9 instead.
-    A short dated "Measurement note" bullet appended to PC-01's block is permitted — CAP-01's
+    `proposed | specified | deferred` and has no `delivered` value. Record delivery in [§9](../PLUGIN-PRD.md#9-revision-log) instead.
+    A short dated "Measurement note" bullet appended to [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s block is permitted — [CAP-01](../MCP-PRD.md#cap-01--card-search)'s
     "Delivery note (2026-08-03)" is the precedent — but extending the status enum would be its
     own decision needing its own §9 row, exactly as MCP-PRD's 2026-08-04 row did for CAP blocks.
 
-13. **One documentation discrepancy to notice, not to silently patch.** PC-01's eval-method
+13. **One documentation discrepancy to notice, not to silently patch.** [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s eval-method
     preamble says "Criteria 5–11 are behavioral" while the criteria list runs to 13 and criteria
-    12–13 are plainly behavioral; `docs/DEV-ROADMAP.md` §4 says 5–13. **Measure 5–13.** If the
+    12–13 are plainly behavioral; [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices) says 5–13. **Measure 5–13.** If the
     session chooses to correct the preamble's "5–11" to "5–13", that is a factual correction, not
     a reopened decision, and it needs its own §9 row saying so — the same way the 2026-07-30 rows
     in both documents record presentation-only changes.
@@ -330,7 +330,7 @@ This slice creates no code and changes no interface. What it consumes, all of it
 Slices 3 and 5 and unchanged here:
 
 - **Tool name:** `mcp__plugin_manabase_mtg__card_search` when running inside the installed
-  plugin (P-12); the server itself registers the bare `card_search`. Which string a transcript
+  plugin ([P-12](../PLUGIN-PRD.md#p-12--plugin-name-and-server-key)); the server itself registers the bare `card_search`. Which string a transcript
   shows depends on how the baseline is run (requirement below) — record which.
 - **Arguments:** required `q` (string); optional `unique` (`cards`|`prints`|`art`), `order`,
   `dir` (`auto`|`asc`|`desc`), `page` (integer ≥ 1). **Trap:** `unique` can be expressed either
@@ -363,13 +363,13 @@ config outside the repo.
 - **No server changes.** `src/`, `dist/`, `tests/`, `scripts/` are untouched. If the measurement
   says the tool description must grow, that is a finding recorded here and a separate slice.
 - **No `SKILL.md` rewrite.** Description tuning and defects forced by a measured failure are in
-  scope (requirement 9); rewriting the body because it reads better is Slice 8's job.
-- **No context-cost measurement** — PC-01 criterion 2, `claude plugin details`, `/context`,
-  `/doctor`, PQ-01, PQ-02 are Slice 10.
-- **No re-derivation of PC-01 criteria 1–4**, beyond the ≤ 1,536-character re-check after a tune.
+  scope (requirement 9); rewriting the body because it reads better is [Slice 8](./TrackB-Slice8.md)'s job.
+- **No context-cost measurement** — [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 2, `claude plugin details`, `/context`,
+  `/doctor`, [PQ-01](../PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports), [PQ-02](../PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) are [Slice 10](./TrackC-Slice10.md).
+- **No re-derivation of [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criteria 1–4**, beyond the ≤ 1,536-character re-check after a tune.
 - **No parallel eval execution, no 429 provocation, no extra query sweeps "for more data."**
-- **No edits to `docs/PLUGIN-PRD.md` or `docs/MCP-PRD.md`** beyond the appended rows and the
-  OQ-01 status paragraph named in requirement 12. No `docs/DEV-ROADMAP.md` edits beyond the
+- **No edits to [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) or [`docs/MCP-PRD.md`](../MCP-PRD.md)** beyond the appended rows and the
+  [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) status paragraph named in requirement 12. No [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) edits beyond the
   status cell, the two done-when boxes and a `Landed:` line.
 - **No new npm dependencies and no CI wiring for evals** — they hit a third party and consume
   model time; CI work is a Track C slice.
@@ -383,19 +383,19 @@ config outside the repo.
 2. Both configurations ran to completion, sequentially, in fresh per-case sessions, with the
    search tool available in **both** — and the results doc names the mechanism that made the
    skill unavailable in the baseline.
-3. PC-01 criteria 5–13 each have a recorded result **and** its baseline, expressed as a pair
+3. [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) criteria 5–13 each have a recorded result **and** its baseline, expressed as a pair
    with a delta. Any criterion evidenced by a single prompt is recorded as *not measured*.
 4. Criterion 10's cross-set scan is reported with its denominator and the cases 13–14 exclusion
    stated explicitly.
 5. If the description was tuned: the final `description` + `when_to_use` character count is
    recorded and ≤ 1,536, and every reported number comes from one single post-tune full run.
-6. `docs/PLUGIN-PRD.md` §9 has exactly one new row — `git diff` shows one appended table row and
-   nothing else. PC-01's `Status` field is unchanged.
-7. `docs/MCP-PRD.md` shows exactly one appended §9 row plus one appended dated paragraph under
-   OQ-01, and nothing else. The 2026-08-03 OQ-01 status paragraph is intact.
+6. [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [§9](../PLUGIN-PRD.md#9-revision-log) has exactly one new row — `git diff` shows one appended table row and
+   nothing else. [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s `Status` field is unchanged.
+7. [`docs/MCP-PRD.md`](../MCP-PRD.md) shows exactly one appended [§9](../MCP-PRD.md#9-revision-log) row plus one appended dated paragraph under
+   [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model), and nothing else. The 2026-08-03 OQ-01 status paragraph is intact.
 8. `docs/slices/TrackB-Slice9-results.md` exists with per-case evidence, the aggregate
    with/without table, the tuning history, the call count and elapsed time, and an explicit
-   OQ-01 verdict naming which of requirement 11's four outcomes was observed.
+   [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) verdict naming which of requirement 11's four outcomes was observed.
 9. No HTTP 429 was observed or provoked at any point in the slice.
 10. Tree committed clean; `git status` shows no change under `src/`, `dist/`, `tests/`.
 
@@ -412,7 +412,7 @@ the discipline has to come from how grading is done:
 - **Grade should-not-trigger on skill invocation, not on tool calls.** The model may call
   `card_search` without the skill firing, or fire the skill and never call the tool. Those are
   different outcomes and both must be recorded separately.
-- **State N per criterion.** PC-01's preamble requires results phrased as "on N held-out prompts
+- **State N per criterion.** [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s preamble requires results phrased as "on N held-out prompts
   of this shape" precisely because one passing prompt is not evidence about a skill.
 - **Record failures as findings, not as noise.** A criterion that fails is the slice working;
   what makes the run worthless is a criterion recorded without its baseline.
@@ -452,18 +452,18 @@ In Claude Code, between steps 1 and 5:
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4 Slice 9 (goal and done-when), §5 (the graph — Slice 9 needs 7 and 8
-  and is on the critical path), §3 (standing rules, never restated per slice).
-- `docs/PLUGIN-PRD.md` PC-01 — behavior, the eval-method preamble, and criteria 5–13, which are
-  the contract this slice closes; §3.1 (context budget: the 1,536-character cap, the 5,000-token
+- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices) Slice 9 (goal and done-when), [§5](../DEV-ROADMAP.md#5-order-and-parallelism) (the graph — Slice 9 needs 7 and 8
+  and is on the critical path), [§3](../DEV-ROADMAP.md#3-standing-rules--apply-to-every-slice-never-restated-per-slice) (standing rules, never restated per slice).
+- [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [PC-01](../PLUGIN-PRD.md#pc-01--scryfall-query-craft) — behavior, the eval-method preamble, and criteria 5–13, which are
+  the contract this slice closes; [§3.1](../PLUGIN-PRD.md#31-context-budget) (context budget: the 1,536-character cap, the 5,000-token
   compaction window, and the silent degradation that makes requirement 11's fourth outcome
-  real); §3.6 (skills carry instructions, never facts — criterion 13 measured); §4.1 (skill
-  mechanics and the scoped tool name); §9 (revision log, append-only).
-- `docs/MCP-PRD.md` OQ-01 (the question this slice answers, with its 2026-08-03 half-committed
-  status); CAP-01 (what the tool guarantees and how failures are shaped); §4.1.1 (the verified
-  operators the prompts exercise, and `illustrationtag:` as the known HTTP 400); §3.4 (rate
-  limits are hard constraints, not guidance); §9 (revision log).
+  real); [§3.6](../PLUGIN-PRD.md#36-skills-carry-instructions-never-facts) (skills carry instructions, never facts — criterion 13 measured); [§4.1](../PLUGIN-PRD.md#41-harness-features-relied-on) (skill
+  mechanics and the scoped tool name); [§9](../PLUGIN-PRD.md#9-revision-log) (revision log, append-only).
+- [`docs/MCP-PRD.md`](../MCP-PRD.md) [OQ-01](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (the question this slice answers, with its 2026-08-03 half-committed
+  status); [CAP-01](../MCP-PRD.md#cap-01--card-search) (what the tool guarantees and how failures are shaped); [§4.1.1](../MCP-PRD.md#411-search-endpoint) (the verified
+  operators the prompts exercise, and `illustrationtag:` as the known HTTP 400); [§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) (rate
+  limits are hard constraints, not guidance); [§9](../MCP-PRD.md#9-revision-log) (revision log).
 - `src/tools/register.ts` — the shipped compact description and input schema. This is exactly
   what the without-skill baseline has and nothing more; read it before grading anything.
-- `docs/slices/TrackA-Slice6.md` and `docs/slices/TrackA-Slice6-results.md` — the measurement-
+- [`docs/slices/TrackA-Slice6.md`](./TrackA-Slice6.md) and [`docs/slices/TrackA-Slice6-results.md`](./TrackA-Slice6-results.md) — the measurement-
   slice precedent: an inlined check matrix, a results document, and a single appended §9 row.

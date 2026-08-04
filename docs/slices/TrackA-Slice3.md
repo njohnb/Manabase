@@ -8,7 +8,7 @@ Scryfall query string, evaluates it via the live `GET /cards/search` endpoint, a
 shaped per-card results with honest pagination reporting. No MCP wiring yet (Slice 5), and
 price resolution is deliberately naive (Slice 4 makes it correct).
 
-## Preconditions (deliverables of Slice 2)
+## Preconditions (deliverables of [Slice 2](./TrackA-Slice2.md))
 
 - `src/result.ts` exports the canonical `Result` union (`FailureCode`, `Failure`,
   `Success<T>`, `Result<T>`).
@@ -40,7 +40,7 @@ handler** → price correctness → tool wiring → live acceptance.
 1. **Full query passthrough — no parsing, no validation, no rewriting.** Scryfall's query
    language (including regex `o:/…/`, tag operators `otag:`/`function:`/`art:`/`atag:`,
    legality and price filters) is evaluated **server-side by Scryfall**; it cannot be
-   reproduced locally and must not be second-guessed (MCP-PRD D-07). Send `q` exactly as
+   reproduced locally and must not be second-guessed (MCP-PRD [D-07](../MCP-PRD.md#d-07--three-way-cache-split)). Send `q` exactly as
    received. A malformed query is Scryfall's call to make, and its error text comes back to
    the model via the `Failure.details` passthrough.
 2. **Parameters and defaults.** `unique` defaults to `"cards"` (one row per card, not per
@@ -58,7 +58,7 @@ handler** → price correctness → tool wiring → live acceptance.
      text on faces for double-faced and split cards; dropping it would return blank oracle
      text for a large class of cards.
    - `legalities` passes through as-is (format → `"legal" | "not_legal" | "restricted" |
-     "banned"`). Result verbosity tuning is an open question (MCP-PRD OQ-02) — do not trim.
+     "banned"`). Result verbosity tuning is an open question (MCP-PRD [OQ-02](../MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)) — do not trim.
    - `price` comes from `resolvePrice(card)` — naive in this slice (requirement 7).
 5. **Pagination is reported, never resolved.** Populate `total_cards`, `page`, `has_more`
    from the response. When `has_more` is true, set `note` to a short sentence stating the
@@ -78,7 +78,7 @@ handler** → price correctness → tool wiring → live acceptance.
    does not change). Mark the naive body with a comment saying exactly that.
 8. **Every other failure passes through unchanged.** `bad_request` (with Scryfall's verbatim
    `details`), `rate_limited`, `upstream_unavailable`, `network` — return the client's
-   `Failure` as-is. The handler never throws (MCP-PRD D-10) and adds no interpretation.
+   `Failure` as-is. The handler never throws (MCP-PRD [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw)) and adds no interpretation.
 9. Rebuild `dist/` and commit.
 
 ## Interface contracts
@@ -187,29 +187,29 @@ export function cardSearch(client: ScryfallClient, params: CardSearchParams): Pr
 ```
 
 This slice **consumes**: `Result`/`Failure` (Slice 2), `ScryfallClient` (Slice 2). Repo layout
-is unchanged from the Slice 1 doc.
+is unchanged from the [Slice 1](./TrackA-Slice1.md) doc.
 
 ## Out of scope — do NOT
 
 - No MCP registration, no tool schema, no changes to `src/index.ts` (Slice 5).
 - No correct price-trap handling — the naive stub is deliberate; do not partially implement
   Slice 4.
-- No query construction help, syntax validation, or query rewriting (D-07; the plugin skill
+- No query construction help, syntax validation, or query rewriting ([D-07](../MCP-PRD.md#d-07--three-way-cache-split); the plugin skill
   owns syntax teaching).
-- No trimming of result fields to save tokens (OQ-02 is open — decide nothing here).
+- No trimming of result fields to save tokens ([OQ-02](../MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be) is open — decide nothing here).
 - No new dependencies; no plugin-file changes; no network calls in tests.
 
 ## Acceptance criteria
 
-Unit-level ownership of CAP-01 criteria 1, 8, 9 (MCP-PRD §5; Slice 6 re-checks live):
+Unit-level ownership of [CAP-01](../MCP-PRD.md#cap-01--card-search) criteria 1, 8, 9 (MCP-PRD [§5](../MCP-PRD.md#5-capabilities); Slice 6 re-checks live):
 
-1. **[CAP-01 #1]** `cardSearch` is invoked directly in tests with a hand-built fake
+1. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #1]** `cardSearch` is invoked directly in tests with a hand-built fake
    `ScryfallClient` — no MCP server started, no transport constructed, no network.
-2. **[CAP-01 #9]** A fixture page with `total_cards` > 175 and `has_more: true` yields a
+2. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #9]** A fixture page with `total_cards` > 175 and `has_more: true` yields a
    result reporting the true total, `has_more: true`, and a `note` that names the total and
    directs narrowing or explicit next-page — with exactly 175 (fixture-length) cards, none
    auto-fetched.
-3. **[CAP-01 #8]** A `bad_request` failure from the client (fixture: Scryfall's real 400 body
+3. **[[CAP-01](../MCP-PRD.md#cap-01--card-search) #8]** A `bad_request` failure from the client (fixture: Scryfall's real 400 body
    for `illustrationtag:dragon`, details `"All of your terms were ignored."`) passes through
    with `details` verbatim, and nothing throws.
 4. Zero-match: a `not_found` failure from the client maps to `ok: true` with `cards: []`,
@@ -244,7 +244,7 @@ git add -A && git status   # clean after commit, dist/index.js current
 
 ## References
 
-- `docs/DEV-ROADMAP.md` §4, Slice 3.
-- `docs/MCP-PRD.md` §5 CAP-01 (behavior bullets — field list, pagination, defaults), §4.1.1
-  (search endpoint facts), D-03 (direct-call testability), D-07 (server-side query engine),
-  D-10 (never throw), D-11 (tool naming, relevant in Slice 5).
+- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices), [Slice 3](../DEV-ROADMAP.md#slice-3--cardsearch-handler).
+- [`docs/MCP-PRD.md`](../MCP-PRD.md) [§5](../MCP-PRD.md#5-capabilities) [CAP-01](../MCP-PRD.md#cap-01--card-search) (behavior bullets — field list, pagination, defaults), [§4.1.1](../MCP-PRD.md#411-search-endpoint)
+  (search endpoint facts), [D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions) (direct-call testability), [D-07](../MCP-PRD.md#d-07--three-way-cache-split) (server-side query engine),
+  [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw) (never throw), [D-11](../MCP-PRD.md#d-11--tool-naming-convention) (tool naming, relevant in Slice 5).
