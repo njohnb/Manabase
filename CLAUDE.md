@@ -40,7 +40,7 @@ holds the planning prompts that generated the PRDs.
 ```
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
-npm test            # node --experimental-strip-types --test  (67 tests, 19 suites)
+npm test            # node --experimental-strip-types --test  (73 tests, 21 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 ```
 
@@ -106,6 +106,13 @@ resolve. Always `owner/repo`.
 **Skills carry instructions, never card facts** (PLUGIN-PRD §3.6). No oracle text, prices,
 legality, or combo claims asserted in a skill — those are reached by calling the server.
 
+**Skill frontmatter is YAML, so quote any value containing a colon-space.** An unquoted YAML
+plain scalar cannot contain `": "` — `description: Magic: The Gathering …` does not parse, and a
+skill whose frontmatter fails to parse is dropped with no error on any surface. `/reload-plugins`
+reports `0 skills` in the working state too, so its count proves nothing; the session skill
+listing is the only signal. `npm test` now parses every `skills/**/SKILL.md` and is the check
+that catches this.
+
 **Only `plugin.json` and `marketplace.json` live in `.claude-plugin/`.** Component directories
 (`skills/`, etc.) sit at the repo root; a component placed inside `.claude-plugin/` silently fails
 to load. Installed plugins also cannot reference `../` paths.
@@ -149,9 +156,27 @@ deliberately not met — `claude plugin validate . --strict` fails on the one wa
 
 Slice 8 (skill authoring) landed 2026-08-04 as PR #19: `skills/scryfall-query-craft/SKILL.md` and
 its `reference/operators.md` and `reference/recipes.md` are written, and `PC-01`'s static criteria
-1, 3 and 4 are verified — 764 of 1,536 listing characters, 2,169 of 5,000 body tokens, and a
-no-card-facts review by a fresh reviewer with no authoring context that returned zero flags.
-Evidence: `docs/slices/TrackB-Slice8-results.md`. That slice also verified live that **Scryfall
+1, 3 and 4 are verified — 2,169 of 5,000 body tokens, and a no-card-facts review by a fresh
+reviewer with no authoring context that returned zero flags. Evidence:
+`docs/slices/TrackB-Slice8-results.md`.
+
+**Qualify all three of those ticks.** A same-day follow-up (`fix/skill-frontmatter-yaml`,
+`ed82ceb`, PR #22) found that `SKILL.md`'s YAML frontmatter did not parse: `description` and
+`when_to_use` both carried the unquoted `Magic: The Gathering`, and an unquoted YAML plain scalar
+cannot contain a colon-space, so the block threw and `/reload-plugins` reported `0 skills` for an
+installed plugin with all three files present on disk. **The skill loaded in no harness.** Quoting
+both values fixes it, verified loaded as `manabase:scryfall-query-craft`; line endings were tested
+and ruled out. **Never treat `/reload-plugins`' skill count as the signal** — it reads `0 skills`
+in the working state too. The session skill listing is what discriminates. Criteria 1, 3 and 4 are all
+satisfiable by reading and measuring the file, so a skill that never loaded passed all three —
+they are static checks, not evidence the skill works. Criterion 1 re-measured after the fix by a
+YAML parser: 783 of 1,536 characters (`name` + `description` + `when_to_use`). That is not
+764 + 4; Slice 8 counted differently and the discrepancy is unresolved, so both figures stand.
+Slice 9 and Slice 10 must confirm the skill actually loads before recording a number. Whether
+`PC-01` needs a loads-in-a-harness criterion, or a new `PQ`, is open and undecided —
+`docs/PLUGIN-PRD.md` §9 raises it.
+
+Slice 8 also verified live that **Scryfall
 silently drops an invalid term whenever at least one valid term remains** — the "All of your terms
 were ignored." 400 fires only when every term is invalid, so a hallucinated operator returns an
 ordinary-looking result computed from fewer constraints. The skill files teach that; never emit an
