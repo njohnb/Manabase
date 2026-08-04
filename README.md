@@ -17,7 +17,10 @@ answering in the same session (2026-08-04,
 [`docs/slices/TrackB-Slice7-results.md`](./docs/slices/TrackB-Slice7-results.md)). The
 query-craft skill is now written and passes its static checks — it fits the listing budget, fits
 the compaction window, and asserts no card facts (2026-08-04,
-[`docs/slices/TrackB-Slice8-results.md`](./docs/slices/TrackB-Slice8-results.md)). What is not yet
+[`docs/slices/TrackB-Slice8-results.md`](./docs/slices/TrackB-Slice8-results.md)). Those checks
+all read the file rather than loading it, and a same-day fix (`ed82ceb`) was needed before the
+skill loaded at all: its YAML frontmatter was unparsable, so the harness listed **no** skill for
+the plugin and said nothing about why. What is not yet
 done is measurement: nobody has measured what the plugin costs a session, and the skill has not
 been run through fresh-session evals, so
 [PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral criteria are unverified.

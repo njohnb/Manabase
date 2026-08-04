@@ -41,7 +41,23 @@ are verified against a real harness, with criterion 9 explicitly not met — see
 [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s static criteria 1, 3 and 4 are verified —
 764 of 1,536 listing characters, 2,169 of 5,000 body tokens, and a no-card-facts review run by a
 fresh reviewer with no authoring context, zero flags
-([`docs/slices/TrackB-Slice8-results.md`](./slices/TrackB-Slice8-results.md)). What remains: no
+([`docs/slices/TrackB-Slice8-results.md`](./slices/TrackB-Slice8-results.md)).
+
+**A [Slice 8](./slices/TrackB-Slice8.md) follow-up, 2026-08-04, corrects that record.**
+`SKILL.md`'s YAML frontmatter did not parse — both `description` and `when_to_use` contained the
+unquoted string `Magic: The Gathering`, and an unquoted YAML plain scalar cannot contain a
+colon-space — so **the skill never loaded in any harness**: `/reload-plugins` reported `0 skills`
+for an installed plugin whose three skill files were all present on disk. Fixed by quoting both
+values on branch `fix/skill-frontmatter-yaml` (`ed82ceb`, PR #22). Line endings were tested
+and ruled out as the cause. Two consequences for this document's record: the listing measurement
+is restated below, and **[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criteria 1, 3 and
+4 were all satisfiable by reading and measuring the file** — none required the skill to load, so
+a skill that never loaded passed all three. Whether that warrants a criterion or an open question
+is [`PLUGIN-PRD.md`](./PLUGIN-PRD.md)'s call, raised in its
+[§9](./PLUGIN-PRD.md#9-revision-log) and not answered here; the harness behavior itself is
+recorded as a dated addendum in [§4.1](./PLUGIN-PRD.md#41-harness-features-relied-on).
+
+What remains: no
 context-cost measurement has been taken and no behavioral eval has been run, so
 [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2 ([Slice 10](./slices/TrackC-Slice10.md)) and its criteria 5–13
 ([Slice 9](./slices/TrackB-Slice9.md)) are still unverified, as are
@@ -50,7 +66,7 @@ context-cost measurement has been taken and no behavioral eval has been run, so
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
-| Toolchain | `package.json` with `esbuild` bundle build, `tsc --noEmit` typecheck, `node --experimental-strip-types --test` (flag and quoted glob both required — [Slice 7](./slices/TrackB-Slice7.md) drift finding 4, fixed 2026-08-04); MCP SDK `^1.30.0` as a devDependency |
+| Toolchain | `package.json` with `esbuild` bundle build, `tsc --noEmit` typecheck, `node --experimental-strip-types --test` (flag and quoted glob both required — [Slice 7](./slices/TrackB-Slice7.md) drift finding 4, fixed 2026-08-04); MCP SDK `^1.30.0` as a devDependency. `gh` **2.97.0 is installed** as of 2026-08-04 — [Slice 7](./slices/TrackB-Slice7.md)'s results record it as absent, which is why PR #13 was opened by hand; that dated record stands, this row is the current fact |
 | `plugin.json` | present; **no `version`** ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)), **no `userConfig`** ([P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)), Fan Content disclaimer in `description` ([§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)) |
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)) |
@@ -59,7 +75,7 @@ context-cost measurement has been taken and no behavioral eval has been run, so
 | Tests | 19 suites, **67 tests, 67 passing**; `tsc --noEmit` clean — re-run 2026-08-04 |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
-| `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts |
+| `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. 783 is not 764 + 4; the two counts use different methods and the discrepancy is **unresolved**, so both are kept |
 
 Two properties of the existing scaffold worth preserving on purpose:
 
@@ -97,7 +113,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 5 | Tool registration & wiring | A — server | ☑ PR #6 |
 | 6 | Live [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance pass | A — server | ☑ PR #7 |
 | 7 | Plugin install verification | B — plugin | ☑ PRs #13, #14 |
-| 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☑ PR #19 |
+| 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☑ PR #19 · frontmatter fix `ed82ceb`, PR #22 |
 | 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☐ |
 | 10 | Context-cost measurement | C — release | ☐ |
 | 11 | `dist/` honesty mechanism | C — release | ☐ |
@@ -362,6 +378,31 @@ gates are open.
   computed from fewer constraints, with no signal. Behavioral criteria 5–13 remain
   [Slice 9](./slices/TrackB-Slice9.md)'s; the ≤250-token always-on measurement remains
   [Slice 10](./slices/TrackC-Slice10.md)'s.
+- **Follow-up, same day — the skill did not load, and the three ticks above did not notice.**
+  Branch `fix/skill-frontmatter-yaml` (`ed82ceb`, PR #22) quotes `description` and
+  `when_to_use`, which both contained the unquoted `Magic: The Gathering`; an unquoted YAML
+  plain scalar cannot contain a colon-space, so the frontmatter threw
+  `Nested mappings are not allowed in compact mappings at line 2, column 14` and
+  `/reload-plugins` reported `0 skills` against an installed plugin with all three files present
+  on disk. Line endings were tested and ruled out — it fails identically CRLF and LF-normalized.
+  **Verified loaded after the fix**: the skill appears in the session skill listing as
+  `manabase:scryfall-query-craft`. That listing — not `/reload-plugins`' skill count — is the
+  signal; the count reported `0 skills` in the working state too, so it discriminates nothing.
+  The harness behavior is now a dated addendum in
+  [`PLUGIN-PRD.md` §4.1](./PLUGIN-PRD.md#41-harness-features-relied-on), with the why in its
+  [§9](./PLUGIN-PRD.md#9-revision-log). **Criterion 1 re-measured after the fix: 783 of 1,536
+  characters** (`name` 20 + `description` 269 + `when_to_use` 494, from YAML-parsed field
+  values). 783 is **not** 764 + 4, so the two numbers are not the same measurement taken twice:
+  the slice's instrument counted frontmatter values space-joined, this one sums three
+  YAML-parsed fields. Which method criterion 1 intends is **unresolved**, and both figures are
+  kept until it is settled. Either way it is far under the 1,536 cap. The results document is a
+  dated record and is not rewritten.
+- **The integrity gap this exposes is worth stating plainly.** Criteria 1, 3 and 4 are all
+  checkable by reading and measuring the file, and every one of them passed against a file no
+  harness had ever accepted. Whether [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) should
+  carry a criterion that the skill actually *loads* — and whether that is a new open question —
+  belongs to [`PLUGIN-PRD.md`](./PLUGIN-PRD.md) [§5](./PLUGIN-PRD.md#5-components) and
+  [§7](./PLUGIN-PRD.md#7-open-questions), and is raised there rather than decided here.
 - **Binding refs:** [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) behavior and criteria 1–4; `PLUGIN-PRD.md` [§3.1](./PLUGIN-PRD.md#31-context-budget), [§3.6](./PLUGIN-PRD.md#36-skills-carry-instructions-never-facts), [§4.1](./PLUGIN-PRD.md#41-harness-features-relied-on).
 - **Watch out:** bulk belongs in the reference files. A body past ~5,000 tokens silently
   loses its tail at the first compaction — the failure mode is invisible.
@@ -387,6 +428,13 @@ gates are open.
   - ☐ Criteria 5–13 each have a recorded result with the baseline comparison.
   - ☐ Both PRDs' §7/§9 updated.
 - **Binding refs:** [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criteria 5–13 and its eval-method preamble; `MCP-PRD.md` [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model).
+- **Precondition added 2026-08-04 — confirm the skill actually loads before the first eval
+  runs.** [Slice 8](./slices/TrackB-Slice8.md)'s frontmatter defect (`ed82ceb`) meant the skill
+  loaded in no harness while every static check passed, and an eval run in that state would have
+  measured **without-skill behavior while reporting it as with-skill** — the with/without
+  baseline this slice is built on would have compared a baseline to itself, and both numbers
+  would have looked plausible. Verify the skill is listed and loaded in the eval harness — a
+  positive signal, not the absence of an error — and record that check alongside the results.
 
 ---
 
@@ -496,6 +544,12 @@ urgent than when it was scheduled, because `dist/index.js` is real committed bui
 silently drift from `src/`; [Slice 7](./slices/TrackB-Slice7.md) hit the CRLF false-alarm form of exactly that), and
 **[10](./slices/TrackC-Slice10.md)** (context cost), whose reason to wait is now spent: `SKILL.md` exists, so a baseline
 measured today is no longer one [Slice 8](./slices/TrackB-Slice8.md) immediately invalidates.
+
+**The unblocked set is unchanged by the [Slice 8](./slices/TrackB-Slice8.md) frontmatter fix
+(`ed82ceb`), but two of those three now depend on it.** [Slice 9](./slices/TrackB-Slice9.md)
+cannot produce a meaningful with-versus-without comparison against a skill the harness discards,
+and [Slice 10](./slices/TrackC-Slice10.md) cannot measure the always-on cost of a skill that is
+not in the listing. Both should confirm the skill loads before recording a number.
 
 ## 6. Beyond Phase 1 — queued slice packs
 

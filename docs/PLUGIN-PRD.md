@@ -429,6 +429,42 @@ silently fail to load, which is the single most common reported mistake.
   requires `/reload-plugins`; only skills-directory plugins pick up `SKILL.md` edits
   immediately. **[verified]**
 
+**Addendum — the frontmatter is parsed as YAML, and a skill whose frontmatter does not parse is
+dropped in silence. [verified 2026-08-04]** The bullets above describe `description` and
+`when_to_use` as text under a character cap and say nothing about their syntax. Both are YAML
+values, and an unquoted YAML plain scalar **cannot contain `": "`** — a colon followed by a
+space. [`skills/scryfall-query-craft/SKILL.md`](../skills/scryfall-query-craft/SKILL.md) carried
+the unquoted string `Magic: The Gathering` in both values as written in
+[Slice 8](./slices/TrackB-Slice8.md), and a real YAML parser rejects the block with
+`Nested mappings are not allowed in compact mappings at line 2, column 14`. Observed
+consequences, all machine-captured 2026-08-04:
+
+- **The skill never loaded in any harness.** `/reload-plugins` reported **`0 skills`** for an
+  installed plugin whose three skill files were all confirmed present on disk in the install
+  cache directory. There is no error, no warning, and no diagnostic on any surface.
+- **`/reload-plugins`' own skill count is not the signal, and must not be used as one.** It
+  reported `0 skills` **after** the fix as well, in the same session in which the skill
+  demonstrably loaded — so the count reads `0` in both the broken and the working state and
+  discriminates nothing. What actually distinguishes them is **whether the skill appears in the
+  session's skill listing**: absent while the frontmatter was unparsable, and present as
+  `manabase:scryfall-query-craft` with its full `description` and `when_to_use` once quoted.
+  Any check that a skill loaded must assert that positive listing.
+- **The update mechanism was not at fault**, and was ruled out first: the installed plugin was
+  confirmed updated across a real push, with all three skill files present under the new
+  install path.
+- **Line endings were not the cause**, though they were the leading hypothesis and are a
+  documented hazard for this repo. The frontmatter fails **identically** CRLF and
+  LF-normalized; parsing `description: Magic: The Gathering cards` in isolation fails and
+  `description: "Magic: The Gathering cards"` parses. That the GitHub blob is LF while the
+  harness's marketplace clone and install cache are CRLF under `core.autocrlf=true` is all
+  true and all incidental here.
+
+Fixed by double-quoting both values (branch `fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22); the
+prose is byte-identical otherwise and `Magic: The Gathering` is preserved. **Verified loaded after
+the fix, 2026-08-04:** the skill appears in the session skill listing as
+`manabase:scryfall-query-craft`. The bullets above are left as recorded — nothing in them is
+wrong, only silent on the syntax that makes them loadable.
+
 **MCP servers.** `.mcp.json` at the plugin root, or inline in `plugin.json`. **[verified]**
 
 - **Servers for enabled plugins connect automatically at session startup.** **[verified]**
@@ -1155,6 +1191,7 @@ and the correct move is to say so and stop.
 | 2026-08-04 | Recorded that **the server [PC-02](#pc-02--bundled-mcp-server) declares now exists** — `dist/index.js` built and committed per [P-09](#p-09--server-ships-as-committed-built-javascript), verified to complete an MCP initialize handshake from a directory containing no `node_modules`, which is [P-09](#p-09--server-ships-as-committed-built-javascript)'s offline-start claim holding in practice. Marked the [§4.5](#45-persistent-data) cache-directory rule **implemented**, with its per-platform paths. Escalated [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) from theoretical to live. Stated in the document status that **no [PC-01](#pc-01--scryfall-query-craft) or [PC-02](#pc-02--bundled-mcp-server) acceptance criterion has been verified**. | The companion document's Phase 1 is delivered while this document's is untouched, and that asymmetry is easy to misread as "Phase 1 is nearly done." It is not: [§6](#6-roadmap) defines Phase 1 as PC-01 and PC-02 *together* precisely because a server nobody has installed is shippable-but-useless. Recording the build without recording that nothing here is verified would have inverted the point that section exists to make. The [§4.5](#45-persistent-data) rule moves from inferred to implemented, but not to verified — nothing writes to that directory in Phase 1, so the harness has never exercised it. |
 | 2026-07-30 | [§2](#2-locked-decisions) converted from a single table to an index table plus one `###` heading per decision ([P-01](#p-01--plugin-is-the-distribution-unit)–[P-13](#p-13--no-user-configuration-in-phase-1)); [§7](#7-open-questions) open questions promoted from bold leads to `###` headings; every internal `§` and ID reference converted to a markdown link, and every reference into `docs/MCP-PRD.md` converted to a relative-path link at the sibling file. | Navigation. Several hundred references across the two PRDs were bare text that resolved nowhere on any surface, and [§2](#2-locked-decisions)'s paragraph-length table cells were the least readable part of the document. GitHub emits no anchor for a table cell, so the decisions had no link targets until they became headings. **Presentation only — no decision was reopened, no rationale was reworded, and no ID changed.** Recorded so a future session does not read the restructure as a substantive edit. |
 | 2026-08-04 | **[PC-02](#pc-02--bundled-mcp-server)'s install surface verified for the first time.** Criteria 1, 2, 3, 4, 6 and 7 observed on a **cold** profile installing `njohnb/Manabase` as `manabase@manabase` (Claude Code 2.1.221, Windows 11 Pro 10.0.26200, Node v22.17.1). Resolved plugin version `ab2286e1a846` → `edeea588bc01` across a real push — [P-08](#p-08--version-scheme)'s commit-SHA fallback confirmed live, and `/plugin update` picked up the pushed commit **without** a prior marketplace refresh, answering an operational detail [§4.3](#43-versioning-and-updates) leaves unstated. **Criterion 9 not met as written:** `claude plugin validate .` passes with exactly one warning and `--strict` fails on that same warning, which is [P-08](#p-08--version-scheme)'s deliberate unset `version` — the two are in conflict until the Slice 13 switchover, and whether the criterion should be reworded for the pre-release window is raised for this document's owner, not answered here. Six drift items recorded, of which two matter: the harness reports a **12-character** abbreviated SHA rather than the 40-character form the spec assumes, and the installed plugin root contains a fetched `node_modules/` — [P-09](#p-09--server-ships-as-committed-built-javascript)'s no-fetch claim covers the *startup* path, which was proven offline, but not the install path. Criteria 5, 8 and 10 remain unverified (10 is Slice 10's; 5 has no observer while Phase 1 writes nothing). Results: docs/slices/TrackB-Slice7-results.md. | Track B Slice 7 (docs/DEV-ROADMAP.md) — the first verification of anything in this document's [§5](#5-components), and the point at which "the thing a user installs does not exist" stops being true. Every criterion here is a claim about a harness rather than about code, so none of it could be reached by a unit test, and none of it was true or false until a machine actually installed the plugin. |
+| 2026-08-04 | **[§4.1](#41-harness-features-relied-on) gains a dated addendum: skill frontmatter is YAML, and a skill whose frontmatter does not parse is dropped in silence.** [PC-01](#pc-01--scryfall-query-craft)'s `SKILL.md` as written in [Slice 8](./slices/TrackB-Slice8.md) carried the unquoted string `Magic: The Gathering` in both `description` and `when_to_use`; an unquoted YAML plain scalar cannot contain a colon-space, so the block failed to parse and `/reload-plugins` reported **`0 skills`** for an installed plugin whose three skill files were all present on disk. Fixed by quoting both values (branch `fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22). Line endings were tested and **ruled out** — the frontmatter fails identically CRLF and LF-normalized. **[PC-01](#pc-01--scryfall-query-craft) criterion 1 re-measured after the fix: 783 of 1,536 characters** (`name` 20 + `description` 269 + `when_to_use` 494, taken from YAML-parsed field values), still far under the cap. That is **not** 764 + 4: [Slice 8](./slices/TrackB-Slice8.md)'s 764 came from a different counting method (frontmatter values only, space-joined, no `name`), so the two figures are not the same measurement and the discrepancy is recorded unresolved rather than reconciled. Both figures are kept. | Track B [Slice 8](./slices/TrackB-Slice8.md) follow-up ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)). The addendum records a harness behavior [§4.1](#41-harness-features-relied-on) did not cover and whose failure mode is invisible — the same silent-absence class as a missing `dist/` ([P-09](#p-09--server-ships-as-committed-built-javascript)) — so a future skill component does not rediscover it. It also exposes an integrity gap this document cannot close on its own: criteria 1, 3 and 4 are all satisfiable by reading and measuring the file, so **a skill that never loaded passed all three**, and every static measurement Slice 8 recorded was taken against a file no harness had ever accepted. Whether [PC-01](#pc-01--scryfall-query-craft) needs a criterion that the skill actually loads, and whether that warrants a new PQ, is raised here for this document's owner and deliberately not answered — [§5](#5-components) and [§7](#7-open-questions) are untouched by this row. |
 
 ---
 
