@@ -403,6 +403,13 @@ overwritten**; the divergences live here.
    floor for the test script. All test evidence in this document was taken via the flagged
    invocation. Not a product defect — the shipped bundle is unaffected — but a contributor
    running the documented command on a supported Node sees a wall of failures.
+   **Fixed 2026-08-04 in `8f1fac8`; this finding is left as the dated record of what was observed.**
+   The script is now `node --experimental-strip-types --test "tests/**/*.test.ts"`. The quoting
+   turned out to be a second, silent bug this finding did not see: unquoted, `**` was expanded by
+   the shell, and bash without `globstar` matches one directory level, so the command ran 55 tests
+   in 16 suites and **exited 0** — a partial run reporting success. `engines` stays `>=18.0.0`
+   deliberately, since it describes the consumer runtime rather than the test toolchain. See
+   [`docs/DEV-ROADMAP.md` Slice 7](../DEV-ROADMAP.md#slice-7--plugin-install-verification).
 5. **The live `validate` warning prints as one unwrapped line**, not the two-line wrap quoted at
    `TrackB-Slice7.md:96-98`. Cosmetic; noted so a future session does not read the difference as
    a behavior change.
