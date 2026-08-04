@@ -15513,11 +15513,285 @@ function resolveCacheDir(env, platform) {
   return `${homedir()}/.cache/manabase`;
 }
 
+// src/scryfall/client.ts
+var CARD_PATH_PREFIXES = ["/cards/search", "/cards/named", "/cards/random", "/cards/collection"];
+function isCardPath(path) {
+  return CARD_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+function describe2(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+function buildUrl(baseUrl, path, query) {
+  const params = new URLSearchParams();
+  if (query !== void 0) {
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== void 0) params.append(key, value);
+    }
+  }
+  const qs = params.toString();
+  return qs.length > 0 ? `${baseUrl}${path}?${qs}` : `${baseUrl}${path}`;
+}
+function fail(code, message, status, details) {
+  const error2 = { code, message };
+  if (status !== void 0) error2.status = status;
+  if (details !== void 0) error2.details = details;
+  return { ok: false, error: error2 };
+}
+function rateLimitedFailure(details) {
+  return fail(
+    "rate_limited",
+    "Scryfall rate limit persisted after a 30 second backoff; wait at least 30 seconds before retrying.",
+    429,
+    details
+  );
+}
+function detailsFrom(text) {
+  try {
+    const body = JSON.parse(text);
+    return typeof body.details === "string" ? body.details : void 0;
+  } catch {
+    return void 0;
+  }
+}
+async function mapResponse(response) {
+  const status = response.status;
+  const text = await response.text();
+  if (status >= 200 && status < 300) {
+    try {
+      return { ok: true, value: JSON.parse(text) };
+    } catch {
+      return fail("unexpected", `Scryfall returned a non-JSON success body (status ${status}).`, status);
+    }
+  }
+  const details = detailsFrom(text);
+  if (status === 400) return fail("bad_request", "Scryfall rejected the request as malformed.", status, details);
+  if (status === 404) return fail("not_found", "Scryfall found no match for the request.", status, details);
+  if (status >= 500 && status <= 599) {
+    return fail("upstream_unavailable", "Scryfall is currently unavailable.", status, details);
+  }
+  return fail("unexpected", `Scryfall returned an unexpected status ${status}.`, status, details);
+}
+function createScryfallClient(config3, deps) {
+  const fetchImpl = deps?.fetchImpl ?? globalThis.fetch;
+  const now = deps?.now ?? Date.now;
+  const sleep = deps?.sleep ?? ((ms) => new Promise((r) => {
+    setTimeout(r, ms);
+  }));
+  const lanes = {
+    card: { tail: Promise.resolve(), nextAllowedAt: 0 },
+    other: { tail: Promise.resolve(), nextAllowedAt: 0 }
+  };
+  async function attemptOnce(url) {
+    let response;
+    try {
+      response = await fetchImpl(url, {
+        headers: { "User-Agent": config3.userAgent, "Accept": "application/json" }
+      });
+    } catch (err) {
+      return { throttled: false, result: fail("network", `Could not reach Scryfall: ${describe2(err)}`) };
+    }
+    if (response.status === 429) return { throttled: true, response };
+    return { throttled: false, result: await mapResponse(response) };
+  }
+  async function run(path, query) {
+    const url = buildUrl(config3.scryfallBaseUrl, path, query);
+    const lane = isCardPath(path) ? lanes.card : lanes.other;
+    const spacingMs = lane === lanes.card ? 500 : 100;
+    const previous = lane.tail;
+    let release = () => {
+    };
+    lane.tail = new Promise((r) => {
+      release = r;
+    });
+    await previous;
+    try {
+      const wait = lane.nextAllowedAt - now();
+      if (wait > 0) await sleep(wait);
+      lane.nextAllowedAt = now() + spacingMs;
+      let attempt = await attemptOnce(url);
+      if (attempt.throttled) {
+        await sleep(3e4);
+        lane.nextAllowedAt = now() + spacingMs;
+        attempt = await attemptOnce(url);
+        if (attempt.throttled) {
+          lane.nextAllowedAt = now() + 3e4;
+          const text = await attempt.response.text().catch(() => "");
+          return rateLimitedFailure(detailsFrom(text));
+        }
+      }
+      return attempt.result;
+    } finally {
+      release();
+    }
+  }
+  async function get(path, query) {
+    try {
+      return await run(path, query);
+    } catch (err) {
+      return fail("unexpected", `Unexpected failure in Scryfall client: ${describe2(err)}`);
+    }
+  }
+  return { get };
+}
+
+// src/scryfall/prices.ts
+function resolvePrice(card) {
+  if (card.digital || !card.games.includes("paper")) {
+    return { available: false, reason: "digital-only" };
+  }
+  const { usd, usd_foil, usd_etched } = card.prices;
+  if (usd != null) return { available: true, usd, finish: "nonfoil" };
+  if (usd_foil != null) return { available: true, usd: usd_foil, finish: "foil" };
+  if (usd_etched != null) return { available: true, usd: usd_etched, finish: "etched" };
+  return { available: false, reason: "no-price-data" };
+}
+
+// src/tools/card-search.ts
+function joinFaces(faces, field) {
+  const parts = [];
+  for (const face of faces) {
+    const value = face[field];
+    if (value !== void 0 && value !== "") parts.push(value);
+  }
+  return parts.length > 0 ? parts.join(" // ") : void 0;
+}
+function textField(card, field) {
+  const top = card[field];
+  if (top !== void 0) return top;
+  return card.card_faces !== void 0 ? joinFaces(card.card_faces, field) : void 0;
+}
+function toCardSummary(card) {
+  const manaCost = textField(card, "mana_cost");
+  const oracleText = textField(card, "oracle_text");
+  return {
+    name: card.name,
+    ...manaCost !== void 0 ? { mana_cost: manaCost } : {},
+    cmc: card.cmc,
+    type_line: card.type_line,
+    ...oracleText !== void 0 ? { oracle_text: oracleText } : {},
+    ...card.colors !== void 0 ? { colors: card.colors } : {},
+    color_identity: card.color_identity,
+    ...card.power !== void 0 ? { power: card.power } : {},
+    ...card.toughness !== void 0 ? { toughness: card.toughness } : {},
+    ...card.loyalty !== void 0 ? { loyalty: card.loyalty } : {},
+    rarity: card.rarity,
+    set: card.set,
+    set_name: card.set_name,
+    // (MCP-PRD OQ-02) result verbosity is an open question — pass legalities through untrimmed.
+    legalities: card.legalities,
+    price: resolvePrice(card)
+  };
+}
+async function cardSearch(client2, params) {
+  const unique = params.unique ?? "cards";
+  const page = params.page ?? 1;
+  const result = await client2.get("/cards/search", {
+    q: params.q,
+    unique,
+    order: params.order,
+    dir: params.dir,
+    page: String(page)
+  });
+  if (!result.ok) {
+    if (result.error.code === "not_found") {
+      const note = result.error.details ?? result.error.message;
+      return { ok: true, value: { cards: [], total_cards: 0, page, has_more: false, note } };
+    }
+    return result;
+  }
+  const list = result.value;
+  const cards = list.data.map(toCardSummary);
+  const data = {
+    cards,
+    total_cards: list.total_cards,
+    page,
+    has_more: list.has_more
+  };
+  if (list.has_more) {
+    data.note = `${list.total_cards} cards match; showing page ${page}. Narrow the query or request a specific page for more.`;
+  }
+  return { ok: true, value: data };
+}
+
+// src/tools/register.ts
+var CARD_SEARCH_DESCRIPTION = "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall itself \u2014 supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, `art:`, and regex (`o:/\u2026/`). Returns per-card gameplay fields, format legalities, and a USD price with finish. 175 cards per page; the response reports `total_cards` and `has_more`.";
+var CARD_SEARCH_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    q: { type: "string", description: "Scryfall query string. Full Scryfall syntax; evaluated server-side." },
+    unique: { type: "string", enum: ["cards", "prints", "art"], description: "Result rollup. Default: cards (one row per card)." },
+    order: { type: "string", description: "Sort field, e.g. name, cmc, usd, edhrec, released." },
+    dir: { type: "string", enum: ["auto", "asc", "desc"], description: "Sort direction." },
+    page: { type: "integer", minimum: 1, description: "1-based page; 175 cards per page." }
+  },
+  required: ["q"]
+};
+var CARD_SEARCH_TOOL_NAME = "card_search";
+var toolDefinitions = [
+  {
+    name: CARD_SEARCH_TOOL_NAME,
+    description: CARD_SEARCH_DESCRIPTION,
+    inputSchema: CARD_SEARCH_INPUT_SCHEMA
+  }
+];
+var UNIQUE_VALUES = ["cards", "prints", "art"];
+var DIR_VALUES = ["auto", "asc", "desc"];
+function asEnum(allowed, value) {
+  return typeof value === "string" && allowed.includes(value) ? value : void 0;
+}
+function errorResult(body) {
+  return { isError: true, content: [{ type: "text", text: JSON.stringify(body) }] };
+}
+async function dispatchToolCall(client2, name, args) {
+  if (name !== CARD_SEARCH_TOOL_NAME) {
+    throw new Error(`Unknown tool: ${name}`);
+  }
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return errorResult({
+      error: {
+        code: "bad_request",
+        message: "Tool arguments must be an object with a string `q` (a Scryfall query)."
+      }
+    });
+  }
+  const raw = args;
+  if (typeof raw.q !== "string") {
+    return errorResult({
+      error: {
+        code: "bad_request",
+        message: "Missing required argument `q`: a Scryfall query string."
+      }
+    });
+  }
+  const unique = asEnum(UNIQUE_VALUES, raw.unique);
+  const dir = asEnum(DIR_VALUES, raw.dir);
+  const params = {
+    q: raw.q,
+    ...unique !== void 0 ? { unique } : {},
+    ...typeof raw.order === "string" ? { order: raw.order } : {},
+    ...dir !== void 0 ? { dir } : {},
+    ...typeof raw.page === "number" && Number.isInteger(raw.page) ? { page: raw.page } : {}
+  };
+  const result = await cardSearch(client2, params);
+  if (!result.ok) {
+    return errorResult({ error: result.error });
+  }
+  return { content: [{ type: "text", text: JSON.stringify(result.value) }] };
+}
+function registerTools(server2, client2) {
+  server2.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolDefinitions }));
+  server2.setRequestHandler(
+    CallToolRequestSchema,
+    async (request) => dispatchToolCall(client2, request.params.name, request.params.arguments)
+  );
+}
+
 // src/index.ts
 var config2 = resolveConfig(process.env, process.platform);
 var server = new Server(
   { name: "manabase-mtg", version: APP_VERSION },
   { capabilities: { tools: {} } }
 );
-server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [] }));
+var client = createScryfallClient(config2);
+registerTools(server, client);
 await server.connect(new StdioServerTransport());
