@@ -44,7 +44,7 @@ context-cost measurement has been taken, so every
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory is still an empty placeholder ([Slice 8](./slices/TrackB-Slice8.md)) |
-| Toolchain | `package.json` with `esbuild` bundle build, `tsc --noEmit` typecheck, `node --test`; MCP SDK `^1.30.0` as a devDependency |
+| Toolchain | `package.json` with `esbuild` bundle build, `tsc --noEmit` typecheck, `node --experimental-strip-types --test` (flag and quoted glob both required — [Slice 7](./slices/TrackB-Slice7.md) drift finding 4, fixed 2026-08-04); MCP SDK `^1.30.0` as a devDependency |
 | `plugin.json` | present; **no `version`** ([P-08](./PLUGIN-PRD.md#p-08--version-scheme)), **no `userConfig`** ([P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)), Fan Content disclaimer in `description` ([§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)) |
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)) |
@@ -316,6 +316,14 @@ gates are open.
   [§4.5](./PLUGIN-PRD.md#45-persistent-data) states; and `npm test` as written **does not run on
   Node v22.17.1**, needing `--experimental-strip-types` (67/19 pass with it), which makes
   `package.json`'s `engines: >=18.0.0` an understatement.
+- **The `npm test` finding is fixed (2026-08-04, `8f1fac8`).** The script is now
+  `node --experimental-strip-types --test "tests/**/*.test.ts"`. The flag was the visible half; the
+  quotes were the half nobody had seen — unquoted, `**` was shell-expanded to a single directory
+  level, so the command ran 55 tests in 16 suites and **exited 0**, a partial run reporting
+  success. Verified from Git Bash and PowerShell alike: 67 tests, 19 suites, 0 failures. `engines`
+  stays `>=18.0.0` on purpose — it describes the consumer runtime, the plain-JavaScript `dist/`
+  bundle built `--target=node18` — and the Node 22.6 floor, which is development-only, is now
+  recorded in [`README.md`](../README.md). The other three findings stand as written.
 
 #### Slice 8 — [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring
 
