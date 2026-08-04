@@ -5,8 +5,9 @@
 > capability template; adding a capability means appending a CAP block and updating
 > sections 6, 7, and 9. Nothing else.
 
-**Document status:** foundation established 2026-07-29. One capability specified ([CAP-01](#cap-01--card-search)).
-Eight capabilities queued and unassigned.
+**Document status:** foundation established 2026-07-29. One capability specified
+([CAP-01](#cap-01--card-search)) and **delivered 2026-08-03** — all twelve acceptance criteria
+verified ([§9](#9-revision-log)). Eight capabilities queued and unassigned.
 
 ---
 
@@ -334,8 +335,15 @@ Useful params: `unique` (`cards`|`prints`|`art`), `order`, `dir`, `page`, `inclu
 | legality + type + cost | `f:commander t:creature cmc=1` | 1,197 cards |
 | price filter | `usd<1 t:land` | 803 cards |
 
+**Re-verified 2026-08-03** during [CAP-01](#cap-01--card-search)'s acceptance pass. Every
+operator behaves identically, including the `art:`/`atag:` alias equivalence; only the counts
+moved — regex 1,555, `otag:ramp` 2,274, `function:removal` 6,405, `art:squirrel` and
+`atag:squirrel` 194 each, `f:commander t:creature cmc=1` unchanged at 1,197, `usd<1 t:land` 802.
+**[verified]** The 2026-07-29 figures above are left as recorded: they are a dated observation,
+not a target. Drift of this size is normal and a future check should expect it.
+
 `illustrationtag:` is **not** a valid operator — returns HTTP 400, "All of your terms were
-ignored." **[verified]** Do not offer it.
+ignored." **[verified, re-verified 2026-08-03]** Do not offer it.
 
 **Critical architectural fact.** These operators are evaluated **server-side**. They are not
 fields on the card object and cannot be reproduced from bulk data without reimplementing
@@ -372,6 +380,22 @@ The price object's live shape is exactly:
    path must constrain to paper printings** (e.g. `game:paper` / filtering on `games`), or it
    will report "no price available" for some of the most valuable cards in Magic.
    **[verified]**
+
+**Addendum — trap 3 has widened. [verified 2026-08-03]**
+
+- **The digital printing now wins a plain `/cards/search` rollup too**, not only
+  `/cards/named`. A bare `!"Black Lotus"` at `unique=cards` returns the MTGO Vintage Masters
+  printing. Constraining to paper is therefore required on the *search* path as well, which is
+  broader than the original trap stated.
+- **No paper Black Lotus printing carries a USD price any more.** `2ed`, `leb`, and `lea` all
+  return `usd`, `usd_foil`, and `usd_etched` as `null`, with only `eur` populated
+  (11658.96 / 22454.09 / 38719.86 respectively). The 2026-07-29 record had LEA's `usd`
+  populated, so this is an upstream data change, not a misreading.
+
+The first point is handled: the delivered price resolution reports the MTGO printing as
+`digital-only` with the reason stated, never as a bare "no price". The second point is **not**
+handled and is not merely cosmetic — it means the most valuable cards in paper Magic return no
+price at all through this API surface. That is [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists).
 
 **ToS notes.** No attribution requirement. Prohibitions in [§3.3](#33-legal-and-terms-of-service) bind — especially the
 no-paywall rule and the "must create additional value, not proxy" rule. Scryfall's own terms
@@ -706,13 +730,25 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   12. An HTTP 429 results in a backoff, not an immediate retry, and surfaces a clear
       structured failure if it persists.
 - **Open questions:** [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (how to surface syntax), [OQ-02](#oq-02--how-verbose-should-a-search-result-be) (result verbosity vs. context
-  budget).
+  budget), [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) (EUR fallback when no USD price exists — opened by the acceptance pass).
+- **Delivery note (2026-08-03).** All twelve acceptance criteria are verified: 2–9 live against
+  Scryfall, and 1, 10, 11, 12 at unit level. Criterion 12 is unit-level permanently — provoking
+  a real 429 to observe it is what [§3.4](#34-rate-limits-are-hard-constraints-not-guidance)
+  forbids. The **Status** field above is left at `specified` because the [§5](#5-capabilities)
+  template offers no delivered state; [§6](#6-phases) and [§9](#9-revision-log) carry the
+  delivery record.
 
 ---
 
 ## 6. Phases
 
-**Phase 1 — Card search.** [CAP-01](#cap-01--card-search) alone.
+**Phase 1 — Card search.** [CAP-01](#cap-01--card-search) alone. **Delivered 2026-08-03.**
+
+This document's Phase 1 is complete: the capability is built and its acceptance criteria are
+verified. That is not the same as the *product* being shippable — `docs/PLUGIN-PRD.md` §6 pairs
+this phase with PC-01 and PC-02, and neither of those has been built or verified. A server whose
+tools nobody has installed is exactly the "shippable but not useful" state that document's §6
+warns about. The remaining work is tracked in `docs/DEV-ROADMAP.md` as Tracks B and C.
 
 This is the smallest genuinely useful version, and it is useful on its own: expressive card
 search with correct prices and legality answers real deckbuilding questions with no other
@@ -761,12 +797,26 @@ tools whose usage is obvious, and Scryfall syntax is the opposite case.
 description plus a resource, versus a long description alone. This is an empirical question,
 not an architectural one.
 
+**Status 2026-08-03: half-committed, unmeasured.** The delivered `card_search` registration
+takes the compact-description side of the bet — roughly five lines naming the operator families
+and the pagination contract, with the deep syntax teaching left to
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft). Nothing has measured whether that split
+works. The question stays open until PC-01's behavioral criteria are run; if the split fails,
+what changes is the description, not the architecture.
+
 ### OQ-02 — How verbose should a search result be?
 
 Full oracle text plus legalities plus all prices for 175 cards is a large amount of context.
 Too little and the model can't reason; too much and it crowds out the conversation.
 *Resolves by:* deciding a default field set plus an opt-in verbose mode, then checking real
 result payload sizes against a realistic context budget.
+
+**Status 2026-08-03: a default field set exists; neither half of the resolution is done.** The
+delivered result shape is [CAP-01](#cap-01--card-search)'s stated field list, with `legalities`
+passed through **untrimmed** — every format, on every card, on every page. That was a deliberate
+deferral rather than a decision, and it is the single largest contributor to payload size. There
+is no verbose mode, and no payload has been measured against a context budget. A full page is 175
+cards, so this is the field most likely to be trimmed when the question is actually answered.
 
 ### OQ-03 — What is the bulk-data storage strategy, and when is it introduced?
 
@@ -809,6 +859,26 @@ observing when the field is non-empty.
 URL resolution depends on scraping a single `.txt` href ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)). If two versions are ever
 listed, "most recent" needs a rule.
 *Resolves by:* re-checking the landing page across a set release boundary.
+
+### OQ-09 — Should price resolution fall back to EUR when no USD price exists?
+
+Opened 2026-08-03 by [CAP-01](#cap-01--card-search)'s acceptance pass. The delivered price
+resolution is USD-only — `usd` → `usd_foil` → `usd_etched`, then `no-price-data`
+([§4.1.3](#413-price-fields--three-verified-traps)). That was correct against the spec as
+written, and it now returns *no price* for all three paper printings of Black Lotus, which
+carry EUR prices only. The same is likely true across other Reserved List cards; only Black
+Lotus was checked.
+
+This is a question rather than a bug because the answer is not obviously yes. A result mixing
+currencies without saying which is worse than no price at all, and
+[D-06](#d-06--pricing-from-scryfall) framed pricing as "one number per printing" — a fallback
+makes it one number *in one of two currencies*, which is a different contract. The cheap
+alternative is to keep USD-only and report the reason precisely enough that the model can say
+"no USD price; this card trades in EUR."
+*Resolves by:* first establishing how wide the gap is — how many paper cards have `eur`
+populated and `usd` null — rather than generalizing from one card. Then either extending the
+price shape with an explicit currency field, or deciding the honest `no-price-data` answer is
+sufficient and recording that as settled.
 
 ---
 
@@ -877,6 +947,7 @@ last ([D-09](#d-09--archidekt-writes-land-last)); other platforms are not queued
 | 2026-07-29 | Recorded three verified price-field traps and made price correctness an explicit part of [CAP-01](#cap-01--card-search) rather than a later refinement ([§4.1.3](#413-price-fields--three-verified-traps), [CAP-01](#cap-01--card-search) criteria 4–7). | `usd` is null for 7,599 foil-only cards, `eur_etched` does not exist despite being documented, and `/cards/named` can return a digital printing with all paper prices null. Each would silently produce wrong output, so each became an acceptance criterion. |
 | 2026-07-29 | Recorded that Archidekt masks non-public decks as HTTP 404, indistinguishable from deleted ([§4.5](#45-archidekt), [§3.6](#36-error-surface)). | Verified against a real private deck ID. Constrains error messaging for the queued deck-reading capability: it cannot claim which cause applies. |
 | 2026-07-30 | [§2](#2-locked-decisions) converted from a single table to an index table plus one `###` heading per decision ([D-01](#d-01--distribution-local-package-over-stdio)–[D-12](#d-12--no-npm-archidekt-dependency)); [§7](#7-open-questions) open questions promoted from bold leads to `###` headings; every internal `§` and ID reference converted to a markdown link. | Navigation. Several hundred references were bare text that resolved nowhere on any surface, and [§2](#2-locked-decisions)'s paragraph-length table cells were the least readable part of the document. GitHub emits no anchor for a table cell, so the decisions had no link targets until they became headings. **Presentation only — no decision was reopened, no rationale was reworded, and no ID changed.** Recorded so a future session does not read the restructure as a substantive edit. |
+| 2026-08-04 | **[CAP-01](#cap-01--card-search) recorded as delivered** across Track A Slices 1–6 (PRs #2–#7), and the research record reconciled against what the build found. [§4.1.1](#411-search-endpoint) gains a dated re-verification of the operator counts (the 2026-07-29 figures are kept, not overwritten). [§4.1.3](#413-price-fields--three-verified-traps) gains an addendum widening trap 3: the digital printing now wins a plain `/cards/search` rollup, not only `/cards/named`, and no paper Black Lotus printing carries USD any more. Opened **[OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists)** (EUR fallback). Recorded status notes on [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (compact description shipped, unmeasured) and [OQ-02](#oq-02--how-verbose-should-a-search-result-be) (default field set exists; `legalities` passes through untrimmed). | The build is the first thing to test this document's claims against reality, and it found two upstream data changes and one gap the spec did not anticipate. Recording drift as dated addenda rather than edits keeps [§4](#4-external-dependencies)'s "every claim is dated" property intact — a future session can see both what was true in July and what is true now. OQ-09 exists because the honest `no-price-data` answer for Black Lotus is correct against the spec and unsatisfying to a user, which is a specification question rather than a defect. |
 | 2026-08-03 | CAP-01 live acceptance pass: criteria 1–12 verified (criteria 1, 10, 11, 12 at unit level; 2–9 live via `scripts/cap01-live.mjs`). Live totals: regex 1,555, `otag:ramp` 2,274, `function:removal` 6,405, `art:squirrel` 194. Drift from the 2026-07-29 research record: (a) `!"Black Lotus"` now returns the MTGO Vintage Masters printing by default rather than a paper printing — correctly reported as `digital-only`, not a bare no-price; (b) no paper Black Lotus printing carries a USD price any more (EUR only), so criterion 6's paper-price half is evidenced by a substitute `usd>=1 game:paper` probe. No code changes were required. Results: `docs/slices/TrackA-Slice6-results.md`. | Track A Slice 6 (`docs/DEV-ROADMAP.md`) — closes the server half of Phase 1. |
 
 ---

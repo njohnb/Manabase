@@ -9,8 +9,15 @@
 **Document status:** foundation established 2026-07-29. Two components specified ([PC-01](#pc-01--scryfall-query-craft),
 [PC-02](#pc-02--bundled-mcp-server)). Two components queued and unassigned. The roadmap past Phase 1 is deliberately open.
 
+**Build status 2026-08-04:** the server [PC-02](#pc-02--bundled-mcp-server) declares now exists —
+`dist/index.js` is built and committed per [P-09](#p-09--server-ships-as-committed-built-javascript),
+and `.mcp.json` points at it. **Nothing on this document's side has been verified.** The plugin
+has never been installed from a marketplace, `SKILL.md` is unwritten, and
+`claude plugin details` has never been run, so every PC-01 and PC-02 acceptance criterion and
+every PQ remains open. Tracked as Tracks B and C in `docs/DEV-ROADMAP.md`.
+
 **Companion document:** `docs/MCP-PRD.md` (MTG MCP Server PRD, foundation established
-2026-07-29, one capability specified). This document is its parent.
+2026-07-29, one capability specified and delivered 2026-08-03). This document is its parent.
 
 ---
 
@@ -636,6 +643,15 @@ conclusion from it.]** This partially answers [`docs/MCP-PRD.md` OQ-03](./MCP-PR
 data lives on a user's machine; the remaining half of that question — refresh triggers and
 whether first run blocks on a download — stays open there and is touched by [PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook) below.
 
+**Implemented 2026-08-04** in the server's entry-point config, exactly as stated above:
+`CLAUDE_PLUGIN_DATA` when set and non-empty, otherwise `%LOCALAPPDATA%\manabase` on Windows,
+`~/Library/Caches/manabase` on macOS, and `$XDG_CACHE_HOME/manabase` or `~/.cache/manabase`
+elsewhere. Resolved once and passed down, with the platform injectable so the branches are
+testable. **The rule is exercised but not yet observed under the harness** — nothing writes to
+the directory during Phase 1, and PC-02 criteria 5 and 7 (data surviving `/plugin update`, and
+standalone resolution with the variable unset) are install-surface checks that still require
+Slice 7.
+
 **Risk if it changes or disappears.** Low. The directory contract is explicit and the
 migration story is the point of the feature. The residual risk is the reverse: because the
 directory outlives any single plugin version, a stale cache can survive an update that changed
@@ -1028,6 +1044,12 @@ committed, that failure is invisible until someone reports wrong behavior.
 the build part of the `claude plugin tag` release step. An implementation decision, recorded
 here because [P-09](#p-09--server-ships-as-committed-built-javascript) created the risk and should not be read as having ignored it.
 
+**Escalated 2026-08-04 from theoretical to live.** `dist/index.js` is now real committed build
+output that six merged PRs have rebuilt by hand, and it is what the harness would actually run.
+Every commit from here is an opportunity for the drift this question describes, with nothing
+detecting it. The roadmap schedules the answer as Slice 11 and recommends the CI check; that
+slice depends only on Slice 1, so nothing prevents it from landing next.
+
 ### PQ-07 — Is deck optimization a skill or an agent?
 
 Both are paid always-on for their description ([§4.6](#46-context-cost-accounting)), so the question is whether the work needs
@@ -1130,6 +1152,7 @@ and the correct move is to say so and stop.
 | 2026-07-29 | Grounded every [§5](#5-components) context-cost figure in a **measurement taken on the author's machine** rather than an estimate: `claude plugin details dotnet-plugin@dotnet-plugin` on Claude Code 2.1.220 reports ~1,722 always-on tokens across 20 skills, ~30–230 always-on per skill, ~560–2,900 on-invoke per skill. Also recorded that per-component figures are proportionally scaled from the total, not measured independently. | The brief noted that running `plugin details` locally is a cheap way to ground the [§3](#3-constraints) numbers rather than guessing them. The scaling caveat matters because the [§5](#5-components) template asks for the basis of each estimate, and "derived from a plugin-level total" is a materially weaker basis than "measured." |
 | 2026-07-29 | Recorded that **MCP tool schemas may be an unbudgetable always-on cost** and opened [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports). | Unlike a skill description, a tool schema cannot be trimmed when the listing overflows. If schemas do count, tool count and description length in `docs/MCP-PRD.md` become a context-budget decision. This is the only cost figure in [§5](#5-components) stated as unknown rather than estimated. |
 | 2026-07-29 | Recorded a **disagreement with the brief's replacement for monitors** as [PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook): a `SessionStart` refresh hook fires in every session in every project, so for 5–20 users it is a network call at every launch, mostly wasted. Monitors remain out of scope; the replacement mechanism does not. | The brief presented the session-start hook as settled when rejecting monitors. The rejection holds on its own reasoning; the alternative has a cost worth measuring against a lazy first-use refresh, and [§3.4](#34-cross-platform-reach) additionally constrains any hook here to exec form. |
+| 2026-08-04 | Recorded that **the server [PC-02](#pc-02--bundled-mcp-server) declares now exists** — `dist/index.js` built and committed per [P-09](#p-09--server-ships-as-committed-built-javascript), verified to complete an MCP initialize handshake from a directory containing no `node_modules`, which is [P-09](#p-09--server-ships-as-committed-built-javascript)'s offline-start claim holding in practice. Marked the [§4.5](#45-persistent-data) cache-directory rule **implemented**, with its per-platform paths. Escalated [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) from theoretical to live. Stated in the document status that **no [PC-01](#pc-01--scryfall-query-craft) or [PC-02](#pc-02--bundled-mcp-server) acceptance criterion has been verified**. | The companion document's Phase 1 is delivered while this document's is untouched, and that asymmetry is easy to misread as "Phase 1 is nearly done." It is not: [§6](#6-roadmap) defines Phase 1 as PC-01 and PC-02 *together* precisely because a server nobody has installed is shippable-but-useless. Recording the build without recording that nothing here is verified would have inverted the point that section exists to make. The [§4.5](#45-persistent-data) rule moves from inferred to implemented, but not to verified — nothing writes to that directory in Phase 1, so the harness has never exercised it. |
 | 2026-07-30 | [§2](#2-locked-decisions) converted from a single table to an index table plus one `###` heading per decision ([P-01](#p-01--plugin-is-the-distribution-unit)–[P-13](#p-13--no-user-configuration-in-phase-1)); [§7](#7-open-questions) open questions promoted from bold leads to `###` headings; every internal `§` and ID reference converted to a markdown link, and every reference into `docs/MCP-PRD.md` converted to a relative-path link at the sibling file. | Navigation. Several hundred references across the two PRDs were bare text that resolved nowhere on any surface, and [§2](#2-locked-decisions)'s paragraph-length table cells were the least readable part of the document. GitHub emits no anchor for a table cell, so the decisions had no link targets until they became headings. **Presentation only — no decision was reopened, no rationale was reworded, and no ID changed.** Recorded so a future session does not read the restructure as a substantive edit. |
 
 ---

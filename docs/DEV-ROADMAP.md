@@ -5,8 +5,9 @@
 > by section. If this document and a PRD ever disagree, **the PRD wins** — fix this file.
 > The boundary rule in `PLUGIN-PRD.md` §1 still governs which PRD owns which question.
 
-**Document status:** created 2026-08-03. Covers Phase 1 of both PRDs as 13 slices, plus
-unscheduled slice packs for everything queued. Update slice statuses in place as work lands.
+**Document status:** created 2026-08-03; **Track A closed 2026-08-04**. Covers Phase 1 of both
+PRDs as 13 slices, plus unscheduled slice packs for everything queued. Update slice statuses in
+place as work lands.
 
 ---
 
@@ -25,20 +26,31 @@ unscheduled slice packs for everything queued. Update slice statuses in place as
 - **Do not reorder past a dependency.** §5 has the graph. Within a track, order is the
   default; across tracks, parallelism is allowed where the graph permits it.
 
-## 2. Current state (verified 2026-08-03)
+## 2. Current state (verified 2026-08-04)
 
-More exists than the PRDs' "nothing is implemented yet" status line suggests. The scaffold
-session already landed:
+**Track A is complete.** Slices 1–6 landed as PRs #2–#7, delivering
+[CAP-01](./MCP-PRD.md#cap-01--card-search) end to end: all twelve acceptance criteria are
+verified, nine of them live against real Scryfall (`docs/slices/TrackA-Slice6-results.md`).
+
+**Tracks B and C have not started.** The server works; the thing a user installs does not exist
+yet. `SKILL.md` is unwritten, the plugin has never been installed from a marketplace, and no
+context-cost measurement has been taken — so every
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) and
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) acceptance criterion is still unverified.
 
 | Area | State |
 |---|---|
-| Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist (`.gitkeep` placeholders only) — per P-02 |
+| Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per P-02. The skill directory is still an empty placeholder (Slice 8) |
 | Toolchain | `package.json` with `esbuild` bundle build, `tsc --noEmit` typecheck, `node --test`; MCP SDK `^1.30.0` as a devDependency |
 | `plugin.json` | present; **no `version`** (P-08), **no `userConfig`** (P-13), Fan Content disclaimer in `description` (§3.5) |
 | `marketplace.json` | present; relative `./` source (P-11), disclaimer present |
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` (P-09, P-12) |
 | README | install instructions in `owner/repo` form with the raw-URL trap warning (P-11), version floor, disclaimer |
-| Code | **none** — `src/`, `dist/`, `tests/` are empty; `SKILL.md` not written |
+| Server source | `config.ts`, `index.ts`, `result.ts`, `scryfall/{client,prices,types}.ts`, `tools/{card-search,register}.ts` |
+| Tests | 19 suites, **67 tests, 67 passing**; `tsc --noEmit` clean — re-run 2026-08-04 |
+| `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
+| Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
+| `SKILL.md` | **not written** — Slice 8 |
 
 Two properties of the existing scaffold worth preserving on purpose:
 
@@ -69,12 +81,12 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 
 | # | Slice | Track | Status |
 |---|---|---|---|
-| 1 | Server skeleton | A — server | ☐ |
-| 2 | Scryfall client | A — server | ☐ |
-| 3 | `card_search` handler | A — server | ☐ |
-| 4 | Price correctness | A — server | ☐ |
-| 5 | Tool registration & wiring | A — server | ☐ |
-| 6 | Live CAP-01 acceptance pass | A — server | ☐ |
+| 1 | Server skeleton | A — server | ☑ PR #2 |
+| 2 | Scryfall client | A — server | ☑ PR #3 |
+| 3 | `card_search` handler | A — server | ☑ PR #4 |
+| 4 | Price correctness | A — server | ☑ PR #5 |
+| 5 | Tool registration & wiring | A — server | ☑ PR #6 |
+| 6 | Live CAP-01 acceptance pass | A — server | ☑ PR #7 |
 | 7 | Plugin install verification | B — plugin | ☐ |
 | 8 | PC-01 `SKILL.md` authoring | B — plugin | ☐ |
 | 9 | PC-01 evals | B — plugin | ☐ |
@@ -100,11 +112,17 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   - Instantiate the SDK server with `StdioServerTransport`; connect; no tools registered.
   - `npm install`, `npm run build`, `npm run typecheck` all clean.
 - **Done when:**
-  - ☐ `node dist/index.js` completes an MCP initialize round-trip (MCP Inspector or a
+  - ☑ `node dist/index.js` completes an MCP initialize round-trip (MCP Inspector or a
     scripted stdio exchange).
-  - ☐ `dist/index.js` runs from a directory with no `node_modules` (proves the bundle is
+  - ☑ `dist/index.js` runs from a directory with no `node_modules` (proves the bundle is
     self-contained).
 - **Binding refs:** `MCP-PRD.md` D-02, D-03, §3.2; `PLUGIN-PRD.md` P-09, §4.5.
+- **Landed:** PR #2 (`8465832`). Config resolution shipped in `src/config.ts` — the
+  `CLAUDE_PLUGIN_DATA`-else-platform-cache rule of
+  [`PLUGIN-PRD.md` §4.5](./PLUGIN-PRD.md#45-persistent-data), resolved once at the entry point
+  and injectable for tests. Both done-when items re-verified 2026-08-04 against the committed
+  bundle: handshake returned `manabase-mtg@0.0.0` on protocol `2025-06-18` from a directory
+  containing only `index.js`.
 
 #### Slice 2 — Scryfall client
 
@@ -120,11 +138,16 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     return a structured failure. Never immediate retry.
   - Network errors and timeouts → structured failures, not exceptions.
 - **Done when (unit tests, mocked fetch):**
-  - ☐ Every request carries `User-Agent` and `Accept` (feeds CAP-01 criterion 10).
-  - ☐ Two back-to-back card-endpoint calls are spaced to ≤2/sec (criterion 11).
-  - ☐ A 429 produces backoff then a clear structured failure (criterion 12).
-  - ☐ A 400 response's `details` text survives verbatim into the failure result.
+  - ☑ Every request carries `User-Agent` and `Accept` (feeds CAP-01 criterion 10).
+  - ☑ Two back-to-back card-endpoint calls are spaced to ≤2/sec (criterion 11).
+  - ☑ A 429 produces backoff then a clear structured failure (criterion 12).
+  - ☑ A 400 response's `details` text survives verbatim into the failure result.
 - **Binding refs:** `MCP-PRD.md` §3.4, §4.1, D-10.
+- **Landed:** PR #3 (`59fbd6a`). `src/scryfall/client.ts` plus `src/result.ts`'s success/failure
+  union; evidence is `tests/scryfall/client.test.ts` against a mock transport. **No real 429 was
+  ever provoked** — deliberately exceeding Scryfall's limit to observe the response is the thing
+  [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) forbids, so criterion 12
+  rests on the mock and always will.
 
 #### Slice 3 — `card_search` handler
 
@@ -140,12 +163,21 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     truncate, never auto-fetch further pages.
   - Failures (including malformed queries) pass through as structured results.
 - **Done when (direct invocation, fixture-based):**
-  - ☐ The handler runs in a test with no server and no transport constructed (criterion 1).
-  - ☐ A fixture with >175 matches reports total count and more-available (criterion 9).
-  - ☐ A 400 fixture returns a structured failure carrying `details` (criterion 8).
+  - ☑ The handler runs in a test with no server and no transport constructed (criterion 1).
+  - ☑ A fixture with >175 matches reports total count and more-available (criterion 9).
+  - ☑ A 400 fixture returns a structured failure carrying `details` (criterion 8).
 - **Binding refs:** CAP-01 behavior bullets; D-03, D-07, D-11.
 - **Watch out:** default `unique=cards` — one row per card, not per printing; the defaults
   are for deckbuilding, not collecting.
+- **Landed:** PR #4 (`e6fa0d9`). Two shaping decisions worth carrying forward, neither of which
+  the slice spec anticipated:
+  - **Scryfall answers a valid query with zero matches as HTTP 404.** The handler maps that to a
+    *successful, empty* search carrying Scryfall's own note, not a failure — no matches is a
+    search outcome, not a dead end. Verified live in Slice 6 (check 13).
+  - **Double-faced and split cards carry `oracle_text` / `mana_cost` on `card_faces`, not at the
+    top level.** Faces are joined with ` // ` so those cards do not come back blank.
+  - `legalities` passes through untrimmed, which is a deliberate deferral to
+    [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be) rather than a decision.
 
 #### Slice 4 — Price correctness
 
@@ -158,14 +190,23 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     so *and says why* (digital-only).
   - Do not model `eur_etched` — documented but does not exist in the live API.
 - **Done when (fixtures capture the real trap cards):**
-  - ☐ Gaea's Cradle (`jgp`, foil-only) reports a `usd_foil` price, not "no price"
+  - ☑ Gaea's Cradle (`jgp`, foil-only) reports a `usd_foil` price, not "no price"
     (criterion 4).
-  - ☐ An `is:etched` printing reports `usd_etched` (criterion 5).
-  - ☐ Black Lotus resolves against a paper printing, not the all-null MTGO printing
-    (criterion 6).
-  - ☐ A digital-only Arena card reports no paper price and states digital-only as the reason
+  - ☑ An `is:etched` printing reports `usd_etched` (criterion 5).
+  - ☑ Black Lotus resolves against a paper printing, not the all-null MTGO printing
+    (criterion 6) — **see the caveat below; upstream data has since changed.**
+  - ☑ A digital-only Arena card reports no paper price and states digital-only as the reason
     (criterion 7).
 - **Binding refs:** `MCP-PRD.md` §4.1.3, D-06; CAP-01 criteria 4–7.
+- **Landed:** PR #5 (`af319d1`). `src/scryfall/prices.ts` resolves `usd` → `usd_foil` →
+  `usd_etched` and labels the finish; unavailability is always given a reason
+  (`digital-only` / `no-price-data`), never a bare null.
+- **Caveat on criterion 6.** Slice 6 found that **no paper Black Lotus printing carries a USD
+  price any more** — all three are EUR-only. The fixture still proves paper-vs-digital selection,
+  but Black Lotus can no longer evidence *paper USD resolution*; Slice 6 substitutes a
+  `usd>=1 game:paper` probe for that half. `PriceInfo` models no EUR fallback, which is a live
+  gap for Reserved List cards rather than a settled decision — see
+  [§4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps).
 
 #### Slice 5 — Tool registration & wiring
 
@@ -177,11 +218,18 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     description before there is evidence it is needed.
   - Handler failures become structured tool *results*, never MCP protocol errors (D-10).
 - **Done when:**
-  - ☐ `tools/list` shows `card_search`; a live `tools/call` with a real query round-trips.
-  - ☐ A malformed query over MCP returns the structured failure, not a protocol error.
+  - ☑ `tools/list` shows `card_search`; a live `tools/call` with a real query round-trips.
+  - ☑ A malformed query over MCP returns the structured failure, not a protocol error.
 - **Binding refs:** D-10, D-11; `MCP-PRD.md` OQ-01; `PLUGIN-PRD.md` P-12 (the scoped name
   `mcp__plugin_manabase_mtg__card_search` appears only when running as a plugin — Slice 7
   verifies that form).
+- **Landed:** PR #6 (`0001115`). The compact description held — five lines naming the operator
+  families and the pagination contract, with the deep syntax teaching left to PC-01. That is a
+  bet, not a result: [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+  stays open until Slice 9 measures whether the split works.
+- **One protocol-level error survives by design:** an unknown tool name throws. That is harness
+  misuse rather than a query the model should retry, so it is the single deliberate exception to
+  D-10 — every *query* failure is still a structured result.
 - **Watch out:** keep tool count and description length lean — PQ-01 has not yet established
   whether tool schemas are an unbudgetable always-on context cost.
 
@@ -195,9 +243,22 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
     `atag:squirrel`, and the invalid `illustrationtag:dragon` failure path.
   - Record the pass (and any drift found in §4.1's claims) in `MCP-PRD.md` §9.
 - **Done when:**
-  - ☐ Criteria 1–12 each have a recorded pass with date.
-  - ☐ `MCP-PRD.md` §9 has the revision-log row.
+  - ☑ Criteria 1–12 each have a recorded pass with date.
+  - ☑ `MCP-PRD.md` §9 has the revision-log row.
 - **Binding refs:** CAP-01 acceptance criteria; `MCP-PRD.md` §3.4, §9.
+- **Landed:** PR #7 (`14eadc1`). 13 of 13 checks pass, exit 0; full record in
+  `docs/slices/TrackA-Slice6-results.md`. Criteria 2–9 are live; criteria 1, 10, 11 and 12 are
+  unit-level by design — the last of those because provoking a real 429 is forbidden by
+  [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance).
+- **Two upstream drifts found, neither requiring a code change**, both now recorded in
+  [`MCP-PRD.md` §4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps): `!"Black Lotus"`
+  now rolls up to the MTGO printing by default, and no paper Lotus printing carries USD. Operator
+  counts drifted upward as expected (regex 1,554→1,555; `otag:ramp` 2,260→2,274;
+  `function:removal` 6,386→6,405; `art:squirrel` 192→194).
+
+**Track A is closed.** The server delivers [CAP-01](./MCP-PRD.md#cap-01--card-search) and nothing
+downstream is blocked on it: Slices 7 and 8 were waiting on Slices 5 and 3 respectively, and both
+gates are open.
 
 ---
 
@@ -365,6 +426,12 @@ graph LR
 The critical path is 1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13. Slice 8 (skill authoring) is the
 main parallelism opportunity — it needs only Slice 3's tool shape. Slice 11 (CI) can land any
 time after Slice 1 produces a real build.
+
+**As of 2026-08-04, Slices 1–6 are done and the next item on the critical path is Slice 7.**
+Three slices are unblocked and can run in parallel: **7** (install verification, needed Slice 5),
+**8** (`SKILL.md`, needed only Slice 3), and **11** (`dist/` CI check, needed only Slice 1 —
+and now more urgent than when it was scheduled, because `dist/index.js` is real committed build
+output that can silently drift from `src/`).
 
 ## 6. Beyond Phase 1 — queued slice packs
 
