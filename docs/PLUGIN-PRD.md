@@ -100,6 +100,7 @@ a plugin-side consequence, the row below says so and points at it rather than re
 | [P-11](#p-11--the-repo-is-its-own-marketplace) | The repo is its own marketplace: `.claude-plugin/marketplace.json` at the repo root, with the plugin listed by relative path. Users add it as `owner/repo`, never as a raw URL to `marketplace.json` | 2026-07-29 |
 | [P-12](#p-12--plugin-name-and-server-key) | Plugin name `manabase`; MCP server key `mtg` | 2026-07-29 |
 | [P-13](#p-13--no-user-configuration-in-phase-1) | [PC-02](#pc-02--bundled-mcp-server) declares no `userConfig` in Phase 1. Enabling the plugin prompts for nothing | 2026-07-29 |
+| [P-14](#p-14--two-distribution-targets-one-source) | Two distribution targets from one source: the Claude Code plugin, and an MCPB bundle for the Claude Desktop Chat tab. Amends [P-01](#p-01--plugin-is-the-distribution-unit) | 2026-08-04 |
 
 ### P-01 — Plugin is the distribution unit
 
@@ -111,6 +112,13 @@ incantation people paste into their MCP config.
 Plugin-bundled MCP servers start automatically when the plugin is enabled ([§4.1](#41-harness-features-relied-on)), which turns
 setup into two commands with no file editing. Install friction is the primary adoption risk
 named in [`docs/MCP-PRD.md` §3.1](./MCP-PRD.md#31-distribution-and-install-friction), and this is the single largest lever on it.
+
+**Amended 2026-08-04 by [P-14](#p-14--two-distribution-targets-one-source).** This decision's reasoning is unchanged and its
+mechanism still governs every Claude Code surface. What it got wrong was its scope: it assumed
+one distribution unit reaches every surface a user might install onto. Measured, the plugin
+delivers only its *skills* to the Claude Desktop Chat tab and does not start its MCP server
+there ([§4.2](#42-marketplace-and-install-path)). "The plugin is the distribution unit" is therefore true of Claude Code and false
+of that surface. [P-14](#p-14--two-distribution-targets-one-source) records the second target rather than restating this one.
 
 ### P-02 — One repo, manifest at the root
 
@@ -260,6 +268,17 @@ key never fires — so the name is worth fixing once here rather than discoverin
 `name` is also the stable install identifier; changing it later breaks every existing install,
 so `displayName` carries any cosmetic renaming.
 
+**Amended 2026-08-04 by [P-14](#p-14--two-distribution-targets-one-source): the scoped form above is constructed by the Claude Code
+harness and is not a property of the server.** The same registered `card_search` is reached as
+`mcp__plugin_manabase_mtg__card_search` in Claude Code and as `Manabase:card_search` when the
+server arrives by MCPB, where the prefix comes from the manifest's `display_name` ([§4.2](#42-marketplace-and-install-path)). The
+sentence above therefore governs permission rules, `allowed-tools`, and hook matchers **on the
+Claude Code surface**, which is the only surface that has them. Two consequences that this
+decision as originally written invites getting wrong: the string must never be written into a
+skill body or any other component that travels between surfaces ([§3.6](#36-skills-carry-instructions-never-facts)), and it cannot be used
+to *detect* whether the tool is present — a component that tests for it concludes "absent" on a
+surface where the tool is working.
+
 ### P-13 — No user configuration in Phase 1
 
 **Decided 2026-07-29.**
@@ -272,6 +291,36 @@ demonstration of [P-01](#p-01--plugin-is-the-distribution-unit)'s claim. Declari
 show every user a credential prompt for a capability that does not exist yet — moving work to
 the user for a feature they cannot use, which is the failure mode [P-05](#p-05--credentials-collected-through-userconfig) exists to prevent. [P-05](#p-05--credentials-collected-through-userconfig)
 still governs *how* credentials arrive when they do.
+
+### P-14 — Two distribution targets, one source
+
+**Decided 2026-08-04. Amends [P-01](#p-01--plugin-is-the-distribution-unit).**
+
+**Two distribution targets are built from one source tree: the Claude Code plugin
+([PC-02](#pc-02--bundled-mcp-server)), and an MCPB bundle for the Claude Desktop Chat tab ([PC-03](#pc-03--mcpb-bundle-for-the-chat-tab)). `src/`, `dist/`, and
+`skills/` are shared and never forked.**
+
+The two are different pipes, and a user on the Chat tab needs both. Measured 2026-08-04 ([§4.2](#42-marketplace-and-install-path)):
+installing the plugin from the marketplace delivers `skills/` to that surface and does **not**
+start the MCP server there, while an MCPB bundle installed into Claude Desktop does expose the
+server there. Neither target reaches the surface alone.
+
+**Why one source and not two repos.** The server is byte-identical across both, and so is the
+skill. What differs is a manifest and a release artifact — packaging, not behavior. Forking the
+repo would duplicate every decision in this document and in [`docs/MCP-PRD.md`](./MCP-PRD.md), including the three
+price traps and the rate-limit lanes, with nothing enforcing that the copies stay in step. That
+is the exact failure [P-03](#p-03--document-hierarchy-and-the-boundary-rule) and [P-02](#p-02--one-repo-manifest-at-the-root) are built to prevent, and the duplication would be silent.
+
+**What this does not extend to.** Claude on the **web** is out of reach and stays out of scope
+([§8](#8-out-of-scope)). No local process is reachable from a browser session, so serving it would mean a hosted
+remote MCP server — which would also funnel every user's traffic through a single Scryfall
+client identity, against an API whose rate limits are a hard constraint and whose ban risk
+applies to the whole application ([`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)). That is a different product, not a
+third target.
+
+**The cost this accepts.** A second artifact must be built and released, and [P-09](#p-09--server-ships-as-committed-built-javascript)'s stale-`dist/`
+trap now has two ways to ship — tracked as [PQ-06](#pq-06--what-keeps-the-committed-dist-honest). MCPB also requires a `version` where [P-08](#p-08--version-scheme)
+deliberately leaves one unset, which is [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08).
 
 ---
 
@@ -370,6 +419,14 @@ consequences:
 - **The only runtime prerequisite is Node on `PATH`**, inherited from [`docs/MCP-PRD.md` D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript).
   [P-09](#p-09--server-ships-as-committed-built-javascript) keeps it at exactly that: no build toolchain, no `npm install`, no Python, no shell.
 
+  **Amended 2026-08-04 by [P-14](#p-14--two-distribution-targets-one-source): this holds for the plugin target and not for the MCPB
+  target.** Claude Desktop ships its own Node runtime on macOS and Windows, so a bundle
+  installed per [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) has *no* runtime prerequisite at all. The asymmetry runs the useful
+  direction — the target with the least technical audience is the one that needs least — but it
+  means "does the user have Node?" is the first diagnostic question for one target and
+  meaningless for the other. Any install troubleshooting the README carries must say which
+  target it is talking about.
+
 ### 3.5 What the user must see, and must not
 
 - **Enabling the plugin in Phase 1 must produce zero prompts** ([P-13](#p-13--no-user-configuration-in-phase-1)). An install that asks a
@@ -378,6 +435,10 @@ consequences:
   on the plugin's user-facing surfaces**, which are broader than that document could name:
   the `description` in `plugin.json`, the marketplace entry, and the repo README. This is a
   plugin-side obligation because these surfaces exist only here.
+  **Amended 2026-08-04 by [P-14](#p-14--two-distribution-targets-one-source):** the MCPB manifest's `description` is a fourth such
+  surface, and the most prominent of them — Claude Desktop renders it in the install dialog the
+  user approves ([PC-03](#pc-03--mcpb-bundle-for-the-chat-tab)). A second distribution target means a second place this can be omitted,
+  and the list is now long enough that it is worth checking mechanically rather than by memory.
 - **The plugin must not ship anything that gates card data** — no survey, no Discord join, no
   account. Prohibited by [`docs/MCP-PRD.md` §3.3](./MCP-PRD.md#33-legal-and-terms-of-service), restated here only because a plugin has
   install-time surfaces where such a gate would physically fit.
@@ -563,6 +624,42 @@ plugin surface and any change would be widely breaking. The real risk is *user* 
 than platform change — specifically the raw-URL trap above, which produces a confusing partial
 failure. Mitigation is documentation, and it is the reason that fact is recorded as a locked
 decision.
+
+#### Addendum 2026-08-04 — the install path is surface-dependent, and the plugin does not carry its server everywhere
+
+Everything above was measured against Claude Code and remains true there. It is **not** the
+whole install path, because a plugin now installs onto surfaces that run it differently.
+Measured live on Claude Desktop, all **[verified 2026-08-04]**:
+
+- **A plugin installed from this repo's marketplace onto the Desktop *Chat* tab delivers
+  `skills/` and does not start the MCP server.** The Chat tab's tool catalog held only
+  account-level connectors. The plugin's `.mcp.json` is a Claude Code mechanism; nothing on
+  that surface starts a local stdio process from it.
+- **The Desktop *Code* tab is Claude Code**, and the plugin works there unmodified — same
+  marketplace, same `.mcp.json`, same scoped tool name. No second artifact is needed for it.
+- **An MCPB bundle installed into Claude Desktop does expose the server to the Chat tab**, as
+  `Manabase:card_search`. That prefix derives from the MCPB manifest's **`display_name`**
+  (`Manabase`), **not** its `name` (`manabase-mtg`).
+- **The scoped tool name is constructed per surface and is not a property of the server.**
+  `mcp__plugin_manabase_mtg__card_search` in Claude Code ([P-12](#p-12--plugin-name-and-server-key)) and `Manabase:card_search`
+  via MCPB are the same registered `card_search`. [P-12](#p-12--plugin-name-and-server-key) governs permission rules,
+  `allowed-tools`, and hook matchers **on the Claude Code surface only**; it was never a
+  portable identifier and must not be written into a skill body ([§3.6](#36-skills-carry-instructions-never-facts), [PC-01](#pc-01--scryfall-query-craft)).
+
+**The failure this exposed, and why it is recorded here rather than as a bug.** A skill reaching
+a surface where its tool does not exist does not fail visibly. Asked for commanders on the Chat
+tab, the model correctly identified the tool as absent — naming the missing
+`mcp__plugin_manabase_mtg__card_search` in its reasoning — and then answered from a **web search
+of Scryfall's search pages** without telling the user. Ten plausible links; card claims grounded
+in nothing the server returned. That is the silent-degradation class this project already pays
+for elsewhere, arriving through the install path: an installed plugin made answers *less*
+grounded than no plugin at all. The mitigation is a no-fallback rule in [PC-01](#pc-01--scryfall-query-craft)'s skill body,
+not a packaging change.
+
+**A skill that loads is not a skill that works.** Both propositions were true simultaneously on
+that surface: the skill loaded and the capability was unreachable. Every [PC-01](#pc-01--scryfall-query-craft) criterion
+satisfiable by reading or measuring the file passed there. Whether [PC-01](#pc-01--scryfall-query-craft) needs a
+loads-*and*-fires criterion is raised in [§9](#9-revision-log) and still undecided.
 
 ### 4.3 Versioning and updates
 
@@ -871,6 +968,21 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
       dead end.
   13. Asked a question whose answer is a card fact — a price, a legality, an oracle text —
       Claude calls a tool rather than answering from the skill's own content.
+  14. **Loads *and* fires, in a real harness.** Added 2026-08-04. On the surface being claimed,
+      the skill appears in the session's skill listing **and** a card question results in a tool
+      call. Both halves are required and neither substitutes for the other. Criteria 1, 3 and 4
+      are satisfiable by reading and measuring the file, and they have now passed twice on
+      configurations where the skill did not work: once when its frontmatter failed to parse and
+      it loaded in no harness at all, and once on the Chat tab where it loaded correctly while
+      its tool was unreachable ([§4.2](#42-marketplace-and-install-path)). Note the deliberately weak signal in the first half —
+      **`/reload-plugins`' skill count reads `0 skills` in the working state**, so the session
+      listing is the only thing that discriminates.
+  15. **Never substitutes another source for the tool.** Added 2026-08-04. With the server
+      unreachable, a card question produces a plain statement that the tool is unavailable and
+      **no answer assembled from a web search, a Scryfall page, or the model's own knowledge.**
+      This is the negative half of criterion 13: 13 checks that a reachable tool gets called, and
+      an unreachable one silently routing around it passes 13 by never arising. **[verified
+      2026-08-04]**
 - **Open questions:** [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) (measured always-on cost against the shared budget), [PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)
   (detecting budget degradation on someone else's machine). Bears on [`docs/MCP-PRD.md` OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model),
   which asked how Scryfall syntax should reach the model: this component is the plugin-side
@@ -967,6 +1079,71 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
 
 ---
 
+### PC-03 — MCPB bundle for the Chat tab
+
+- **Type:** mcp-server
+- **Status:** specified
+- **Phase:** unassigned
+- **User need:** I use the Claude Desktop Chat tab, not a terminal. I installed the plugin and
+  it answered my Magic question from a web search without telling me. I want the same tools my
+  friends get in Claude Code, and if I can't have them I want to be told.
+- **Surface:** tool call, as `Manabase:card_search` — the prefix comes from the MCPB manifest's
+  `display_name`, not its `name` ([§4.2](#42-marketplace-and-install-path)). Installed by double-clicking a `.mcpb`, dragging it onto
+  the Claude Desktop window, or Settings → Extensions → Advanced settings → Install Extension.
+- **Behavior:**
+
+  **What lives elsewhere.** Server behavior is [`docs/MCP-PRD.md` §5](./MCP-PRD.md#5-capabilities), unchanged and not
+  restated. The install surface for Claude Code is [PC-02](#pc-02--bundled-mcp-server); this block is the Desktop
+  install surface only, and the two share every byte of `dist/` ([P-14](#p-14--two-distribution-targets-one-source)).
+
+  - **Packages the same `dist/index.js` [PC-02](#pc-02--bundled-mcp-server) starts**, plus a `manifest.json`, built with the
+    `@anthropic-ai/mcpb` CLI (`mcpb pack`). No second build and no server code that exists
+    only for this target — that is what makes [P-14](#p-14--two-distribution-targets-one-source) a packaging decision rather than a fork.
+  - **Requires no runtime prerequisite.** Claude Desktop ships Node on macOS and Windows, so
+    the bundle needs no `PATH` entry and no install of anything ([§3.4](#34-cross-platform-reach)). This is the one
+    respect in which this target is *easier* than [PC-02](#pc-02--bundled-mcp-server).
+  - **Carries the Fan Content disclaimer verbatim in the manifest `description`** ([§3.5](#35-what-the-user-must-see-and-must-not)),
+    which Claude Desktop renders in the install dialog the user approves.
+  - **Delivers the server only.** It does not carry `skills/`; the skill reaches that surface
+    through the plugin ([§4.2](#42-marketplace-and-install-path)). A Chat-tab user therefore installs **both**, and either one alone
+    is a degraded state — the bundle alone loses the query craft, the plugin alone loses the
+    tools and is the configuration that produced the silent web-search substitution.
+  - **`version` is required by the MCPB manifest** where [P-08](#p-08--version-scheme) deliberately leaves
+    `plugin.json`'s unset. Unresolved: [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08).
+  - **What the user sees when something is wrong.** A bundle that fails to install reports it
+    in the install dialog, which is a genuine improvement over [PC-02](#pc-02--bundled-mcp-server)'s silent absence. A
+    bundle that installs but whose server fails to start degrades to the same invisible
+    failure, and the Chat tab has no `/mcp` and no `claude --debug` to inspect it with.
+- **Depends on:** every CAP in `docs/MCP-PRD.md`, as [PC-02](#pc-02--bundled-mcp-server) does. [P-14](#p-14--two-distribution-targets-one-source). [PC-01](#pc-01--scryfall-query-craft) for the
+  skill that reaches the same surface separately. The `@anthropic-ai/mcpb` CLI at build time
+  only — never at runtime, and not a dependency of the repo.
+- **Context cost:**
+  - **Always-on: the same tool schemas [PC-02](#pc-02--bundled-mcp-server) pays for, on a different surface.** Basis: the
+    server is identical, so the schema cost is identical; what differs is the budget it is paid
+    against, which has never been measured on the Chat tab. [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) covers Claude Code only.
+  - **On-invoke: not applicable**, as [PC-02](#pc-02--bundled-mcp-server).
+- **Acceptance criteria:**
+  1. `mcpb validate manifest.json` passes and `mcpb pack` produces a `.mcpb`. **[verified
+     2026-08-04]**
+  2. The packed bundle's entry point answers an MCP `initialize` and lists `card_search`, tested
+     against the bundled copy rather than the repo's. **[verified 2026-08-04]**
+  3. On a machine where it has never been installed, double-clicking the `.mcpb` installs it and
+     the Chat tab lists the tool. **[verified 2026-08-04 — `Manabase:card_search`]**
+  4. A card question in the Chat tab results in a tool call, not a web search. **[verified
+     2026-08-04]**
+  5. The bundle's `description` carries the Fan Content disclaimer verbatim, and it is visible
+     in the install dialog before the user approves.
+  6. With the bundle **not** installed and [PC-01](#pc-01--scryfall-query-craft) present, a card question produces a plain
+     statement that the tool is unavailable and no substituted answer. **[verified 2026-08-04 —
+     the same question that previously produced a silent web search now stops]**
+  7. The bundled `dist/index.js` is byte-identical to the one [PC-02](#pc-02--bundled-mcp-server) ships from the same
+     commit ([P-14](#p-14--two-distribution-targets-one-source), [PQ-06](#pq-06--what-keeps-the-committed-dist-honest)).
+  8. Installing the bundle asks for no configuration, matching [P-13](#p-13--no-user-configuration-in-phase-1) on the other target.
+- **Open questions:** [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) (two ways to ship a stale build now),
+  [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) (manifest `version` against [P-08](#p-08--version-scheme)).
+
+---
+
 ## 6. Roadmap
 
 **Phase 1 — [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server) together.**
@@ -987,6 +1164,19 @@ those either. The two documents' first phases line up deliberately.
 **The [P-08](#p-08--version-scheme) switchover is a phase boundary, not a Phase 1 task.** `version` stays unset while
 the author iterates. Setting explicit semver is the act of declaring the plugin public, and it
 happens when Phase 1 is stable enough for the 5–20 to install it.
+
+**[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) is specified but unassigned, and it is not a Phase 1 dependency.** Added 2026-08-04
+with [P-14](#p-14--two-distribution-targets-one-source). It is blocked on nothing — the bundle packs and installs today, and five of its
+eight criteria are already verified — but it serves a surface, not a capability, so it changes
+who can install rather than what the plugin does. Phase 1 remains [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server): that pair
+is still the smallest thing that is both shippable and useful, and adding a second install
+target to it would widen the phase without making it more useful to anyone already in it.
+
+Two things should be settled before it is assigned, and neither is technical. [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) has to
+answer what version a released bundle carries, because unlike the plugin an installed `.mcpb`
+never re-pulls. And [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) should land first: shipping a second artifact built from an
+unverified `dist/` doubles the exposure to the one failure [P-09](#p-09--server-ships-as-committed-built-javascript) knowingly accepted. Slice 11
+already covers that and is unblocked.
 
 ### Queued and unassigned
 
@@ -1086,6 +1276,14 @@ Every commit from here is an opportunity for the drift this question describes, 
 detecting it. The roadmap schedules the answer as Slice 11 and recommends the CI check; that
 slice depends only on Slice 1, so nothing prevents it from landing next.
 
+**Widened 2026-08-04 by [P-14](#p-14--two-distribution-targets-one-source): there are now two ways to ship a stale build, and the
+second is worse.** [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) copies `dist/index.js` into a `.mcpb` at pack time, so a bundle
+freezes whatever was committed at that moment and carries it until it is repacked and
+redistributed. The plugin target at least re-pulls on `/plugin update`; an installed bundle
+does not, and no user of one has any signal that it is behind. Whatever answers this question
+must cover the pack step, not only the commit — a CI check that rebuilds and diffs `dist/`
+leaves a released `.mcpb` unverified.
+
 ### PQ-07 — Is deck optimization a skill or an agent?
 
 Both are paid always-on for their description ([§4.6](#46-context-cost-accounting)), so the question is whether the work needs
@@ -1105,6 +1303,33 @@ that claims more than is known — so "your credential expired" may be an unsupp
 even when it is the likely cause.
 *Resolves by:* specifying the Archidekt write capability in `docs/MCP-PRD.md`, then the
 component that surfaces it. Not before.
+
+### PQ-09 — How does the MCPB manifest `version` relate to P-08?
+
+[P-08](#p-08--version-scheme) leaves `plugin.json`'s `version` unset during development on purpose, so every commit
+counts as an update. The MCPB manifest has no such option: `version` is required, and
+[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) currently carries `0.0.0` as a spike placeholder that no decision stands behind.
+Three fields now express "which build is this" — `package.json`, the unset `plugin.json`
+`version`, and the MCPB manifest — and [P-08](#p-08--version-scheme) explicitly declares the first two independent by
+design. Where the third sits is unanswered.
+
+The user-visible stake is that an installed `.mcpb` never re-pulls ([PQ-06](#pq-06--what-keeps-the-committed-dist-honest)), so its version
+string is the only thing a user could compare against a release — which argues it cannot stay
+`0.0.0`, and argues against inheriting [P-08](#p-08--version-scheme)'s unset-during-development posture wholesale.
+*Resolves by:* deciding whether the manifest tracks `package.json`, tracks the plugin release
+version, or is stamped by the pack step from the commit — and recording which, because
+`APP_VERSION` in `src/config.ts` is already hand-synced and a fourth unsynced copy is a
+maintenance trap rather than a versioning scheme.
+
+**Answered 2026-08-04: the pack step stamps the manifest `version` from the commit being
+packed.** Nothing is hand-synced and no fourth copy is created, which was the trap this question
+named. It also preserves [P-08](#p-08--version-scheme)'s development posture — every commit is a distinct build — without
+leaving `0.0.0` in an artifact a user installs and cannot update. The alternatives were rejected
+for concrete reasons rather than taste: tracking `package.json` adds the fourth hand-synced copy
+directly; tracking the plugin release version leaves every pre-release bundle indistinguishable
+from every other, which is exactly the staleness [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) says a `.mcpb` user has no other signal
+for. Implementation belongs to [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab)'s pack step and is not built yet; the `0.0.0` in the spike
+artifact is superseded by this answer, not endorsed by it.
 
 ---
 
@@ -1137,6 +1362,16 @@ infrastructure.
 
 **Flat `commands/` markdown.** Rejected by [P-07](#p-07--skills-not-commands). Shipping both forms in one repo is the
 specific outcome that decision exists to prevent.
+
+**Claude on the web, and the remote MCP server it would require.** Added 2026-08-04 with
+[P-14](#p-14--two-distribution-targets-one-source), which adopts a second *local* target and stops there. No local process is reachable
+from a browser session, so reaching claude.ai would mean hosting the server — which fails the
+same test the hosted-service rejection in [`docs/MCP-PRD.md` §8](./MCP-PRD.md#8-out-of-scope) already applies, and adds one this
+document cannot wave through: every user's traffic would leave a single Scryfall client
+identity, converting a per-user 2/second budget into a shared quota the author must manage,
+against an API where sustained overage risks the application for everyone
+([`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)). For an audience of 5–20 that is a disproportionate liability. The
+Desktop Chat tab is served by [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab); web chat is not served.
 
 **A `CLAUDE.md` at the plugin root.** Not a style preference — it is **not loaded as context**
 ([§4.1](#41-harness-features-relied-on)). Anyone reaching for it is looking for a skill.
@@ -1193,6 +1428,8 @@ and the correct move is to say so and stop.
 | 2026-08-04 | **[PC-02](#pc-02--bundled-mcp-server)'s install surface verified for the first time.** Criteria 1, 2, 3, 4, 6 and 7 observed on a **cold** profile installing `njohnb/Manabase` as `manabase@manabase` (Claude Code 2.1.221, Windows 11 Pro 10.0.26200, Node v22.17.1). Resolved plugin version `ab2286e1a846` → `edeea588bc01` across a real push — [P-08](#p-08--version-scheme)'s commit-SHA fallback confirmed live, and `/plugin update` picked up the pushed commit **without** a prior marketplace refresh, answering an operational detail [§4.3](#43-versioning-and-updates) leaves unstated. **Criterion 9 not met as written:** `claude plugin validate .` passes with exactly one warning and `--strict` fails on that same warning, which is [P-08](#p-08--version-scheme)'s deliberate unset `version` — the two are in conflict until the Slice 13 switchover, and whether the criterion should be reworded for the pre-release window is raised for this document's owner, not answered here. Six drift items recorded, of which two matter: the harness reports a **12-character** abbreviated SHA rather than the 40-character form the spec assumes, and the installed plugin root contains a fetched `node_modules/` — [P-09](#p-09--server-ships-as-committed-built-javascript)'s no-fetch claim covers the *startup* path, which was proven offline, but not the install path. Criteria 5, 8 and 10 remain unverified (10 is Slice 10's; 5 has no observer while Phase 1 writes nothing). Results: docs/slices/TrackB-Slice7-results.md. | Track B Slice 7 (docs/DEV-ROADMAP.md) — the first verification of anything in this document's [§5](#5-components), and the point at which "the thing a user installs does not exist" stops being true. Every criterion here is a claim about a harness rather than about code, so none of it could be reached by a unit test, and none of it was true or false until a machine actually installed the plugin. |
 | 2026-08-04 | **[§4.1](#41-harness-features-relied-on) gains a dated addendum: skill frontmatter is YAML, and a skill whose frontmatter does not parse is dropped in silence.** [PC-01](#pc-01--scryfall-query-craft)'s `SKILL.md` as written in [Slice 8](./slices/TrackB-Slice8.md) carried the unquoted string `Magic: The Gathering` in both `description` and `when_to_use`; an unquoted YAML plain scalar cannot contain a colon-space, so the block failed to parse and `/reload-plugins` reported **`0 skills`** for an installed plugin whose three skill files were all present on disk. Fixed by quoting both values (branch `fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22). Line endings were tested and **ruled out** — the frontmatter fails identically CRLF and LF-normalized. **[PC-01](#pc-01--scryfall-query-craft) criterion 1 re-measured after the fix: 783 of 1,536 characters** (`name` 20 + `description` 269 + `when_to_use` 494, taken from YAML-parsed field values), still far under the cap. That is **not** 764 + 4: [Slice 8](./slices/TrackB-Slice8.md)'s 764 came from a different counting method (frontmatter values only, space-joined, no `name`), so the two figures are not the same measurement and the discrepancy is recorded unresolved rather than reconciled. Both figures are kept. | Track B [Slice 8](./slices/TrackB-Slice8.md) follow-up ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)). The addendum records a harness behavior [§4.1](#41-harness-features-relied-on) did not cover and whose failure mode is invisible — the same silent-absence class as a missing `dist/` ([P-09](#p-09--server-ships-as-committed-built-javascript)) — so a future skill component does not rediscover it. It also exposes an integrity gap this document cannot close on its own: criteria 1, 3 and 4 are all satisfiable by reading and measuring the file, so **a skill that never loaded passed all three**, and every static measurement Slice 8 recorded was taken against a file no harness had ever accepted. Whether [PC-01](#pc-01--scryfall-query-craft) needs a criterion that the skill actually loads, and whether that warrants a new PQ, is raised here for this document's owner and deliberately not answered — [§5](#5-components) and [§7](#7-open-questions) are untouched by this row. |
 | 2026-08-04 | **[PC-01](#pc-01--scryfall-query-craft) behavioral criteria 5–13 measured** against a without-skill baseline in fresh sessions: 17 behavioral cases (combined legality/type/cost/price, regex, `otag:`/`function:`, artwork, failure-loop, card-fact) plus 20 trigger queries, one run per configuration, strictly sequential. With-skill vs. baseline — valid-query rate 15/15 vs 15/15; regex 3/3 vs 3/3; `otag:` \| `function:` **3/3 vs 2/3**; art 3/3 vs 3/3; combined legality+type+cost+price 3/3 vs 3/3; card-fact tool call 3/3 vs 3/3; expectation level 78/79 vs 75/79. **Failure-loop retry: 4/4 in the baseline and _not measured_ with the skill** — cases 13–14 probe with `illustrationtag:`, which `SKILL.md` names as unreal, so the skill never emitted it and no error existed to retry from. Should-trigger 10/10, should-not-trigger 10/10. `illustrationtag:` emitted unprompted **0** times across 30 transcripts and 93 emitted queries (denominator 15 cases per configuration; cases 13–14 excluded because their prompts hand over the operator). Description tuned **0** times — both trigger rates were perfect — so `description` + `when_to_use` is unchanged at **763** characters (≤ 1,536). Results: [`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md). | Track B [Slice 9](./slices/TrackB-Slice9.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)) — the measurement [PC-01](#pc-01--scryfall-query-craft)'s eval-method preamble prescribes, and the evidence [`docs/MCP-PRD.md`](./MCP-PRD.md) [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) was waiting on. Two things the run establishes that the criteria themselves do not. First, **the baseline auto-invoked the skill when it was merely left unmentioned** — the first attempt's opening tool call was `Skill{manabase:scryfall-query-craft}` — so a clean baseline needs a subagent type carrying no `Skill` tool, defined *before* the measuring session starts, because the agent registry resolves at session start; this run used an explicit prohibition instead and records that as a confound. Second, the **763 / 783** character figures differ only in whether `name` is counted (783 − 763 = 20 = the length of `scryfall-query-craft`), and [Slice 8](./slices/TrackB-Slice8.md)'s 764 is a one-off arithmetic slip on its own 269 + 494 — recorded here as an observation for this document's owner, with the 2026-08-04 row that called the discrepancy unresolved left exactly as written. [PC-01](#pc-01--scryfall-query-craft)'s `Status` field is unchanged, per [§5](#5-components)'s template. |
+| 2026-08-04 | **Recorded [P-14](#p-14--two-distribution-targets-one-source) — two distribution targets from one source — amending [P-01](#p-01--plugin-is-the-distribution-unit), and appended [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) (MCPB bundle for the Chat tab).** Measured live on Claude Desktop and appended to [§4.2](#42-marketplace-and-install-path) as a dated addendum: a plugin installed from this repo's marketplace onto the **Chat tab delivers `skills/` and does not start its MCP server there**, while an MCPB bundle does expose the server there as `Manabase:card_search` — a prefix derived from the manifest's `display_name`, not its `name`. The Desktop **Code tab is Claude Code** and needs no second artifact. Five of [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab)'s eight criteria are verified (1, 2, 3, 4, 6), including a bundle packed and installed on a machine that had never had one, and criterion 6 — the configuration that produced the original silent substitution now stops instead. Two locked sections were amended rather than rewritten, with the author's explicit decision: [§3.4](#34-cross-platform-reach), because Claude Desktop ships its own Node and the MCPB target therefore has **no** runtime prerequisite where the plugin target requires Node on `PATH`; and [§3.5](#35-what-the-user-must-see-and-must-not), because the manifest `description` is a fourth surface owing the Fan Content disclaimer verbatim and the most prominent one, since Desktop renders it in the install dialog. [§8](#8-out-of-scope) gains an explicit rejection of Claude on the **web** and the remote MCP server it would require — a hosted server would funnel every user through one Scryfall client identity, converting a per-user 2/second budget into a shared quota against an API whose ban risk applies to the whole application ([`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)). [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) widened: an installed `.mcpb` never re-pulls, so a stale `dist/` frozen at pack time is undetectable by any user and a CI check that only rebuilds-and-diffs on commit leaves it unverified. [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) opened: MCPB requires a `version` where [P-08](#p-08--version-scheme) deliberately leaves one unset, and the spike's `0.0.0` is a placeholder no decision stands behind. | A plugin that reaches a surface where its server does not run is not a partial install; it is a **worse-than-nothing** one. Asked for commanders on the Chat tab, the model correctly identified the tool as absent — naming the missing `mcp__plugin_manabase_mtg__card_search` in its reasoning — and then answered from a web search of Scryfall's search pages without saying so. An installed Manabase made answers *less* grounded than no Manabase, silently, which is the same class as the dropped invalid term and the `\A` zero-match. The mitigation shipped in [PC-01](#pc-01--scryfall-query-craft)'s body rather than in packaging, and criterion 6 verifies it fired. The measurements also retire an assumption this document carried implicitly: [P-12](#p-12--plugin-name-and-server-key)'s scoped tool name is constructed **per surface** and is not a property of the server — the same registered `card_search` is `mcp__plugin_manabase_mtg__card_search` in Claude Code and `Manabase:card_search` via MCPB — so it governs permission rules and hook matchers on the Claude Code surface only and must never be written into a skill body. **Still undecided:** whether [PC-01](#pc-01--scryfall-query-craft) needs a loads-*and*-fires criterion. On the Chat tab the skill loaded and the capability was unreachable at the same time, and every criterion satisfiable by reading or measuring the file passed there. |
+| 2026-08-04 | **Four decisions taken in the same session, closing what the row above left open.** **[PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered:** the pack step stamps the MCPB manifest `version` from the commit being packed — nothing hand-synced, no fourth copy of a version string, and no `0.0.0` in an artifact a user installs and cannot update. **[PC-01](#pc-01--scryfall-query-craft) gains criteria 14 and 15**, resolving the loads-versus-fires question the previous row recorded as undecided: 14 requires the skill to appear in the session listing *and* produce a tool call on the surface being claimed; 15 requires that an unreachable tool yields a plain statement of unavailability and no substituted answer. 15 is **[verified 2026-08-04]** — the configuration that produced the original silent web search now stops. **[P-12](#p-12--plugin-name-and-server-key) amended** to say the scoped tool name is constructed per surface and is not a property of the server, with the two traps that follow: never write it into a component that travels between surfaces, and never use it to detect whether the tool is present. **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criteria corrected from four verified to five** — criterion 6 was verified after [§6](#6-roadmap) and the row above were drafted, and both said four. | Three of the four are the same failure seen from different angles: a check that passes without the thing it checks for actually working. [PC-01](#pc-01--scryfall-query-craft)'s static criteria passed twice on skills that did not work, so 14 and 15 exist to make the file-measurable checks insufficient on their own rather than to replace them. [P-12](#p-12--plugin-name-and-server-key) read as a universal fact and was a single-surface one, which is what let a skill body assert a tool name that does not exist where it was sent. [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)'s answer is chosen for the same reason: an installed `.mcpb` never re-pulls, so a version that does not identify its build gives its user no signal at all — the staleness half of [PQ-06](#pq-06--what-keeps-the-committed-dist-honest). The count correction is recorded rather than silently fixed because a criteria tally that drifts between the block and the sections summarizing it is exactly the divergence this document's no-duplicated-decisions rule exists to prevent. |
 
 ---
 

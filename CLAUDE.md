@@ -2,7 +2,8 @@
 
 Magic: The Gathering research for Claude Code: a bundled stdio MCP server (Node + TypeScript)
 plus the skills that let Claude write real Scryfall queries from plain English. Distributed as a
-Claude Code plugin; this repo is also its own marketplace.
+Claude Code plugin, and — since `P-14` — as an MCPB bundle for the Claude Desktop Chat tab, both
+built from this one source tree. This repo is also its own marketplace.
 
 ## The documents are binding — read them before deciding anything
 
@@ -117,10 +118,14 @@ that catches this.
 (`skills/`, etc.) sit at the repo root; a component placed inside `.claude-plugin/` silently fails
 to load. Installed plugins also cannot reference `../` paths.
 
-**Tools are exposed to the harness as `mcp__plugin_manabase_mtg__card_search`** (`P-12`). That
-scoped form is what permission rules, `allowed-tools`, and hook matchers must use — a matcher
-written against the bare server key never fires. The code itself registers the bare
-`card_search`; scoping is the harness's job.
+**The scoped tool name is built per surface and is not a property of the server** (`P-12`, as
+amended by `P-14`). In Claude Code it is `mcp__plugin_manabase_mtg__card_search`, and that form is
+what permission rules, `allowed-tools`, and hook matchers must use — a matcher written against the
+bare server key never fires. Arriving by MCPB it is `Manabase:card_search`, scoped from the
+manifest's `display_name`. Same registered `card_search` either way; the code registers the bare
+name and scoping is the harness's job. Two traps follow: never write the scoped string into a
+skill or anything else that travels between surfaces, and never use it to test whether the tool is
+present — that test reports "absent" on a surface where the tool works.
 
 **`package.json` `version` and the plugin version are independent by design.** Do not sync them.
 `plugin.json` deliberately has no `version` during development (`P-08`). `APP_VERSION` in
@@ -215,7 +220,37 @@ dropped-term behavior, because it makes the model report "no cards match" instea
 recorded 2026-08-04 in `docs/MCP-PRD.md` §4.1.1 and taught in the skill's `reference/operators.md`
 and `reference/recipes.md`.
 
-Track C has not started. No context-cost measurement exists, so `PC-01`'s criterion 2 (Slice 10)
+**Unplanned work, 2026-08-04 — the MCPB / Chat-tab distribution work.** It came from a bug report
+rather than the roadmap, and it changed what "installed" means. Measured live on Claude Desktop: a
+plugin installed from this repo's marketplace onto the **Chat tab delivers `skills/` and does not
+start its MCP server there**; the Desktop **Code tab is Claude Code** and needs no second artifact;
+and an **MCPB bundle** does expose the server to the Chat tab, as `Manabase:card_search` — a prefix
+taken from the manifest's `display_name`, not its `name`. `PLUGIN-PRD.md` now carries `P-14` (two
+distribution targets from one source, amending `P-01`) and `PC-03` (the bundle), criteria 1, 2, 3,
+4 and 6 verified. **`PC-03` is unassigned, no `manifest.json` is committed, and no bundle is
+released** — it was a spike, so do not document an install path for it.
+
+Three things that bind every session follow. **`P-12`'s scoped tool name governs the Claude Code
+surface only.** The scoped form is constructed per surface and is not a property of the server: the
+same registered `card_search` is `mcp__plugin_manabase_mtg__card_search` there and
+`Manabase:card_search` via MCPB. Never write either into a skill body. **A skill that loads is not
+a skill that works** — on the Chat tab the skill loaded while the tool was absent, and the model
+answered from a silent web search of Scryfall's pages, so an installed Manabase made answers *less*
+grounded than no Manabase. PR #24 (`49edd8b`) fixed that with a **no-fallback rule** in the skill.
+**Do not repeat that PR's causal claim:** the stale hardcoded tool string did not cause the
+routing-around — the tool being *absent* did, and with the tool present the model resolves the real
+one regardless. De-hardcoding the name was correct and was not the fix. Whether `PC-01` needs a
+loads-*and*-fires criterion is open and undecided. No `PC-01` criterion changed status; the
+frontmatter is byte-identical, so Slice 9's numbers stand.
+
+**Issue #25 is open and unfixed:** a `card_search` payload exceeds the harness tool-result ceiling
+below one page — 111 cards, 116,626 characters, `legalities` 54.5% of the bytes and `oracle_text`
+25.1%. That is the first payload measurement `OQ-02` has ever had and it confirms the
+untrimmed-`legalities` inference, but `OQ-02` stays **open**: nothing has been trimmed and no
+verbose mode exists.
+
+Track C has not started, and `PC-03` does not change that — it serves a surface, not a capability,
+and Phase 1 is still `PC-01` plus `PC-02`. No context-cost measurement exists, so `PC-01`'s criterion 2 (Slice 10)
 and `PC-02`'s criteria 5, 8 and 10 are still unverified.
 
 Slice 12 is next on the critical path but is **not** unblocked: it waits on Slice 10 as well as on

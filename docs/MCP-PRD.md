@@ -742,6 +742,12 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   - Returns per card: name, mana cost, converted mana cost, type line, oracle text, colors
     and color identity, power/toughness/loyalty where applicable, rarity, set, format
     legalities, and price.
+  - **`legalities` is trimmed to the format the query names** (amended 2026-08-04, resolving
+    [OQ-02](#oq-02--how-verbose-should-a-search-result-be)). When `q` carries `f:`, `banned:`, or
+    `restricted:`, only that format's legality is returned; when it names no format, a small
+    default set is. The full map is available behind an opt-in. Untrimmed passthrough measured
+    **54.5%** of a real response's bytes — a majority of the payload spent on formats the user
+    did not ask about, and enough to exceed a harness tool-result ceiling at well under one page.
   - **Price correctness is part of this capability, not deferred.** Results constrain to
     paper printings for price purposes, and surface `usd_foil` / `usd_etched` when `usd` is
     null rather than reporting no price ([§4.1.3](#413-price-fields--three-verified-traps)). A card with genuinely no paper price says
@@ -787,6 +793,12 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   11. Two searches issued back to back do not exceed 2 requests/second.
   12. An HTTP 429 results in a backoff, not an immediate retry, and surfaces a clear
       structured failure if it persists.
+  13. **A query naming a format returns that format's legality and no other.** Added 2026-08-04
+      with [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s answer. `f:commander` returns
+      commander legality alone; a query naming no format returns the default set; the opt-in
+      returns the full map. Checked against a real multi-card response, since the failure this
+      addresses only appears at scale — a single card's untrimmed `legalities` is unremarkable
+      and 111 cards' is the majority of the payload.
 - **Open questions:** [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (how to surface syntax), [OQ-02](#oq-02--how-verbose-should-a-search-result-be) (result verbosity vs. context
   budget), [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) (EUR fallback when no USD price exists — opened by the acceptance pass).
 - **Delivery note (2026-08-03).** All twelve acceptance criteria are verified: 2–9 live against
@@ -892,6 +904,39 @@ passed through **untrimmed** — every format, on every card, on every page. Tha
 deferral rather than a decision, and it is the single largest contributor to payload size. There
 is no verbose mode, and no payload has been measured against a context budget. A full page is 175
 cards, so this is the field most likely to be trimmed when the question is actually answered.
+
+**Status 2026-08-04: a first payload measurement exists, and it confirms the inference above.**
+One [CAP-01](#cap-01--card-search) response of **111 cards measured 116,626 characters**, of which
+`legalities` accounted for **54.5%** of the bytes and `oracle_text` for **25.1%**. The untrimmed
+`legalities` passthrough is therefore not merely "the single largest contributor" — it is the
+majority of the payload, and the two fields together are four fifths of it. Measured incidentally
+during the MCPB / Chat-tab distribution work ([§9](#9-revision-log)), which hit a harness
+tool-result ceiling at well under one page. **This does not resolve the question**: no field set
+has been trimmed, no verbose mode exists, and a full 175-card page has still never been measured.
+
+**Answered 2026-08-04, on the strength of that measurement: `legalities` is trimmed to the
+format the query names.** When `q` names a format — `f:`, `banned:`, or `restricted:` — the
+result carries that format's legality and no other. When it names none, the result carries a
+small default set rather than all of them. The full map moves behind an opt-in, which is the
+verbose half this question always asked for. [CAP-01](#cap-01--card-search)'s field list changes
+accordingly and gains an acceptance criterion.
+
+**Why this and not the alternatives.** A parameter the model must remember to set does not help
+the call that fails, because nothing in a well-formed query predicts that its result will be too
+large — the failing call asked for 111 legendary creatures, which is a *reasonable* answer set
+whose payload was heavy for reasons the model could not see. A server-side cap on result size
+was rejected for a different reason: it discards cards the user asked for in order to fit a
+budget, which is a worse answer rather than a smaller one. Trimming `legalities` is the only
+option that removes bytes nobody asked for — a commander query carrying Pioneer, Alchemy and
+Predh legality for 111 cards is answering a question that was never posed. It also happens to be
+the largest single lever available, at **54.5%** of the measured payload.
+
+**What this deliberately does not settle.** `oracle_text` at 25.1% is untouched and stays that
+way: it is the field the model reasons from, and [§3.6](#36-error-surface)'s prohibition on
+claiming more than is known applies to card text as much as to errors. A full 175-card page is
+still unmeasured, so whether the trim alone brings a full page under a realistic budget is not
+known — this answers the *field set* half of the resolution and the *verbose mode* half, not the
+measurement half.
 
 ### OQ-03 — What is the bulk-data storage strategy, and when is it introduced?
 
@@ -1029,6 +1074,8 @@ last ([D-09](#d-09--archidekt-writes-land-last)); other platforms are not queued
 | 2026-08-04 | Linkified this row's bare [CAP-01](#cap-01--card-search), slice, and document references, and backfilled [`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)'s bare `Slice N` prose mentions and results-document paths into markdown links down into [`docs/slices/`](./slices/). No row was added, removed, or reworded beyond adding link syntax. | The navigable-reference convention was real but unwritten, so it drifted; it is now a binding rule in `CLAUDE.md`, and this row was the one place in either PRD where it had already lapsed. **Presentation only — no decision was reopened, no rationale was reworded, and no ID changed.** |
 | 2026-08-04 | **[OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) answered empirically.** [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral criteria measured with and without the `scryfall-query-craft` skill in fresh sessions — 17 cases per configuration plus 20 trigger queries, one run each, sequential. The compact `card_search` description plus the skill **is** sufficient for Claude to emit valid regex, `otag:` and `art:` queries from plain-English requests — and so is the description alone on every family but one: with/without was 3/3 vs 3/3 on regex, 3/3 vs 3/3 on artwork, 3/3 vs 3/3 on combined legality+type+cost+price, 3/3 vs 3/3 on card-fact-via-tool-call, and **3/3 vs 2/3 on `otag:`/`function:`** — the single delta. **No change to [`src/tools/register.ts`](../src/tools/register.ts)**, and therefore no rebuilt `dist/`. Results: [`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md). | Track B [Slice 9](./slices/TrackB-Slice9.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)) — the measurement [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)'s "resolves by" clause called for. The 2026-08-03 half-committed status is superseded by a dated result rather than overwritten. The answer is narrower than the question assumed: it vindicates the compact description by showing the description is doing most of the work on these families, which is an argument for shortening [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s body rather than for growing a schema that is paid for in every session forever ([PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)). |
 | 2026-08-04 | **[§4.1.1](#411-search-endpoint) gains a dated addendum pinning regex anchor semantics.** Scryfall evaluates `o:/…/` in multi-line mode: `^` and `$` bind to a line of `oracle_text`, not to the card. Measured live — `o:/^whenever you cast/` 849 cards versus 361 once newline-preceded matches are excluded, so 488 matched on a non-initial line. The stricter escapes are unavailable and **fail in two different ways**: `\z` and `(?-m:^…)` return HTTP 400, while **`\A` returns a well-formed HTTP 200 with `total_cards: 0`** — a silent wrong answer of the same class as the dropped-term behavior recorded in the addendum above. Surfaced by [Slice 9](./slices/TrackB-Slice9.md) ([`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md)) and re-verified with four confirmatory calls before recording. The regex counts in the existing rows stand — they were always line-anchored counts. | The document's regex rows recorded that regex *works* and never what its anchors *mean*, so "starts with" read as whole-text when it is per-line, and every session that wanted a true text-box anchor rediscovered this at the cost of a wasted call. Appended as a dated addendum rather than an edit, per [§4](#4-external-dependencies)'s every-claim-is-dated property. The `\A` asymmetry is the reason this needed recording at all: a 400 teaches the model to retry, a zero-match 200 teaches it to report "no cards match" and stop. |
+| 2026-08-04 | **[OQ-02](#oq-02--how-verbose-should-a-search-result-be) gains a dated status note carrying its first payload measurement — and stays open.** One [CAP-01](#cap-01--card-search) response of 111 cards measured 116,626 characters, `legalities` 54.5% of the bytes and `oracle_text` 25.1%, which confirms the 2026-08-03 note's inference that untrimmed `legalities` is the largest contributor and sharpens it to *the majority*. No field set was trimmed, no verbose mode was added, and no 175-card page was measured, so nothing here answers the question's "resolves by" clause. Nothing else in this document changed: [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) is now cited from [`docs/PLUGIN-PRD.md` §8](./PLUGIN-PRD.md#8-out-of-scope) as the reason a hosted remote MCP server is rejected, and that citation needs no edit here — the constraint it relies on is already stated. | The MCPB / Chat-tab distribution work, 2026-08-04 ([`docs/PLUGIN-PRD.md` P-14](./PLUGIN-PRD.md#p-14--two-distribution-targets-one-source), [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab)) — an unplanned session outside [`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)'s slice sequence. The measurement is recorded because it arrived as a **user-visible failure** rather than as an experiment: `card_search` payloads exceeded the harness's tool-result ceiling below one page (issue #25, open and unfixed). That makes verbosity a delivery constraint and not only a context-budget preference, which is a fact this question was framed without. It is filed as a status note rather than an answer because a measurement is evidence, and [OQ-02](#oq-02--how-verbose-should-a-search-result-be) asks for a decision. |
+| 2026-08-04 | **[OQ-02](#oq-02--how-verbose-should-a-search-result-be) answered: `legalities` is trimmed to the format the query names, with the full map behind an opt-in.** [CAP-01](#cap-01--card-search)'s field list is amended and it gains acceptance criterion 13 — a query naming a format returns that format's legality and no other; a query naming none returns a small default set. Taken on the strength of the same-day measurement in the row above: `legalities` was **54.5%** of a 116,626-character response covering 111 cards. Two alternatives are recorded as rejected. A `fields`/`verbose` parameter the model sets per call does not help the call that fails, because nothing in a well-formed query predicts an oversized result — the failing call asked for 111 legendary creatures, a reasonable answer set whose payload was heavy for reasons invisible at query time. A server-side result cap was rejected because it discards cards the user asked for, producing a worse answer rather than a smaller one. `oracle_text` at 25.1% is deliberately untouched. Unresolved and stated as such in [OQ-02](#oq-02--how-verbose-should-a-search-result-be): a full 175-card page has still never been measured, so whether the trim brings one under a realistic budget is unknown. | This is the only lever that removes bytes **nobody asked for**. A commander query returning Pioneer, Alchemy and Predh legality for every card is answering a question that was never posed, whereas trimming `oracle_text` would remove what the model reasons from. The decision was possible now and not before because [OQ-02](#oq-02--how-verbose-should-a-search-result-be) required a measurement against a real budget, and it finally arrived as a user-visible failure rather than as an estimate — the payload exceeded a harness tool-result ceiling at well under one page, and the recovery available in Claude Code was a shell and `jq`, which the Claude Desktop Chat tab does not have. Verbosity had been framed as crowding out a conversation; on a surface with no shell it makes a well-formed query simply unanswerable. Issue #25 stays open until the trim ships. |
 
 ---
 

@@ -71,6 +71,33 @@ is answered — the compact-description split holds and
 [`src/tools/register.ts`](../src/tools/register.ts) is unchanged
 ([`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md)).
 
+**Unplanned work landed 2026-08-04 that this document did not schedule: the MCPB / Chat-tab
+distribution work.** It arose from a bug report, not from the slice sequence, and it is recorded
+here as a status note rather than given a slice number — **no slice number is assigned by this
+entry**, and see the proposal at the end of [§5](#5-order-and-parallelism). Two things came out of
+it. First, PR #24 (`49edd8b`) changed
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s three skill files: a **no-fallback rule**,
+the hardcoded scoped tool name replaced by a role-based reference, and `${CLAUDE_SKILL_DIR}/`
+dropped from the reference paths. Frontmatter is byte-identical, so
+[Slice 9](./slices/TrackB-Slice9.md)'s measurements stand and **no
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion changed status.** Second,
+[`PLUGIN-PRD.md`](./PLUGIN-PRD.md) adopted a second distribution target
+([P-14](./PLUGIN-PRD.md#p-14--two-distribution-targets-one-source)) and specified
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab), an MCPB bundle for the Claude Desktop
+Chat tab, with criteria 1, 2, 3, 4 and 6 verified live. The sequencing facts that follow from it:
+**[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is unassigned and blocked on
+nothing**, but [`PLUGIN-PRD.md` §6](./PLUGIN-PRD.md#6-roadmap) recommends that
+[PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) and
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) be settled before it is, and
+it is **not** a Phase 1 dependency — Phase 1 is still
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) and
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server), so nothing in
+[§4](#4-phase-1-slices) moves. One correction to carry: PR #24's commit message says the stale
+scoped tool string is what let the model conclude "tool limitations" and route around it. **The
+spike disproved that** — the root cause was the tool being *absent*, and with the tool present the
+model resolves the real one regardless of the stale string. De-hardcoding the name is right and
+was not causal; the no-fallback rule is the fix, and it is what criterion 6 verifies.
+
 What remains: no
 context-cost measurement has been taken, so
 [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2 ([Slice 10](./slices/TrackC-Slice10.md)) is still
@@ -90,6 +117,8 @@ unverified, as are
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
+| MCPB bundle | **Spiked and verified live, not in the repo.** `mcpb validate` passed and `mcpb pack` produced a 111 KB bundle whose entry point answers `initialize` and lists `card_search`; installed into Claude Desktop it reaches the Chat tab as `Manabase:card_search` (2026-08-04). **No `manifest.json` is committed and no bundle is released** — [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `specified`, Phase unassigned, and its `version` is an undecided `0.0.0` placeholder ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)) |
+| Known open defect | Issue #25 (open, unfixed): a `card_search` payload exceeds the harness tool-result ceiling below one page. First measurement — 111 cards, 116,626 characters, `legalities` 54.5% of bytes — recorded against [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be), which stays **open** |
 
 Two properties of the existing scaffold worth preserving on purpose:
 
@@ -497,10 +526,18 @@ gates are open.
     sets. It is read-only, so CRLF is not at risk. It must **implement** GitHub's slug rules
     (em dash → doubled hyphen, backticks stripped, duplicate-heading `-1` suffixes), not
     approximate them; an approximation reports false failures on the anchors already in use.
+  - **Cover the pack step, not only the commit** — added 2026-08-04 with [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s widening
+    under [P-14](./PLUGIN-PRD.md#p-14--two-distribution-targets-one-source). [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) copies `dist/index.js` into a `.mcpb` at pack
+    time, and an installed bundle **never re-pulls**, so a rebuild-and-diff on push leaves a
+    released bundle unverified and its user has no signal at all. The check must assert that a
+    packed bundle's `dist/index.js` is byte-identical to the committed one at that commit
+    ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7). This pairs with [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)'s answer — the pack step already has to
+    stamp the manifest `version` from the commit, so it is the same step, not a second one.
 - **Done when:**
   - ☐ A push with stale `dist/` fails the check, demonstrated once deliberately.
+  - ☐ A packed `.mcpb` whose `dist/` does not match its commit fails the check.
   - ☐ [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in the PRD.
-- **Binding refs:** [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest).
+- **Binding refs:** [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest), [P-14](./PLUGIN-PRD.md#p-14--two-distribution-targets-one-source), [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08), [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab).
 
 #### Slice 12 — Docs polish & friend dry-run
 
@@ -580,6 +617,28 @@ fact for both of the slices that measure the skill.** [Slice 9](./slices/TrackB-
 confirmed the skill loads before recording any number — invoked by name in 11 fresh subagents —
 and [Slice 10](./slices/TrackC-Slice10.md) must still do the same, because it cannot measure the
 always-on cost of a skill that is not in the listing.
+
+**The unblocked set is unchanged by the MCPB / Chat-tab work: still [10](./slices/TrackC-Slice10.md)
+and [11](./slices/TrackC-Slice11.md), and [12](./slices/TrackC-Slice12.md) still gates on
+[10](./slices/TrackC-Slice10.md).** [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) sits
+outside the graph above because it is unassigned and not a Phase 1 dependency
+([`PLUGIN-PRD.md` §6](./PLUGIN-PRD.md#6-roadmap)), and adding an unassigned component to a Phase 1
+dependency graph would misstate what blocks the release. Two sequencing consequences are real
+anyway, and both attach to work already in the graph:
+
+- **[Slice 11](./slices/TrackC-Slice11.md)'s scope grew without its status changing.**
+  [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) was widened 2026-08-04: an
+  installed `.mcpb` never re-pulls, so a CI check that only rebuilds-and-diffs `dist/` on push
+  leaves a released bundle unverified. Whoever runs [Slice 11](./slices/TrackC-Slice11.md) should
+  read the widened question, not only this document's slice entry, which was written before the
+  second artifact existed.
+- **A slice for [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is *proposed here, not
+  assigned*.** Its remaining criteria — 5, 7 and 8 — are release-shaped, and
+  [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) is a versioning
+  decision that overlaps [Slice 13](./slices/TrackC-Slice13.md)'s
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover. The natural shapes are a Track C slice
+  after [11](./slices/TrackC-Slice11.md), or an unscheduled pack in [§6](#6-beyond-phase-1--queued-slice-packs).
+  Choosing between them, and assigning a number, is the owning session's call with the author.
 
 ## 6. Beyond Phase 1 — queued slice packs
 
