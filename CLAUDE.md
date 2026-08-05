@@ -207,8 +207,13 @@ contaminated** — the first attempt's opening tool call was `Skill{manabase:scr
 auto-invoked though never mentioned. A clean baseline needs a subagent type with no `Skill` tool,
 and the agent registry resolves at session start, so that file must exist *before* the measuring
 session. This run used an explicit prohibition instead and records it as a confound. And
-**Scryfall's regex anchors `^` and `$` are per-line of oracle text, not per text box**; `\A`, `\z`
-and `(?-m:…)` are unsupported. That is a `reference/operators.md` gap owned by Slice 8, unfixed.
+**Scryfall's regex anchors `^` and `$` bind to a line of oracle text, not to the card** — measured
+849 vs 361 on the same pattern once newline-preceded matches were excluded. The stricter escapes
+are unavailable and **fail two different ways**: `\z` and `(?-m:…)` return HTTP 400, while **`\A`
+returns a normal 200 with zero matches** — a silent wrong answer of the same class as the
+dropped-term behavior, because it makes the model report "no cards match" instead of retrying. Both
+recorded 2026-08-04 in `docs/MCP-PRD.md` §4.1.1 and taught in the skill's `reference/operators.md`
+and `reference/recipes.md`.
 
 Track C has not started. No context-cost measurement exists, so `PC-01`'s criterion 2 (Slice 10)
 and `PC-02`'s criteria 5, 8 and 10 are still unverified.

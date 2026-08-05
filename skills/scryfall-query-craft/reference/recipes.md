@@ -33,6 +33,18 @@ o:/(sacrifice|exile) a creature/
 Use regex when the request contains an anchor ("starts with", "ends with"), an alternation
 ("either … or"), or ordering between two phrases. Use plain `o:"…"` for a literal phrase.
 
+**`^` and `$` anchor to a line, not to the card** — oracle text is one line per ability, so the
+first two rows above mean "some line starts/ends with this". When the user genuinely means the
+whole text box, subtract the newline-preceded form:
+
+| Request | `q` |
+|---|---|
+| "the ability has to *lead* the card, not sit halfway down" | `o:/^whenever you cast/ -o:/\nwhenever you cast/` |
+
+It is an approximation — it also drops a card that leads with the phrase and repeats it later.
+`\A`, `\z` and `(?-m:…)` are not available; see `operators.md`, and note that `\A` fails *silently*
+by returning zero matches.
+
 ## What a card *does*, not what it says
 
 | Request | `q` |

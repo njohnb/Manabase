@@ -341,6 +341,17 @@ gitignore change was made.
 - **Scryfall regex anchors are per-line, not per-text-box**, and `\A` / `\z` / `(?-m:…)` are
   unsupported. Both configurations discovered this live, at the cost of a call each. It belongs in
   `reference/operators.md` — a [Slice 8](./TrackB-Slice8.md)-owned edit, not made here.
+
+  **Follow-up, same day: addressed.** Re-verified with four confirmatory calls before recording —
+  `o:/^whenever you cast/` 849 versus 361 with newline-preceded matches excluded, and the three
+  escapes retested. The asymmetry the eval run only glimpsed is the important part: `\z` and
+  `(?-m:…)` return HTTP 400, but **`\A` returns HTTP 200 with `total_cards: 0`**, which is
+  indistinguishable from a genuine no-match and so produces a silent wrong answer rather than a
+  correctable error. Recorded as a dated addendum in [`docs/MCP-PRD.md`](../MCP-PRD.md)
+  [§4.1.1](../MCP-PRD.md#411-search-endpoint) with a [§9](../MCP-PRD.md#9-revision-log) row, and
+  taught in the skill's `reference/operators.md` and `reference/recipes.md`. `SKILL.md` itself was
+  deliberately left untouched — the correction is reachable through the two pointers the body
+  already carries, and editing the body would change the artifact this document measured.
 - **The baseline's auto-invocation** ([Attempt 1](#the-baseline-mechanism-and-the-attempt-that-failed))
   means any future eval that needs a clean baseline must define its no-`Skill` subagent **before**
   the measuring session starts.
