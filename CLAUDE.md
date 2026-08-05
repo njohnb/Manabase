@@ -43,6 +43,7 @@ npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtim
 npm run typecheck   # tsc --noEmit
 npm test            # node --experimental-strip-types --test  (73 tests, 21 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
+npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
 `claude plugin validate . --strict` before any push a friend might install from.
@@ -226,9 +227,32 @@ plugin installed from this repo's marketplace onto the **Chat tab delivers `skil
 start its MCP server there**; the Desktop **Code tab is Claude Code** and needs no second artifact;
 and an **MCPB bundle** does expose the server to the Chat tab, as `Manabase:card_search` — a prefix
 taken from the manifest's `display_name`, not its `name`. `PLUGIN-PRD.md` now carries `P-14` (two
-distribution targets from one source, amending `P-01`) and `PC-03` (the bundle), criteria 1, 2, 3,
-4 and 6 verified. **`PC-03` is unassigned, no `manifest.json` is committed, and no bundle is
-released** — it was a spike, so do not document an install path for it.
+distribution targets from one source, amending `P-01`) and `PC-03` (the bundle).
+
+**The build path landed the same day and `PC-03` is now assigned to Slice 11**, status `in
+progress`, criteria 1–6, 9 and 11 verified. Committed: `mcpb/manifest.json`,
+`scripts/pack-mcpb.mjs` (`npm run pack:mcpb`), and `.github/workflows/release.yml` — the repo's
+first `.github/` — which on a `v*` tag typechecks, tests, rebuilds `dist/` and fails on a diff,
+packs, and attaches `manabase.mcpb` to a Release. **No version is tagged, so that workflow has
+never run and there is nothing to download**; the README's Chat-tab path is still
+build-it-yourself. Do not describe a release that does not exist.
+
+Four things about that surface bind every session. **The MCPB manifest format has no `skills`
+field** — verified against the published spec — so the Chat tab needs *two* installs permanently,
+the plugin for the skill and the bundle for the server, and one-click is not a packaging problem
+this project can solve. **Double-clicking a `.mcpb` is not a reliable install route**; Settings →
+Extensions → Advanced settings → Install Extension is what works, so never write double-click as
+the instruction even though Anthropic's docs list it first. **An installed extension has no update
+path** — Desktop neither reports nor fetches a newer bundle — which is why the pack step stamps an
+untagged build `0.0.0-dev+<commit>` rather than leaving `0.0.0`. And **Claude Desktop ships its own
+Node**, so the bundle has no runtime prerequisite at all where the plugin needs Node on `PATH`;
+that asymmetry is easy to state backwards.
+
+`PQ-09` is answered *and* implemented, and **a tag versions the bundle, not the plugin** — `P-08`
+is untouched and Slice 13 still owns the plugin version. `PQ-06` is only **half-answered and stays
+open**: both halves have a mechanism now, but the CI gate has never run, it cannot be exercised on
+this machine (`core.autocrlf=true` makes `dist/index.js` report modified with an empty diff after
+every build), and neither mechanism watches an ordinary commit.
 
 Three things that bind every session follow. **`P-12`'s scoped tool name governs the Claude Code
 surface only.** The scoped form is constructed per surface and is not a property of the server: the
@@ -250,7 +274,8 @@ untrimmed-`legalities` inference, but `OQ-02` stays **open**: nothing has been t
 verbose mode exists.
 
 Track C has not started, and `PC-03` does not change that — it serves a surface, not a capability,
-and Phase 1 is still `PC-01` plus `PC-02`. No context-cost measurement exists, so `PC-01`'s criterion 2 (Slice 10)
+and Phase 1 is still `PC-01` plus `PC-02`. Assigning it to Slice 11 gives it a schedule slot, not
+a place in the Phase 1 dependency graph. No context-cost measurement exists, so `PC-01`'s criterion 2 (Slice 10)
 and `PC-02`'s criteria 5, 8 and 10 are still unverified.
 
 Slice 12 is next on the critical path but is **not** unblocked: it waits on Slice 10 as well as on

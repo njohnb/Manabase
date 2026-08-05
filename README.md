@@ -55,30 +55,38 @@ unavailable. Serving that surface properly needs a second artifact, an MCPB bund
 
 ### Chat tab — experimental
 
-**There is no release to download.** The bundle has been built and verified but not shipped, so
-you build it yourself from a checkout. Treat this as experimental: it is unversioned, it will not
-update itself, and nothing tells you when it is stale.
+**The Chat tab needs two installs, and neither one alone is the product.** The MCPB manifest
+format has no way to carry a skill, so the bundle ships the server and the plugin ships the skill.
+Install the plugin with the two commands under [Install](#install) — that gets you the skill — then
+add the bundle below for the tools.
+
+**There is no release to download yet.** The build pipeline exists
+([`.github/workflows/release.yml`](./.github/workflows/release.yml)) but no version has been tagged,
+so for now you build the bundle from a checkout:
 
 ```
 git clone https://github.com/njohnb/Manabase && cd Manabase
-npm install && npm run build
-npm install -g @anthropic-ai/mcpb
-mkdir -p build/server && cp dist/index.js build/server/index.js
+npm ci && npm run build
+npm run pack:mcpb
 ```
 
-Write `build/manifest.json` naming `server/index.js` as the entry point, then `cd build && mcpb
-pack . manabase.mcpb`. Install by double-clicking the `.mcpb`, dragging it onto the Claude Desktop
-window, or **Settings → Extensions → Advanced settings → Install Extension…**, then **restart
-Claude Desktop**. Install the plugin as well — the bundle carries the server, not the skill.
+That writes `build/manabase.mcpb`. It refuses to pack a `dist/` older than `src/`, and with no tag
+it stamps the version `0.0.0-dev+<commit>` so an ad-hoc bundle cannot be mistaken for a release.
+
+Install it through **Settings → Extensions → Advanced settings → Install Extension…**, then
+**restart Claude Desktop**. Anthropic's documentation also lists double-clicking the `.mcpb` and
+dragging it onto the window; **double-click is not reliable** and the Settings route is the one
+verified to work here (2026-08-04).
 
 Verify by asking Claude in the Chat tab to list its available tools; you want `Manabase:card_search`.
 That name differs from the Claude Code form and is not portable
 ([P-12](./docs/PLUGIN-PRD.md#p-12--plugin-name-and-server-key)).
 
-Known rough edges, all tracked: the manifest version is a placeholder until the pack step stamps it
-from the commit ([PQ-09](./docs/PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)),
-an installed bundle never re-pulls so a stale build is invisible
-([PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)), and the Chat tab has no
+Known rough edges, all tracked. **An installed extension has no update path** — Claude Desktop will
+not tell you a newer bundle exists and will not fetch one, so every upgrade means packing or
+downloading again and reinstalling through the same Settings route. An installed bundle never
+re-pulls, so a stale build is invisible
+([PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)). And the Chat tab has no
 shell, so an oversized result cannot be recovered there the way it can in Claude Code (see the
 limitation above).
 
@@ -86,10 +94,12 @@ limitation above).
 
 - **Claude Code 2.1.207 or later.** This is a hard floor, not a recommendation — see
   [`docs/PLUGIN-PRD.md` P-10](./docs/PLUGIN-PRD.md#p-10--minimum-supported-claude-code-version).
-- **Node on `PATH`.** That is the only runtime prerequisite. No build toolchain, no
-  `npm install`, no Python, no shell. This applies to the plugin — the only installable target
-  today. It is the first thing to check if the tools do not appear
-  ([`docs/PLUGIN-PRD.md` §3.4](./docs/PLUGIN-PRD.md#34-cross-platform-reach)).
+- **Node on `PATH`.** That is the only runtime prerequisite, and it applies to the **plugin**:
+  no build toolchain, no `npm install`, no Python, no shell. It is the first thing to check if the
+  tools do not appear ([`docs/PLUGIN-PRD.md` §3.4](./docs/PLUGIN-PRD.md#34-cross-platform-reach)).
+- **The MCPB bundle needs nothing.** Claude Desktop ships its own Node on macOS and Windows, so a
+  Chat-tab install has no runtime prerequisite at all. Building the bundle yourself does need
+  Node, but only until there is a release to download.
 
 ## Install
 
@@ -113,13 +123,17 @@ Two commands. No config file to edit, no credential prompt, no restart.
   marketplace.json     this repo is its own marketplace (P-11)
 .claude/
   agents/doc-sync.md   dev-only doc reconciler — NOT a plugin component
+.github/
+  workflows/release.yml  builds and publishes the MCPB bundle on a `v*` tag
 .mcp.json              bundled stdio MCP server, key `mtg` (P-09, P-12)
+mcpb/
+  manifest.json        MCPB manifest — the Chat tab's artifact (PC-03, P-14)
 skills/
   scryfall-query-craft/  PC-01 — SKILL.md plus reference/ files read on demand
 src/                   MCP server source (TypeScript)
 dist/                  committed build output — NOT gitignored (P-09)
 tests/                 handlers called as plain functions, no server (MCP-PRD D-03)
-scripts/               cap01-live.mjs — the live CAP-01 acceptance harness
+scripts/               cap01-live.mjs (live CAP-01 harness), pack-mcpb.mjs (bundle packer)
 evals/                 PC-01 behavioral and trigger eval cases (Slice 9)
 docs/
   MCP-PRD.md           what the server does — tools, data sources, capabilities
@@ -151,6 +165,7 @@ npm run build       # esbuild bundle -> dist/index.js, self-contained
 npm run typecheck   # tsc --noEmit
 npm test            # node --test, with TypeScript stripped at runtime
 npm run acceptance  # 13 live checks against real Scryfall — slow on purpose
+npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
 The tests run `.ts` files directly, so **development needs Node 22.6 or newer** — that is where
@@ -186,8 +201,8 @@ implemented and settled, so the first capability that needs persistence inherits
   contributors.
 - **Claude says the Magic tool is unavailable.** That is the skill working as designed, not a
   bug — it will not fill the gap with a web search. Check which surface you are on: on the Claude
-  Desktop **Chat tab** the plugin delivers the skill but no server, which is the "Not yet" row
-  above.
+  Desktop **Chat tab** the plugin delivers the skill but no server, which is the **Experimental**
+  row above — you need the bundle as well.
 - **A search errors out on size.** The result exceeded the harness's tool-result ceiling — add
   constraints to the query rather than paging (issue #25).
 - **Scryfall is down.** That is a total outage for card search; there is no second source for

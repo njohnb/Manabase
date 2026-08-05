@@ -85,11 +85,13 @@ dropped from the reference paths. Frontmatter is byte-identical, so
 ([P-14](./PLUGIN-PRD.md#p-14--two-distribution-targets-one-source)) and specified
 [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab), an MCPB bundle for the Claude Desktop
 Chat tab, with criteria 1, 2, 3, 4 and 6 verified live. The sequencing facts that follow from it:
-**[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is unassigned and blocked on
-nothing**, but [`PLUGIN-PRD.md` §6](./PLUGIN-PRD.md#6-roadmap) recommends that
-[PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) and
-[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) be settled before it is, and
-it is **not** a Phase 1 dependency — Phase 1 is still
+**[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) was assigned to
+[Slice 11](./slices/TrackC-Slice11.md) later the same day**, once
+[PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) was answered and
+implemented and [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) had a
+mechanism for both of its halves — the two things
+[`PLUGIN-PRD.md` §6](./PLUGIN-PRD.md#6-roadmap) said had to be settled first. It is still **not**
+a Phase 1 dependency — Phase 1 is still
 [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) and
 [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server), so nothing in
 [§4](#4-phase-1-slices) moves. One correction to carry: PR #24's commit message says the stale
@@ -117,7 +119,7 @@ unverified, as are
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
-| MCPB bundle | **Spiked and verified live, not in the repo.** `mcpb validate` passed and `mcpb pack` produced a 111 KB bundle whose entry point answers `initialize` and lists `card_search`; installed into Claude Desktop it reaches the Chat tab as `Manabase:card_search` (2026-08-04). **No `manifest.json` is committed and no bundle is released** — [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `specified`, Phase unassigned, and its `version` is an undecided `0.0.0` placeholder ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)) |
+| MCPB bundle | **Build path committed, no bundle released.** `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented) and refuses a `dist/` older than `src/`. **No version is tagged, so the release workflow has never run and there is nothing to download**; the Chat-tab install still means building it yourself. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `in progress`, assigned to [Slice 11](./slices/TrackC-Slice11.md), criteria 1–6 and 9 and 11 verified |
 | Known open defect | Issue #25 (open, unfixed): a `card_search` payload exceeds the harness tool-result ceiling below one page. First measurement — 111 cards, 116,626 characters, `legalities` 54.5% of bytes — recorded against [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be), which stays **open** |
 
 Two properties of the existing scaffold worth preserving on purpose:
@@ -533,10 +535,31 @@ gates are open.
     packed bundle's `dist/index.js` is byte-identical to the committed one at that commit
     ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7). This pairs with [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)'s answer — the pack step already has to
     stamp the manifest `version` from the commit, so it is the same step, not a second one.
+  - **Partly landed 2026-08-04, ahead of the slice.** `scripts/pack-mcpb.mjs` and
+    `.github/workflows/release.yml` are committed: the pack step stamps the version and refuses
+    a `dist/` older than `src/`, and the release job rebuilds `dist/` and fails on a diff. This
+    does **not** close [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) and
+    the slice is not started. Three gaps remain and they are this slice's actual work: the CI
+    gate has **never run**, because no tag has been pushed and it cannot be exercised on a
+    machine where `core.autocrlf=true` makes `dist/index.js` report modified with an empty diff;
+    both mechanisms fire only at release, so an ordinary commit is still unchecked and there is
+    no pull-request workflow at all; and nothing yet asserts
+    [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7, that a packed
+    bundle's `dist/index.js` is byte-identical to the committed one.
+  - **Cut the first release as part of this slice.**
+    [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) was assigned here 2026-08-04
+    for one reason: the slice that owns `dist/` honesty is the slice that should produce the
+    first artifact a user installs and cannot update. The tag names the **bundle**, not the
+    plugin — [P-08](./PLUGIN-PRD.md#p-08--version-scheme) stays untouched and
+    [Slice 13](./slices/TrackC-Slice13.md) keeps the plugin-version switchover.
 - **Done when:**
   - ☐ A push with stale `dist/` fails the check, demonstrated once deliberately.
   - ☐ A packed `.mcpb` whose `dist/` does not match its commit fails the check.
   - ☐ [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in the PRD.
+  - ☐ An ordinary commit — not only a tag — is covered by the check.
+  - ☐ A `v*` tag produces a Release with `manabase.mcpb` attached
+    ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 10).
+  - ☐ `README.md`'s Chat-tab instructions point at that download instead of a local build.
 - **Binding refs:** [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest), [P-14](./PLUGIN-PRD.md#p-14--two-distribution-targets-one-source), [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08), [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab).
 
 #### Slice 12 — Docs polish & friend dry-run
@@ -621,10 +644,11 @@ always-on cost of a skill that is not in the listing.
 **The unblocked set is unchanged by the MCPB / Chat-tab work: still [10](./slices/TrackC-Slice10.md)
 and [11](./slices/TrackC-Slice11.md), and [12](./slices/TrackC-Slice12.md) still gates on
 [10](./slices/TrackC-Slice10.md).** [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) sits
-outside the graph above because it is unassigned and not a Phase 1 dependency
-([`PLUGIN-PRD.md` §6](./PLUGIN-PRD.md#6-roadmap)), and adding an unassigned component to a Phase 1
-dependency graph would misstate what blocks the release. Two sequencing consequences are real
-anyway, and both attach to work already in the graph:
+outside the graph above because it is not a Phase 1 dependency
+([`PLUGIN-PRD.md` §6](./PLUGIN-PRD.md#6-roadmap)) — assigning it to
+[Slice 11](./slices/TrackC-Slice11.md) gives it a place in the schedule without making it block
+the release, and drawing it into a Phase 1 dependency graph would misstate what does. Two
+sequencing consequences are real anyway, and both attach to work already in the graph:
 
 - **[Slice 11](./slices/TrackC-Slice11.md)'s scope grew without its status changing.**
   [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) was widened 2026-08-04: an
@@ -632,13 +656,19 @@ anyway, and both attach to work already in the graph:
   leaves a released bundle unverified. Whoever runs [Slice 11](./slices/TrackC-Slice11.md) should
   read the widened question, not only this document's slice entry, which was written before the
   second artifact existed.
-- **A slice for [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is *proposed here, not
-  assigned*.** Its remaining criteria — 5, 7 and 8 — are release-shaped, and
-  [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) is a versioning
-  decision that overlaps [Slice 13](./slices/TrackC-Slice13.md)'s
-  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover. The natural shapes are a Track C slice
-  after [11](./slices/TrackC-Slice11.md), or an unscheduled pack in [§6](#6-beyond-phase-1--queued-slice-packs).
-  Choosing between them, and assigning a number, is the owning session's call with the author.
+- **[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) was assigned to
+  [Slice 11](./slices/TrackC-Slice11.md) on 2026-08-04**, resolving the choice this bullet left
+  to the owning session. It is folded into an existing slice rather than given its own, because
+  its remaining criteria are release-shaped and
+  [Slice 11](./slices/TrackC-Slice11.md) is where the release mechanism lives — separating them
+  would mean cutting a release from a `dist/` the slice that checks `dist/` had not yet checked.
+  [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) no longer
+  overlaps [Slice 13](./slices/TrackC-Slice13.md): it is answered and implemented, and the tag it
+  introduces versions the **bundle**, leaving
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme)'s plugin-version switchover entirely to
+  [13](./slices/TrackC-Slice13.md). This does not move
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) into the Phase 1 dependency graph
+  — it still serves a surface rather than a capability, and nothing in Phase 1 blocks on it.
 
 ## 6. Beyond Phase 1 — queued slice packs
 
