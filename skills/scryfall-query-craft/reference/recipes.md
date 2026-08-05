@@ -1,8 +1,8 @@
 # Recipes
 
-English request → the `q` it becomes. All of these are single calls to
-`mcp__plugin_manabase_mtg__card_search`; the whole request goes into `q`, never into a broad query
-plus your own filtering afterwards.
+English request → the `q` it becomes. All of these are single calls to the Manabase card search
+tool; the whole request goes into `q`, never into a broad query plus your own filtering
+afterwards.
 
 ## Legality + type + cost + price, combined
 

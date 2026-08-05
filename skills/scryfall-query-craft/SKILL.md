@@ -6,15 +6,20 @@ when_to_use: "Use whenever someone wants Magic cards matching conditions rather 
 
 # Writing card searches
 
-`mcp__plugin_manabase_mtg__card_search` sends `q` to Scryfall verbatim. Your job is to compress
-the whole request into that one string, then read the result correctly.
+The Manabase card search tool sends `q` to Scryfall verbatim. Your job is to compress the whole
+request into that one string, then read the result correctly.
+
+**Every card fact you state comes from that tool.** Never answer from memory, from a web search,
+or from a Scryfall web page — not which cards exist, not card text, not prices, not legality. If
+that tool is not among the tools available to you, say so plainly and stop; do not substitute
+another source. A silent substitution looks like an answer and is not one.
 
 ## Procedure
 
 1. **Extract the constraints the request actually contains**: color or identity, type, mana
    value, format, price, behavior, text pattern, artwork, set, rarity.
 2. **Map each constraint to exactly one operator.** If you cannot name an operator you have seen
-   work, read `${CLAUDE_SKILL_DIR}/reference/operators.md` before guessing.
+   work, read `reference/operators.md` before guessing.
 3. **Combine them into ONE query.** Terms are implicitly ANDed. Every constraint the user stated
    belongs inside `q` — never search broadly and filter the results yourself. One precise call
    beats three vague ones.
@@ -44,9 +49,9 @@ the whole request into that one string, then read the result correctly.
 
 Comparisons `=`, `!=`, `<`, `<=`, `>`, `>=` work on `cmc`/`mv`, `usd`, `pow`, `tou`, `r`.
 
-**For anything not in this table, read `${CLAUDE_SKILL_DIR}/reference/operators.md` before you
+**For anything not in this table, read `reference/operators.md` before you
 write the query.** For more English→query translations and a table of Scryfall error text mapped
-to the fix it implies, read `${CLAUDE_SKILL_DIR}/reference/recipes.md`.
+to the fix it implies, read `reference/recipes.md`.
 
 ## Worked examples
 

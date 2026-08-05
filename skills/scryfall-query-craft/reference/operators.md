@@ -3,7 +3,7 @@
 Look up, don't read. Every operator below has been observed working against Scryfall. Anything
 absent from this file is not approved for use — see **Not real — never emit**.
 
-All of these go inside the `q` argument of `mcp__plugin_manabase_mtg__card_search`.
+All of these go inside the `q` argument of the Manabase card search tool.
 
 ## Types
 
