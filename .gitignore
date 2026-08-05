@@ -9,6 +9,11 @@ Thumbs.db
 # everything tracked here is copied into every user's plugin cache on install.
 .claude/settings.local.json
 
+# MCPB staging and the packed bundle. build/ is a throwaway staging tree; the .mcpb is a
+# release artifact that GitHub Actions produces and attaches to a Release, never a tracked file.
+build/
+*.mcpb
+
 # dist/ is deliberately NOT ignored.
 #
 # PLUGIN-PRD P-09: the server ships as built JavaScript committed to the repo and is

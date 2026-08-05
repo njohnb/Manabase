@@ -17,9 +17,11 @@
     "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test \"tests/**/*.test.ts\"",
-    "acceptance": "node scripts/cap01-live.mjs"
+    "acceptance": "node scripts/cap01-live.mjs",
+    "pack:mcpb": "node scripts/pack-mcpb.mjs"
   },
   "devDependencies": {
+    "@anthropic-ai/mcpb": "^2.1.2",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/node": "^22.20.1",
     "esbuild": "^0.28.1",

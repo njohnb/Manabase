@@ -1,0 +1,46 @@
+{
+  "manifest_version": "0.3",
+  "name": "manabase-mtg",
+  "display_name": "Manabase",
+  "version": "0.0.0",
+  "description": "Magic: The Gathering card research for Claude — expressive Scryfall search with correct prices and legality. Manabase is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.",
+  "author": {
+    "name": "Nick Barger"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/njohnb/Manabase"
+  },
+  "homepage": "https://github.com/njohnb/Manabase",
+  "documentation": "https://github.com/njohnb/Manabase#readme",
+  "support": "https://github.com/njohnb/Manabase/issues",
+  "license": "MIT",
+  "keywords": [
+    "magic-the-gathering",
+    "mtg",
+    "scryfall",
+    "commander",
+    "deckbuilding"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/index.js"],
+      "env": {}
+    }
+  },
+  "tools": [
+    {
+      "name": "card_search",
+      "description": "Search Magic: The Gathering cards with Scryfall query syntax."
+    }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "win32"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}

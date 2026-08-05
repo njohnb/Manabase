@@ -1,0 +1,59 @@
+name: Release the MCPB bundle
+
+# The Chat tab's install artifact is built here and nowhere else. A friend downloads
+# manabase.mcpb from a Release; nobody hand-packs one. See PLUGIN-PRD PC-03 and P-14.
+#
+# The tag names the *bundle*, not the plugin — plugin.json stays version-less under P-08
+# until Slice 13 settles it.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      # dist/ is committed on purpose (P-09). Rebuilding here and failing on a diff is the
+      # check that a released bundle can never carry a server the repo does not describe.
+      - name: Rebuild and prove dist/ is not stale
+        run: |
+          npm run build
+          git diff --exit-code -- dist/ || {
+            echo "::error::dist/ is stale — rebuild and commit it (P-09, PQ-06)."
+            exit 1
+          }
+
+      - name: Pack the bundle
+        env:
+          MANABASE_BUNDLE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: npm run pack:mcpb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manabase-mcpb
+          path: build/manabase.mcpb
+
+      - name: Attach to the Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" build/manabase.mcpb --generate-notes --title "$GITHUB_REF_NAME"
