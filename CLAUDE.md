@@ -306,3 +306,12 @@ A subagent under a root `agents/` would install into every user's harness (`P-07
 Windows dev machine with `core.autocrlf=true` and no `.gitattributes`: the working tree is CRLF
 while git blobs are LF. Scripted edits to the markdown files must preserve CRLF, or the diff shows
 the whole file as changed.
+
+**Scripting an edit in JavaScript: pass a replacement *function*, never a replacement string.**
+`String.replace`/`replaceAll` interpret `$` sequences in the replacement argument — `` $` `` splices
+in everything *before* the match, `$&` the match itself, `$'` everything after. These documents are
+dense with `$` inside backticks (`usd<=1`, price prose, the §9 rows), so a string replacement can
+duplicate most of the file into itself. It fails silently and does not read as corruption: the
+result is insertions with **zero deletions**, exactly what a clean append looks like. Use
+`t.replace(anchor, () => anchor + addition)`, which disables `$` substitution outright, and check
+`git diff --stat` against the number of lines you meant to add before committing.
