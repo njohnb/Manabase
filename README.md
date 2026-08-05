@@ -20,11 +20,13 @@ the compaction window, and asserts no card facts (2026-08-04,
 [`docs/slices/TrackB-Slice8-results.md`](./docs/slices/TrackB-Slice8-results.md)). Those checks
 all read the file rather than loading it, and a same-day fix (`ed82ceb`) was needed before the
 skill loaded at all: its YAML frontmatter was unparsable, so the harness listed **no** skill for
-the plugin and said nothing about why. What is not yet
-done is measurement: nobody has measured what the plugin costs a session, and the skill has not
-been run through fresh-session evals, so
-[PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral criteria are unverified.
-[`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
+the plugin and said nothing about why. Since then the skill has been run through fresh-session
+evals against a without-skill baseline, and
+[PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral criteria are measured
+(2026-08-04, [`docs/slices/TrackB-Slice9-results.md`](./docs/slices/TrackB-Slice9-results.md)) —
+it loads, it triggers on Magic questions and not on look-alikes, and it keeps the model off
+operators that do not exist. What is not yet done is cost: nobody has measured what the plugin
+costs a session. [`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
 
 ## Requirements
 
@@ -62,6 +64,7 @@ src/                   MCP server source (TypeScript)
 dist/                  committed build output — NOT gitignored (P-09)
 tests/                 handlers called as plain functions, no server (MCP-PRD D-03)
 scripts/               cap01-live.mjs — the live CAP-01 acceptance harness
+evals/                 PC-01 behavioral and trigger eval cases (Slice 9)
 docs/
   MCP-PRD.md           what the server does — tools, data sources, capabilities
   PLUGIN-PRD.md        what the user installs — packaging, install, skills
