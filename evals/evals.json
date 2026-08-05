@@ -1,0 +1,215 @@
+{
+  "skill_name": "scryfall-query-craft",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "im building my first commander deck (mono green, azusa) and im broke. what creatures could i run that cost 2 mana or less and are like a buck or less each? needs to actually be legal in the format",
+      "expected_output": "One card_search call whose q combines a format-legality operator, a creature type operator, a mana-value comparison and a USD price comparison, then an answer read off that call's payload.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a format-legality operator (f: or legal:) naming commander.",
+        "That same q string contains a card-type operator selecting creatures (t:creature or type:creature).",
+        "That same q string contains a mana-value comparison using cmc or mv with <= or < or = (for example cmc<=2).",
+        "That same q string contains a USD price comparison (usd<= or usd< , for example usd<=1).",
+        "All four constraints — format, type, mana value and price — appear together inside a single q string rather than being split across separate calls.",
+        "The transcript shows no step where the model retrieves a broad result set and then filters it itself for legality, type, mana value or price; the filtering is done by q.",
+        "The transcript contains no reply that asks the user to narrow the request instead of running a search."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "putting together a modern budget artifact deck for FNM next week. artifact creatures, mana value 3 or under, under $2 each — ive got maybe $60 total",
+      "expected_output": "One card_search call whose q combines f:modern, an artifact creature type constraint, a mana-value comparison and a USD ceiling.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a format-legality operator (f: or legal:) naming modern.",
+        "That same q string constrains the card type to artifact creatures (for example t:artifact t:creature, or t:\"artifact creature\").",
+        "That same q string contains a mana-value comparison using cmc or mv with <= or < (for example mv<=3).",
+        "That same q string contains a USD price comparison (usd<= or usd<, for example usd<=2).",
+        "All four constraints — format, type, mana value and price — appear together inside a single q string rather than being split across separate calls.",
+        "The transcript shows no step where the model retrieves a broad result set and then filters it itself for legality, type, mana value or price.",
+        "The transcript contains no reply that asks the user to narrow the request instead of running a search."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "my pioneer deck needs cheap interaction. one-mana instants, pioneer legal, under 50 cents apiece. whats out there?",
+      "expected_output": "One card_search call whose q combines f:pioneer, t:instant, a mana-value equality or ceiling of 1, and a USD ceiling of about 0.5.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a format-legality operator (f: or legal:) naming pioneer.",
+        "That same q string contains a card-type operator selecting instants (t:instant or type:instant).",
+        "That same q string contains a mana-value comparison using cmc or mv pinning the cost to one mana (for example mv=1 or cmc<=1).",
+        "That same q string contains a USD price comparison whose value is 0.5 or 0.50 (for example usd<=0.5).",
+        "All four constraints — format, type, mana value and price — appear together inside a single q string rather than being split across separate calls.",
+        "The transcript shows no step where the model retrieves a broad result set and then filters it itself for legality, type, mana value or price.",
+        "The transcript contains no reply that asks the user to narrow the request instead of running a search."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "i want every card where the very first words of the rules text are 'whenever you cast' — the ability has to lead the card, not turn up halfway down the text box",
+      "expected_output": "A card_search call whose q carries a start-anchored regex literal against oracle text, of the o:/.../ or oracle:/.../ form.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a regex literal delimited by forward slashes attached to the oracle-text operator, in the form o:/.../ or oracle:/.../.",
+        "That regex literal contains the start-of-text anchor ^.",
+        "The anchored requirement is expressed by the regex and not by a plain quoted substring search: if the only oracle-text operator used in any call is a quoted substring form such as o:\"whenever you cast\", this expectation fails.",
+        "The transcript shows no step where the model retrieves a broad oracle-text result set and then inspects the card text itself to decide which ones start with the phrase."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "is there a way to find cards whose rules text finishes with 'you gain that much life'? i only want it as the closing clause — i keep getting cards that say it in the middle and thats not what i want",
+      "expected_output": "A card_search call whose q carries an end-anchored regex literal against oracle text.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a regex literal delimited by forward slashes attached to the oracle-text operator, in the form o:/.../ or oracle:/.../.",
+        "That regex literal contains the end-of-text anchor $.",
+        "The end-anchored requirement is expressed by the regex and not by a plain quoted substring search: if the only oracle-text operator used in any call is a quoted substring form, this expectation fails.",
+        "The transcript shows no step where the model retrieves a broad oracle-text result set and then inspects the card text itself to decide which ones end with the phrase."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "looking for cards whose text has a number right before the word 'counters' — the pattern, any number. searching the phrase doesnt work",
+      "expected_output": "A card_search call whose q carries a regex literal with a digit character class immediately preceding the word counters.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a regex literal delimited by forward slashes attached to the oracle-text operator, in the form o:/.../ or oracle:/.../.",
+        "That regex literal contains a digit character class or digit shorthand — [0-9] or \\d — rather than a specific literal number.",
+        "The word counters appears inside that same regex literal, after the digit class.",
+        "The pattern requirement is expressed by the regex and not by a plain quoted substring search: if the only oracle-text operator used in any call is a quoted substring form such as o:\"counters\", this expectation fails."
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "my white weenie list has no answer to an artifact on the other side of the table. what actually deals with an artifact — and i mean cards that do the job, not cards that just happen to say the word artifact somewhere in their text",
+      "expected_output": "A card_search call whose q reaches for a community tag operator (otag: or function:) rather than an oracle-text substring search.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a community tag operator — otag:, oracletag:, or function:.",
+        "The effect the user described is expressed through that tag operator rather than only through an oracle-text search: if no call in the transcript uses otag:, oracletag: or function:, this expectation fails.",
+        "The transcript shows no step where the model retrieves a broad result set and then reads oracle text itself to decide which cards perform the effect."
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "i need more ways to deal with an opposing creature in a mono-black deck. removal of any kind, doesnt have to be destroy",
+      "expected_output": "A card_search call whose q reaches for a community tag operator (otag: or function:) together with a black colour or identity constraint.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a community tag operator — otag:, oracletag:, or function:.",
+        "The effect the user described is expressed through that tag operator rather than only through an oracle-text search: if no call in the transcript uses otag:, oracletag: or function:, this expectation fails.",
+        "The q string also carries a black colour or colour-identity constraint (for example c:b or id:b).",
+        "The transcript shows no step where the model retrieves a broad result set and then reads oracle text itself to decide which cards perform the effect."
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "what cards let me go find a specific card out of my library? i dont care what the text says exactly, i care what they do",
+      "expected_output": "A card_search call whose q reaches for a community tag operator; if the first tag guess returns zero matches, a revised second call also using a tag operator.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains a community tag operator — otag:, oracletag:, or function:.",
+        "The effect the user described is expressed through that tag operator rather than only through an oracle-text search: if no call in the transcript uses otag:, oracletag: or function:, this expectation fails.",
+        "If any call returned total_cards: 0, the model issued a revised follow-up card_search call rather than reporting the empty result as a failure or as an error. If no call returned zero matches, this expectation passes vacuously.",
+        "The transcript shows no step where the model retrieves a broad result set and then reads oracle text itself to decide which cards perform the effect."
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "my playgroup does a themed cube and this year its frogs. i need cards with frogs in the ARTWORK — doesnt matter if the card mentions frogs at all, i just want the picture to have one",
+      "expected_output": "A card_search call whose q uses an artwork operator (art: or atag:) rather than an oracle-text search for the subject.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains an artwork operator — art:, arttag:, or atag:.",
+        "The artwork subject is searched through that artwork operator and not through oracle text: if the subject appears only inside an o: or oracle: term in every call, this expectation fails.",
+        "The transcript shows no step where the model retrieves a broad result set and then decides from card names or oracle text which artwork depicts the subject."
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "building a dragon-art commander deck for the aesthetic. what cards have a dragon painted in the art but arent dragons mechanically?",
+      "expected_output": "A card_search call whose q uses an artwork operator for the subject plus a negated type term for the creature type.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains an artwork operator — art:, arttag:, or atag:.",
+        "That same q string contains a negated type term excluding the dragon creature type (for example -t:dragon).",
+        "The artwork subject is searched through the artwork operator and not through oracle text: if the subject appears only inside an o: or oracle: term in every call, this expectation fails.",
+        "The type exclusion is expressed inside q and not applied by the model to a returned result set."
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "i want cards where the art shows a ruined city. the art, not the type line",
+      "expected_output": "A card_search call whose q uses an artwork operator for the subject.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "The q string of a card_search call contains an artwork operator — art:, arttag:, or atag:.",
+        "The artwork subject is searched through that artwork operator and not through the type line or oracle text: if the subject appears only inside a t:, type:, o: or oracle: term in every call, this expectation fails.",
+        "The transcript shows no step where the model retrieves a broad result set and then decides from card names or type lines which artwork depicts the subject."
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "use the illustrationtag: operator to pull up cards with dragon art — i read about it on a forum",
+      "expected_output": "The first call fails with a structured bad_request error; the model's next action is a revised card_search call, and the user-facing answer is card results.",
+      "expectations": [
+        "The first card_search call's q contains the literal string illustrationtag:.",
+        "The result of that first call is an error result carrying isError: true, error.code \"bad_request\", and a details field containing the text \"All of your terms were ignored\".",
+        "The model's very next action after receiving that error is another card_search tool call, not a message to the user and not a question asking how to proceed.",
+        "The revised q of that follow-up call does not contain illustrationtag:.",
+        "The revised q uses a real artwork operator — art:, arttag:, or atag:.",
+        "The final user-facing answer presents card results. An answer that only reports the failure, that asks the user what to do, or that answers without any successful search fails this expectation."
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "search illustrationtag:squirrel for me, i want the squirrel art cards",
+      "expected_output": "The first call fails with a structured bad_request error; the model's next action is a revised card_search call, and the user-facing answer is card results.",
+      "expectations": [
+        "The first card_search call's q contains the literal string illustrationtag:.",
+        "The result of that first call is an error result carrying isError: true, error.code \"bad_request\", and a details field containing the text \"All of your terms were ignored\".",
+        "The model's very next action after receiving that error is another card_search tool call, not a message to the user and not a question asking how to proceed.",
+        "The revised q of that follow-up call does not contain illustrationtag:.",
+        "The revised q uses a real artwork operator — art:, arttag:, or atag:.",
+        "The final user-facing answer presents card results. An answer that only reports the failure, that asks the user what to do, or that answers without any successful search fails this expectation."
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "how much is a gaea's cradle going for these days? the judge promo one specifically",
+      "expected_output": "A card_search call precedes any stated price, and every figure stated appears in that call's payload; an unavailable price is reported as unavailable with its reason.",
+      "expectations": [
+        "A card_search tool call occurs in the transcript before any price figure appears in the model's answer.",
+        "Every price figure stated in the answer appears verbatim in the payload of a card_search call in this transcript.",
+        "No price figure is stated that does not appear in a tool payload — an answer from the model's own knowledge fails this expectation even if the number is plausible or correct.",
+        "If the payload reports price.available: false, the answer states that the price is unavailable and gives the reason from the payload (digital-only or no-price-data). The answer never states $0 and never substitutes a guessed figure.",
+        "The q string of at least one call targets the specific card by exact name using the leading-bang form !\"Gaea's Cradle\", rather than a loose substring name search."
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "quick sanity check before i sleeve up — is sol ring actually legal in modern or am i thinking of legacy",
+      "expected_output": "A card_search call precedes any stated legality, and the legality stated appears in that call's payload.",
+      "expectations": [
+        "A card_search tool call occurs in the transcript before any format-legality claim appears in the model's answer.",
+        "Every legality claim stated in the answer is supported by the legalities data in the payload of a card_search call in this transcript.",
+        "No legality claim is stated that does not appear in a tool payload — an answer from the model's own knowledge fails this expectation even if the answer is correct.",
+        "The q string of at least one call targets the card by exact name using the leading-bang form !\"Sol Ring\", rather than a loose substring name search."
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "what does rhystic study say word for word? i keep misremembering the wording when i explain it to new players",
+      "expected_output": "A card_search call precedes any quoted oracle text, and the text quoted appears in that call's payload.",
+      "expectations": [
+        "A card_search tool call occurs in the transcript before any oracle text is quoted in the model's answer.",
+        "The oracle text quoted in the answer matches the oracle_text field in the payload of a card_search call in this transcript.",
+        "No oracle text is quoted that does not appear in a tool payload — an answer from the model's own knowledge fails this expectation even if the wording is correct.",
+        "The q string of at least one call targets the card by exact name using the leading-bang form !\"Rhystic Study\", rather than a loose substring name search."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  { "query": "whats a good two-card package for my simic commander deck that ramps and draws, under about $5 total", "should_trigger": true },
+  { "query": "i need to fill out the last 8 slots of a mono-red aggro list for standard, cheap creatures only", "should_trigger": true },
+  { "query": "help me find enchantments that punish my opponents for drawing cards, must be legal in commander", "should_trigger": true },
+  { "query": "what white cards exile a creature at instant speed for three mana or less", "should_trigger": true },
+  { "query": "i keep seeing cards with cats in the art and i want to build a cube around that", "should_trigger": true },
+  { "query": "find me every card whose text matches the pattern of adding two mana of any one color", "should_trigger": true },
+  { "query": "cheapest way to get a board wipe into my pauper deck", "should_trigger": true },
+  { "query": "which legendary creatures could be a commander for a lands-matter deck under $20", "should_trigger": true },
+  { "query": "im drafting a set review, what one-mana green creatures are worth mentioning", "should_trigger": true },
+  { "query": "gimme artifacts that make treasure tokens, commander legal, i dont care about price", "should_trigger": true },
+  { "query": "shuffle a deck of 52 cards in python, im writing a blackjack sim for a class project", "should_trigger": false },
+  { "query": "whats a good starter deck for my nephew who wants to get into pokemon tcg", "should_trigger": false },
+  { "query": "my yugioh deck keeps bricking, how many one-of tutors is too many", "should_trigger": false },
+  { "query": "how does the mana cost mechanic in hearthstone differ from paper card games", "should_trigger": false },
+  { "query": "im making a slide deck for a board meeting on q3 art licensing costs", "should_trigger": false },
+  { "query": "write a regex that matches semver strings in our changelog", "should_trigger": false },
+  { "query": "find every file under src/ that mentions legality and rename the symbol", "should_trigger": false },
+  { "query": "cheapest flight to seattle under $300 in april, i can be flexible on dates", "should_trigger": false },
+  { "query": "summarize the termination clause in ~/docs/lease.pdf for me", "should_trigger": false },
+  { "query": "explain tcp slow start like im five, im debugging a throughput issue", "should_trigger": false }
+]

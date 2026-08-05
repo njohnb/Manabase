@@ -32,6 +32,29 @@ All of these go inside the `q` argument of `mcp__plugin_manabase_mtg__card_searc
 | `o:` | a word or a quoted phrase — `o:flying`, `o:"draw a card"` | cards whose oracle text contains it |
 | `o:/…/` | a regular expression — `o:/^{T}: Add/` | cards whose oracle text matches the pattern; use for anchors, alternation, and character classes that plain `o:` cannot express |
 
+### Regex anchors bind to a line, not to the card
+
+Oracle text carries **one line per ability**, and the pattern is matched in multi-line mode, so
+`^` and `$` anchor to the start and end of *any* line. `o:/^whenever you cast/` means "some line
+begins with this", not "the card begins with this" — it returns cards where that ability sits
+below another one just as happily.
+
+To approximate a true card-start anchor, subtract the newline-preceded form:
+
+```
+o:/^whenever you cast/ -o:/\nwhenever you cast/
+```
+
+That is an approximation, not an equivalent: it also drops a card that leads with the phrase *and*
+repeats it on a later line, and multi-faced cards can still slip through. Say so when it matters to
+the answer, rather than presenting the count as exact.
+
+**Never reach for `\A`, `\z`, or `(?-m:…)`.** None of them work, and they fail in two different
+ways. `\z` and `(?-m:…)` come back as an error you can read and correct. **`\A` comes back as an
+ordinary success with zero matches** — indistinguishable from a valid query that genuinely matched
+nothing, which will lead you to tell the user "no cards match" when your anchor was simply never
+applied. When you want a whole-text anchor, use the subtraction above.
+
 ## Function and tags
 
 | Operator | Argument | Selects |
@@ -105,6 +128,9 @@ Not query operators — values for the tool's `order` argument. `name`, `cmc`, `
 
 - **`illustrationtag:`** — does not exist. It patterns exactly like `otag:` and `atag:`, which is
   why it is tempting. Use `art:` or `atag:` for artwork, `otag:` or `function:` for behavior.
+- **`\A`, `\z`, `(?-m:…)`** inside a regex — none are supported. `\z` and `(?-m:…)` error out;
+  `\A` silently returns zero matches, which is the worse failure. See **Regex anchors bind to a
+  line, not to the card** above for what to write instead.
 - **Anything not listed in this file.** An operator that feels like it must exist is the likeliest
   one to be wrong, and Scryfall does not reliably tell you: it rejects a query only when *every*
   term is invalid. A single invented term alongside valid ones is dropped silently, and the

@@ -57,10 +57,24 @@ is [`PLUGIN-PRD.md`](./PLUGIN-PRD.md)'s call, raised in its
 [§9](./PLUGIN-PRD.md#9-revision-log) and not answered here; the harness behavior itself is
 recorded as a dated addendum in [§4.1](./PLUGIN-PRD.md#41-harness-features-relied-on).
 
+**[Slice 9](./slices/TrackB-Slice9.md) landed 2026-08-04**, and it is the first measurement of
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) that required the skill to actually load: it
+was invoked by name as `manabase:scryfall-query-craft` in 11 independent fresh subagents, which
+satisfies the precondition [§4](#4-phase-1-slices) added after the frontmatter defect. Criteria
+5–11 and 13 each carry a with-skill result and a without-skill baseline; **criterion 12 is recorded
+*not measured* with the skill** (4/4 in the baseline) because its probe hands over
+`illustrationtag:`, which `SKILL.md` names as unreal, so no error was produced to retry from. The
+only family-level delta is `otag:`/`function:`, 3/3 versus 2/3. Both trigger rates were 10/10, so
+the description was not tuned and is unchanged.
+[`MCP-PRD.md`](./MCP-PRD.md) [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+is answered — the compact-description split holds and
+[`src/tools/register.ts`](../src/tools/register.ts) is unchanged
+([`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md)).
+
 What remains: no
-context-cost measurement has been taken and no behavioral eval has been run, so
-[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2 ([Slice 10](./slices/TrackC-Slice10.md)) and its criteria 5–13
-([Slice 9](./slices/TrackB-Slice9.md)) are still unverified, as are
+context-cost measurement has been taken, so
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2 ([Slice 10](./slices/TrackC-Slice10.md)) is still
+unverified, as are
 [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5, 8 and 10.
 
 | Area | State |
@@ -75,7 +89,7 @@ context-cost measurement has been taken and no behavioral eval has been run, so
 | Tests | 21 suites, **73 tests, 73 passing**; `tsc --noEmit` clean — re-run 2026-08-04. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
-| `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. 783 is not 764 + 4; the two counts use different methods and the discrepancy is **unresolved**, so both are kept |
+| `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
 
 Two properties of the existing scaffold worth preserving on purpose:
 
@@ -114,7 +128,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 6 | Live [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance pass | A — server | ☑ PR #7 |
 | 7 | Plugin install verification | B — plugin | ☑ PRs #13, #14 |
 | 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☑ PR #19 · frontmatter fix `ed82ceb`, PR #22 |
-| 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☐ |
+| 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☑ |
 | 10 | Context-cost measurement | C — release | ☐ |
 | 11 | `dist/` honesty mechanism | C — release | ☐ |
 | 12 | Docs polish & friend dry-run | C — release | ☐ |
@@ -425,8 +439,22 @@ gates are open.
   - Record results in `PLUGIN-PRD.md` [§9](./PLUGIN-PRD.md#9-revision-log); update `MCP-PRD.md` [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) ([§7](./MCP-PRD.md#7-open-questions)) and [§9](./MCP-PRD.md#9-revision-log) with the
     measured answer.
 - **Done when:**
-  - ☐ Criteria 5–13 each have a recorded result with the baseline comparison.
-  - ☐ Both PRDs' §7/§9 updated.
+  - ☑ Criteria 5–13 each have a recorded result with the baseline comparison.
+  - ☑ Both PRDs' §7/§9 updated.
+- **Landed:** 2026-08-04. `evals/evals.json` (17 cases) and `evals/trigger-evals.json` (20
+  queries) written; both configurations run sequentially in fresh per-case subagents against the
+  installed plugin at `be2839453a11`. Evidence:
+  [`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md). Criteria 5–11 and
+  13 carry a baseline and a delta; **criterion 12 is recorded *not measured* with the skill**
+  (4/4 in the baseline), because cases 13–14 probe with `illustrationtag:` and the skill names it
+  as unreal, so no error is produced to retry from. The only family-level delta is
+  `otag:`/`function:` — 3/3 with, 2/3 without. Both trigger rates were 10/10, so the description
+  was **not** tuned and no run was voided. [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+  answered: the compact-description split holds, and `src/tools/register.ts` is unchanged.
+- **Precondition check (added 2026-08-04) satisfied by a positive signal**, per the note below:
+  the skill was invoked by name as `manabase:scryfall-query-craft` in 11 independent fresh
+  subagents, and the installed `skills/` tree was verified byte-identical to the repo's before
+  the first eval ran.
 - **Binding refs:** [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criteria 5–13 and its eval-method preamble; `MCP-PRD.md` [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model).
 - **Precondition added 2026-08-04 — confirm the skill actually loads before the first eval
   runs.** [Slice 8](./slices/TrackB-Slice8.md)'s frontmatter defect (`ed82ceb`) meant the skill
@@ -537,19 +565,21 @@ The critical path is 1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13. [Slice
 main parallelism opportunity — it needs only [Slice 3](./slices/TrackA-Slice3.md)'s tool shape. [Slice 11](./slices/TrackC-Slice11.md) (CI) can land any
 time after [Slice 1](./slices/TrackA-Slice1.md) produces a real build.
 
-**As of 2026-08-04, Slices [1](./slices/TrackA-Slice1.md)–[8](./slices/TrackB-Slice8.md) are done and the next item on the critical path is [Slice 9](./slices/TrackB-Slice9.md)**,
-whose two prerequisites — [7](./slices/TrackB-Slice7.md) and [8](./slices/TrackB-Slice8.md) — have both landed, so it is now unblocked. Three slices can
-run in parallel: **[9](./slices/TrackB-Slice9.md)** (evals), **[11](./slices/TrackC-Slice11.md)** (`dist/` CI check, needed only [Slice 1](./slices/TrackA-Slice1.md) — and now more
+**As of 2026-08-04, Slices [1](./slices/TrackA-Slice1.md)–[9](./slices/TrackB-Slice9.md) are done and the next item on the critical path is [Slice 12](./slices/TrackC-Slice12.md)**,
+which is **not yet unblocked**: [9](./slices/TrackB-Slice9.md) has landed but [10](./slices/TrackC-Slice10.md) has not, and the graph above makes
+[12](./slices/TrackC-Slice12.md) wait on [6](./slices/TrackA-Slice6.md), [9](./slices/TrackB-Slice9.md) and [10](./slices/TrackC-Slice10.md). Two slices are unblocked and can run in
+parallel: **[10](./slices/TrackC-Slice10.md)** (context cost), whose reason to wait is spent — `SKILL.md` exists, so a
+baseline measured today is no longer one [Slice 8](./slices/TrackB-Slice8.md) immediately invalidates — and
+**[11](./slices/TrackC-Slice11.md)** (`dist/` CI check, needed only [Slice 1](./slices/TrackA-Slice1.md) — and now more
 urgent than when it was scheduled, because `dist/index.js` is real committed build output that can
-silently drift from `src/`; [Slice 7](./slices/TrackB-Slice7.md) hit the CRLF false-alarm form of exactly that), and
-**[10](./slices/TrackC-Slice10.md)** (context cost), whose reason to wait is now spent: `SKILL.md` exists, so a baseline
-measured today is no longer one [Slice 8](./slices/TrackB-Slice8.md) immediately invalidates.
+silently drift from `src/`; [Slice 7](./slices/TrackB-Slice7.md) hit the CRLF false-alarm form of exactly that).
+[Slice 10](./slices/TrackC-Slice10.md) is therefore the only remaining gate on the critical path.
 
-**The unblocked set is unchanged by the [Slice 8](./slices/TrackB-Slice8.md) frontmatter fix
-(`ed82ceb`), but two of those three now depend on it.** [Slice 9](./slices/TrackB-Slice9.md)
-cannot produce a meaningful with-versus-without comparison against a skill the harness discards,
-and [Slice 10](./slices/TrackC-Slice10.md) cannot measure the always-on cost of a skill that is
-not in the listing. Both should confirm the skill loads before recording a number.
+**The [Slice 8](./slices/TrackB-Slice8.md) frontmatter fix (`ed82ceb`) was a prerequisite in
+fact for both of the slices that measure the skill.** [Slice 9](./slices/TrackB-Slice9.md)
+confirmed the skill loads before recording any number — invoked by name in 11 fresh subagents —
+and [Slice 10](./slices/TrackC-Slice10.md) must still do the same, because it cannot measure the
+always-on cost of a skill that is not in the listing.
 
 ## 6. Beyond Phase 1 — queued slice packs
 

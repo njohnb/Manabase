@@ -169,12 +169,13 @@ both values fixes it, verified loaded as `manabase:scryfall-query-craft`; line e
 and ruled out. **Never treat `/reload-plugins`' skill count as the signal** — it reads `0 skills`
 in the working state too. The session skill listing is what discriminates. Criteria 1, 3 and 4 are all
 satisfiable by reading and measuring the file, so a skill that never loaded passed all three —
-they are static checks, not evidence the skill works. Criterion 1 re-measured after the fix by a
-YAML parser: 783 of 1,536 characters (`name` + `description` + `when_to_use`). That is not
-764 + 4; Slice 8 counted differently and the discrepancy is unresolved, so both figures stand.
-Slice 9 and Slice 10 must confirm the skill actually loads before recording a number. Whether
-`PC-01` needs a loads-in-a-harness criterion, or a new `PQ`, is open and undecided —
-`docs/PLUGIN-PRD.md` §9 raises it.
+they are static checks, not evidence the skill works. **The 763 / 783 / 764 spread is resolved**
+(Slice 9): `description` 269 + `when_to_use` 494 = **763**, which is what criterion 1 measures;
+adding `name` (20) gives 783; Slice 8's 764 is a one-off arithmetic slip on its own 269 + 494. No
+measurement was wrong, the labels were — and the dated Slice 8 results and PRD rows keep their
+figures as written. Slice 9 confirmed the skill actually loads before recording numbers; Slice 10
+must still do the same. Whether `PC-01` needs a loads-in-a-harness criterion, or a new `PQ`, is
+open and undecided — `docs/PLUGIN-PRD.md` §9 raises it.
 
 Slice 8 also verified live that **Scryfall
 silently drops an invalid term whenever at least one valid term remains** — the "All of your terms
@@ -182,14 +183,45 @@ were ignored." 400 fires only when every term is invalid, so a hallucinated oper
 ordinary-looking result computed from fewer constraints. The skill files teach that; never emit an
 operator you have not seen work.
 
-Track C has not started, and the rest of what a user installs is still unmeasured. No context-cost
-measurement exists and no behavioral eval has been run — so `PC-01`'s criterion 2 (Slice 10) and
-its criteria 5–13 (Slice 9), and `PC-02`'s criteria 5, 8 and 10, are still unverified.
+Slice 9 (evals) landed 2026-08-04 on `main`: `evals/evals.json` (17 behavioral cases,
+`skill-creator` schema, key `expectations`) and `evals/trigger-evals.json` (20 queries), each case
+in a fresh isolated subagent, sequential, one run per configuration, 93 live Scryfall calls and no
+429. Evidence: `docs/slices/TrackB-Slice9-results.md`. `PC-01` criteria 5–11 and 13 are verified
+with a without-skill baseline — valid query 15/15 vs 15/15, legality+type+cost+price 3/3 vs 3/3,
+regex 3/3 vs 3/3, `otag:`/`function:` **3/3 vs 2/3**, artwork 3/3 vs 3/3, `illustrationtag:`
+unprompted 0 in both over 15 cases each, trigger 10/10 and 10/10, card fact → tool call 3/3 vs 3/3.
+**Criterion 12 is *not measured* with the skill** — never a fail: its probe hands over
+`illustrationtag:`, `SKILL.md` names that unreal, so no error was produced to retry from; the
+baseline scored 4/4. The description was tuned 0 times, so the frontmatter is unchanged.
 
-Next on the critical path is Slice 9 (evals), now unblocked since both its prerequisites — 7 and 8
-— have landed. Three slices are unblocked: 9, 10 and 11. Slice 10 no longer has a reason to wait,
-since `SKILL.md` now exists and a baseline measured today is not one Slice 8 invalidates.
-`docs/DEV-ROADMAP.md` §5 has the graph.
+**That answers `OQ-01`: the compact-description split holds and `src/tools/register.ts` is
+unchanged.** Do not overstate it. The shipped description already names `t:`, `o:`, `f:`, `cmc`,
+`usd`, `otag:`, `art:` and regex, so the baseline was well-equipped and the skill's measured
+contribution is narrower than "it carries the operator families" — it wins where the user names an
+effect the tag vocabulary does not echo, it prevents a known-bad operator, and it keeps constraints
+inside `q` instead of paging. That argues for a *shorter* skill body, not a longer tool
+description.
+
+Two durable findings from that run. **A baseline that merely omits the skill path is
+contaminated** — the first attempt's opening tool call was `Skill{manabase:scryfall-query-craft}`,
+auto-invoked though never mentioned. A clean baseline needs a subagent type with no `Skill` tool,
+and the agent registry resolves at session start, so that file must exist *before* the measuring
+session. This run used an explicit prohibition instead and records it as a confound. And
+**Scryfall's regex anchors `^` and `$` bind to a line of oracle text, not to the card** — measured
+849 vs 361 on the same pattern once newline-preceded matches were excluded. The stricter escapes
+are unavailable and **fail two different ways**: `\z` and `(?-m:…)` return HTTP 400, while **`\A`
+returns a normal 200 with zero matches** — a silent wrong answer of the same class as the
+dropped-term behavior, because it makes the model report "no cards match" instead of retrying. Both
+recorded 2026-08-04 in `docs/MCP-PRD.md` §4.1.1 and taught in the skill's `reference/operators.md`
+and `reference/recipes.md`.
+
+Track C has not started. No context-cost measurement exists, so `PC-01`'s criterion 2 (Slice 10)
+and `PC-02`'s criteria 5, 8 and 10 are still unverified.
+
+Slice 12 is next on the critical path but is **not** unblocked: it waits on Slice 10 as well as on
+6 and 9. Two slices are unblocked: 10 and 11. Slice 10 is the only remaining gate on the critical
+path, and it no longer has a reason to wait, since `SKILL.md` now exists and a baseline measured
+today is not one Slice 8 invalidates. `docs/DEV-ROADMAP.md` §5 has the graph.
 
 ## Price handling — the three traps
 
@@ -274,3 +306,12 @@ A subagent under a root `agents/` would install into every user's harness (`P-07
 Windows dev machine with `core.autocrlf=true` and no `.gitattributes`: the working tree is CRLF
 while git blobs are LF. Scripted edits to the markdown files must preserve CRLF, or the diff shows
 the whole file as changed.
+
+**Scripting an edit in JavaScript: pass a replacement *function*, never a replacement string.**
+`String.replace`/`replaceAll` interpret `$` sequences in the replacement argument — `` $` `` splices
+in everything *before* the match, `$&` the match itself, `$'` everything after. These documents are
+dense with `$` inside backticks (`usd<=1`, price prose, the §9 rows), so a string replacement can
+duplicate most of the file into itself. It fails silently and does not read as corruption: the
+result is insertions with **zero deletions**, exactly what a clean append looks like. Use
+`t.replace(anchor, () => anchor + addition)`, which disables `$` substitution outright, and check
+`git diff --stat` against the number of lines you meant to add before committing.

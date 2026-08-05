@@ -365,6 +365,44 @@ row above, tested as a single-term query, saw it. Two consequences, both recorde
 The 2026-08-03 rows above are left as recorded — nothing in them is wrong, only narrower than
 they read: each was a single-term or all-valid query, where the behaviors coincide.
 
+**Addendum — regex anchors bind to a line of oracle text, not to the card. [verified 2026-08-04]**
+[Slice 9](./slices/TrackB-Slice9.md)'s eval run
+([`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md)) exercised the regex
+row above from both configurations and pinned a semantic the earlier entries assumed rather than
+tested. `oracle_text` carries one line per ability, and Scryfall evaluates `o:/…/` in **multi-line
+mode**: `^` and `$` anchor to the start and end of *any* line, not of the whole text box.
+
+Measured 2026-08-04: `o:/^whenever you cast/` returns **849** cards, while
+`o:/^whenever you cast/ -o:/\nwhenever you cast/` returns **361**. **488 of the 849 therefore
+matched on a line that was not the first** — the opposite of what "starts with" reads as. `$`
+behaves the same way at the other end: `o:/you gain that much life\.$/` returns 35 and
+`o:/you gain that much life\.\n/` returns 9, so 9 of the 35 closed a line that was not the last.
+
+The escapes that would express the stricter, whole-text reading are unavailable, and they fail in
+**two different ways** — which is the part worth carrying forward:
+
+| Form | Observed 2026-08-04 |
+|---|---|
+| `\A` | HTTP 200, `total_cards: 0` — a well-formed query matching nothing, with no diagnostic |
+| `\z` | HTTP 400, "All of your terms were ignored." |
+| `(?-m:^…)` | HTTP 400, "All of your terms were ignored." |
+
+`\A` is the dangerous one. A 400 is a loud, correctable signal; a zero-match 200 is
+indistinguishable from a valid query that legitimately matched nothing, so the model reports "no
+cards match" and the user believes it. That places `\A` in the same silent-wrong-answer class as
+the dropped-term behavior in the addendum above. **[verified]** Whether Scryfall rejects the
+escape or matches it literally is not determined. **[inferred]**
+
+The practical workaround is the subtraction shown above — anchor with `^`, then exclude the
+newline-preceded form. It is an approximation, not an equivalent: under
+`o:/^whenever you cast/ -o:/\nwhenever you cast/`, 2 of the 175 cards on page 1 still did not
+literally begin with the phrase, and it drops any card that leads with the phrase *and* repeats it
+on a later line. **[verified]** Multi-faced cards are the likely cause, since a face boundary is
+not a newline. **[inferred]**
+
+The regex counts in the rows above stand; they were always line-anchored counts, and only the
+reading of them was loose.
+
 **Critical architectural fact.** These operators are evaluated **server-side**. They are not
 fields on the card object and cannot be reproduced from bulk data without reimplementing
 Scryfall's query engine. This is the fact behind [D-07](#d-07--three-way-cache-split). **[verified]**
@@ -825,6 +863,22 @@ and the pagination contract, with the deep syntax teaching left to
 works. The question stays open until PC-01's behavioral criteria are run; if the split fails,
 what changes is the description, not the architecture.
 
+**Status 2026-08-04: measured.** Against a without-skill baseline in fresh sessions, the two
+configurations scored **identically on five of six operator families** — combined
+legality/type/cost/price 3/3 vs 3/3, regex 3/3 vs 3/3, artwork 3/3 vs 3/3, card-fact-via-tool-call
+3/3 vs 3/3, valid-query 15/15 vs 15/15 — and differed only on `otag:`/`function:` (3/3 vs 2/3),
+where the baseline fell back to oracle-substring matching when the user named an effect the tag
+vocabulary does not echo. The compact-description split **holds**: the shipped description already
+names `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, `art:` and regex by name, so the baseline is a model
+handed the operator families rather than one with no syntax knowledge, and it supplies the
+arguments correctly. **The description stays as shipped and no change to**
+[`src/tools/register.ts`](../src/tools/register.ts) **is indicated.** The qualification worth
+carrying forward: this measures that the split works, **not** that the skill carries those
+families — most of what a user gets on them comes from the tool description alone, which argues
+for a shorter skill body rather than a longer tool description. Evidence:
+[`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md) and
+[`docs/PLUGIN-PRD.md`](./PLUGIN-PRD.md) [§9](./PLUGIN-PRD.md#9-revision-log).
+
 ### OQ-02 — How verbose should a search result be?
 
 Full oracle text plus legalities plus all prices for 175 cards is a large amount of context.
@@ -973,6 +1027,8 @@ last ([D-09](#d-09--archidekt-writes-land-last)); other platforms are not queued
 | 2026-08-03 | [CAP-01](#cap-01--card-search) live acceptance pass: criteria 1–12 verified (criteria 1, 10, 11, 12 at unit level; 2–9 live via `scripts/cap01-live.mjs`). Live totals: regex 1,555, `otag:ramp` 2,274, `function:removal` 6,405, `art:squirrel` 194. Drift from the 2026-07-29 research record: (a) `!"Black Lotus"` now returns the MTGO Vintage Masters printing by default rather than a paper printing — correctly reported as `digital-only`, not a bare no-price; (b) no paper Black Lotus printing carries a USD price any more (EUR only), so criterion 6's paper-price half is evidenced by a substitute `usd>=1 game:paper` probe. No code changes were required. Results: [`docs/slices/TrackA-Slice6-results.md`](./slices/TrackA-Slice6-results.md). | Track A [Slice 6](./slices/TrackA-Slice6.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)) — closes the server half of Phase 1. |
 | 2026-08-04 | **[§4.1.1](#411-search-endpoint) gains a dated addendum scoping the `illustrationtag:` 400**: Scryfall silently drops an unrecognized term whenever at least one recognized term remains, and the "All of your terms were ignored." 400 fires only when *every* term is invalid. Verified live during [Slice 8](./slices/TrackB-Slice8.md)'s operator verification ([`docs/slices/TrackB-Slice8-results.md`](./slices/TrackB-Slice8-results.md)), which also added twelve operators and four argument forms to the verified set by baseline comparison. The 2026-07-29 and 2026-08-03 records are kept — they were single-term or all-valid queries, where the two behaviors coincide. | The prior record read as "an invalid operator returns 400," which is true only in the single-term case; the general case is a silent wrong answer, which is the more dangerous behavior and the one [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s skill now teaches against. Appended as a dated addendum, not an overwrite, per [§4](#4-external-dependencies)'s every-claim-is-dated property. |
 | 2026-08-04 | Linkified this row's bare [CAP-01](#cap-01--card-search), slice, and document references, and backfilled [`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)'s bare `Slice N` prose mentions and results-document paths into markdown links down into [`docs/slices/`](./slices/). No row was added, removed, or reworded beyond adding link syntax. | The navigable-reference convention was real but unwritten, so it drifted; it is now a binding rule in `CLAUDE.md`, and this row was the one place in either PRD where it had already lapsed. **Presentation only — no decision was reopened, no rationale was reworded, and no ID changed.** |
+| 2026-08-04 | **[OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) answered empirically.** [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral criteria measured with and without the `scryfall-query-craft` skill in fresh sessions — 17 cases per configuration plus 20 trigger queries, one run each, sequential. The compact `card_search` description plus the skill **is** sufficient for Claude to emit valid regex, `otag:` and `art:` queries from plain-English requests — and so is the description alone on every family but one: with/without was 3/3 vs 3/3 on regex, 3/3 vs 3/3 on artwork, 3/3 vs 3/3 on combined legality+type+cost+price, 3/3 vs 3/3 on card-fact-via-tool-call, and **3/3 vs 2/3 on `otag:`/`function:`** — the single delta. **No change to [`src/tools/register.ts`](../src/tools/register.ts)**, and therefore no rebuilt `dist/`. Results: [`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md). | Track B [Slice 9](./slices/TrackB-Slice9.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)) — the measurement [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)'s "resolves by" clause called for. The 2026-08-03 half-committed status is superseded by a dated result rather than overwritten. The answer is narrower than the question assumed: it vindicates the compact description by showing the description is doing most of the work on these families, which is an argument for shortening [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s body rather than for growing a schema that is paid for in every session forever ([PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)). |
+| 2026-08-04 | **[§4.1.1](#411-search-endpoint) gains a dated addendum pinning regex anchor semantics.** Scryfall evaluates `o:/…/` in multi-line mode: `^` and `$` bind to a line of `oracle_text`, not to the card. Measured live — `o:/^whenever you cast/` 849 cards versus 361 once newline-preceded matches are excluded, so 488 matched on a non-initial line. The stricter escapes are unavailable and **fail in two different ways**: `\z` and `(?-m:^…)` return HTTP 400, while **`\A` returns a well-formed HTTP 200 with `total_cards: 0`** — a silent wrong answer of the same class as the dropped-term behavior recorded in the addendum above. Surfaced by [Slice 9](./slices/TrackB-Slice9.md) ([`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md)) and re-verified with four confirmatory calls before recording. The regex counts in the existing rows stand — they were always line-anchored counts. | The document's regex rows recorded that regex *works* and never what its anchors *mean*, so "starts with" read as whole-text when it is per-line, and every session that wanted a true text-box anchor rediscovered this at the cost of a wasted call. Appended as a dated addendum rather than an edit, per [§4](#4-external-dependencies)'s every-claim-is-dated property. The `\A` asymmetry is the reason this needed recording at all: a 400 teaches the model to retry, a zero-match 200 teaches it to report "no cards match" and stop. |
 
 ---
 
