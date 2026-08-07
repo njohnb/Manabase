@@ -70,9 +70,13 @@ failure mode.
 - ☐ Answered during Phase 1 and confirmed still current: [`PQ-01`](../PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports), [`PQ-02`](../PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) ([Slice 10](./TrackC-Slice10.md)), [`PQ-04`](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)
   ([Slice 12](./TrackC-Slice12.md)), [`PQ-06`](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) ([Slice 11](./TrackC-Slice11.md)), and `MCP-PRD.md` [`OQ-01`](../MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) ([Slice 9](./TrackB-Slice9.md)).
 - ☐ Deliberately deferred past Phase 1 by their own *Resolves by* clauses, and **re-read to
-  confirm each still says so**: [`PQ-03`](../PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook), [`PQ-07`](../PLUGIN-PRD.md#pq-07--is-deck-optimization-a-skill-or-an-agent), [`PQ-08`](../PLUGIN-PRD.md#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected), and `MCP-PRD.md` [`OQ-02`](../MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)–[`OQ-09`](../MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists). A
+  confirm each still says so**: [`PQ-03`](../PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook), [`PQ-07`](../PLUGIN-PRD.md#pq-07--is-deck-optimization-a-skill-or-an-agent), [`PQ-08`](../PLUGIN-PRD.md#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected), and `MCP-PRD.md` [`OQ-02`](../MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)–[`OQ-12`](../MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two). A
   question whose resolver has since happened but whose entry still reads "deferred" is drift,
-  and this is the last session that will notice.
+  and this is the last session that will notice. **Range extended 2026-08-07** from `OQ-09` to
+  `OQ-12` — [`OQ-10`](../MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms)–[`OQ-12`](../MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)
+  arrived with Moxfield and are all deck-platform questions that resolve well past Phase 1. They
+  are named here rather than left out because this checklist works by enumerating a range, and a
+  question added after the range was written is exactly the silent kind it exists to catch.
 - ☐ [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) is this slice's to dispose of (requirement 11). It is the only one that must move.
 
 **E. Stability, which is not a slice and therefore has no status column.**
