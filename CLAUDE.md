@@ -79,6 +79,15 @@ endpoints (`/cards/search|named|random|collection`) are capped at 2/sec, everyth
 CAP-01 criterion covering 429 handling therefore rests on a mock permanently — that is correct,
 not a gap.
 
+**Never defeat a third party's bot protection.** (MCP-PRD §3.7, added `D-13`–`D-15`.) No
+`cloudscraper` or Cloudflare-challenge solver, no headless browser, no browser-impersonating or
+rotating `User-Agent`, no TLS spoofing — and no exception for "it was the only thing that
+worked." Archidekt and Moxfield are both undocumented and publish no terms; that is not
+permission. A block is an answer: degrade and report it. This is easy to violate because the
+top search result for Moxfield's API is a working `cloudscraper` proxy, and because Moxfield
+grants `User-Agent` whitelists through support — so identify honestly, and ask (`OQ-10`) rather
+than route around. Live probes during research obey the same rule: single spaced calls.
+
 **Every outbound request carries the app-naming `User-Agent` and an `Accept` header.** Default
 library agents are explicitly disallowed by Scryfall.
 
@@ -272,6 +281,22 @@ below one page — 111 cards, 116,626 characters, `legalities` 54.5% of the byte
 25.1%. That is the first payload measurement `OQ-02` has ever had and it confirms the
 untrimmed-`legalities` inference, but `OQ-02` stays **open**: nothing has been trimmed and no
 verbose mode exists.
+
+**Moxfield joined Archidekt as a deck platform, 2026-08-07 — docs only, nothing built.** `D-13`
+orders them: Archidekt first because the author uses it, Moxfield second, neither blocking the
+other's spec. Both deck-reading rows are **one capability shape served twice**, so the first one
+specified sets the normalized shape (`OQ-12`) and everything downstream — analysis, Arena export,
+deck pricing — consumes that shape, never a platform payload. `D-14` rejects the npm
+`moxfield-api` package: it is actively maintained, unlike the `archidekt` one, but covers a single
+endpoint, sets no `User-Agent`, throws where `D-10` wants a returned failure, and brings `zod`.
+`D-15` is the one most easily got wrong: **Moxfield writes are blocked upstream, not merely last
+like `D-09`'s Archidekt writes.** Its token endpoints challenge even support-whitelisted callers
+and the report has sat unanswered since 2025-11-23, so the capability is not buildable by any
+means §3.7 allows — never schedule the two write capabilities together. Reads are anonymous and
+unchallenged on both platforms. And **one Moxfield deck read measured 1.63 MB** (`tokens` +
+`tokenMappings` alone are 33.6% of it), ~14× the payload that already blew the harness ceiling in
+issue #25 — so a passthrough is off the table from the first line of that spec, and every card
+carrying `scryfall_id` is what makes the trim obvious. Ten capabilities are now queued, not eight.
 
 Track C has not started, and `PC-03` does not change that — it serves a surface, not a capability,
 and Phase 1 is still `PC-01` plus `PC-02`. Assigning it to Slice 11 gives it a schedule slot, not

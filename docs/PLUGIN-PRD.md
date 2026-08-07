@@ -164,6 +164,17 @@ failure mode this project exists to avoid. This is how the Archidekt session coo
 `X-CSRFToken` will reach the server when [`docs/MCP-PRD.md` D-09](./MCP-PRD.md#d-09--archidekt-writes-land-last) is finally lifted. See [P-13](#p-13--no-user-configuration-in-phase-1) for
 what this means in Phase 1: nothing.
 
+**Note added 2026-08-07.** This decision is unchanged; what changed is the set of credentials it
+is waiting on. `docs/MCP-PRD.md` adopted Moxfield as a second deck platform that day, and the
+mechanism here would serve a Moxfield credential exactly as it serves an Archidekt one. It will
+not be asked to: [`docs/MCP-PRD.md` D-15](./MCP-PRD.md#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) records that Moxfield has **no working
+third-party authentication path at all** — its token endpoints challenge even callers whose
+`User-Agent` Moxfield support whitelisted — so there is no credential to collect, rather than a
+credential deferred. The distinction matters here specifically, because this decision's failure
+mode is declaring a `userConfig` field early: a prompt for a Moxfield password would be worse
+than [P-13](#p-13--no-user-configuration-in-phase-1)'s rejected case, since the value could not be
+used even in principle.
+
 ### P-06 — Cached data lives in the plugin data directory
 
 **Decided 2026-07-29.**
@@ -291,6 +302,12 @@ demonstration of [P-01](#p-01--plugin-is-the-distribution-unit)'s claim. Declari
 show every user a credential prompt for a capability that does not exist yet — moving work to
 the user for a feature they cannot use, which is the failure mode [P-05](#p-05--credentials-collected-through-userconfig) exists to prevent. [P-05](#p-05--credentials-collected-through-userconfig)
 still governs *how* credentials arrive when they do.
+
+**Extended 2026-08-07 to Moxfield, and the case there is stronger.** No Moxfield `userConfig`
+field is declared either, for the reason in [P-05](#p-05--credentials-collected-through-userconfig)'s note:
+[`docs/MCP-PRD.md` D-15](./MCP-PRD.md#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) establishes that no third-party
+authentication path to Moxfield currently works. A prompt for a credential that cannot be
+exchanged for a token is not a premature prompt — it is one that could never pay off.
 
 ### P-14 — Two distribution targets, one source
 
@@ -733,7 +750,11 @@ nothing, and `unknown` visibly never updates. The one genuinely quiet failure is
 ### 4.4 User configuration
 
 Not used in Phase 1 ([P-13](#p-13--no-user-configuration-in-phase-1)). Recorded in full because [P-05](#p-05--credentials-collected-through-userconfig) commits to this mechanism and the
-Archidekt capability will need it.
+Archidekt capability will need it. **Note 2026-08-07:** Archidekt remains the only credential
+this mechanism is waiting on. Moxfield joined `docs/MCP-PRD.md` as a second deck platform that
+day, but its writes are blocked upstream rather than deferred
+([`docs/MCP-PRD.md` D-15](./MCP-PRD.md#d-15--moxfield-writes-are-blocked-upstream-not-merely-last)), so it adds nothing to collect here.
+Moxfield deck *reads* are anonymous, the same as Archidekt's.
 
 **How it works.** `userConfig` in `plugin.json` declares options that Claude Code prompts for
 at enable time. Each option needs `type` (`string`, `number`, `boolean`, `directory`, or
@@ -1261,11 +1282,11 @@ accepted, on the target that has no update path to correct it.
 
 | Component | Type (expected) | Blocked on |
 |---|---|---|
-| Deck analysis | skill | **A CAP, not a PC.** Analyzing a deck requires reading one, and Archidekt deck reading is a queued capability in [`docs/MCP-PRD.md` §6](./MCP-PRD.md#6-phases) with no phase assigned. Per [§1](#1-overview)'s third consequence, this component cannot be specified until that capability is. |
+| Deck analysis | skill | **A CAP, not a PC.** Analyzing a deck requires reading one, and deck reading is a queued capability in [`docs/MCP-PRD.md` §6](./MCP-PRD.md#6-phases) with no phase assigned — for **both** platforms as of 2026-08-07, Archidekt first and Moxfield second ([`docs/MCP-PRD.md` D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)). Per [§1](#1-overview)'s third consequence, this component cannot be specified until that capability is. It waits on the *first* platform, not both: the skill consumes the normalized deck shape ([`docs/MCP-PRD.md` OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)) rather than a platform's payload, so the second platform reaches it for free. |
 | Deck optimize | skill (possibly agent) | Deck analysis, above. Also the first component where the skill-versus-agent question is genuine — see [PQ-07](#pq-07--is-deck-optimization-a-skill-or-an-agent). |
 
 **The rest of the roadmap is deliberately undecided.** Not an omission. `docs/MCP-PRD.md` has
-eight queued capabilities and no phase assignments past Phase 1; committing plugin phases to
+ten queued capabilities and no phase assignments past Phase 1; committing plugin phases to
 capabilities that have no phases would be inventing a schedule for both documents from the one
 with less information.
 
@@ -1396,6 +1417,17 @@ even when it is the likely cause.
 *Resolves by:* specifying the Archidekt write capability in `docs/MCP-PRD.md`, then the
 component that surfaces it. Not before.
 
+**Deliberately not widened to Moxfield, 2026-08-07.** Moxfield became a second deck platform that
+day, and the obvious move is to generalize this question to "a deck-platform credential." That
+would be wrong: [`docs/MCP-PRD.md` D-15](./MCP-PRD.md#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) records that Moxfield
+has no working third-party authentication path, so **there is no Moxfield credential to be
+missing, expired, or rejected** — no `userConfig` field is declared for one
+([P-13](#p-13--no-user-configuration-in-phase-1)), and none will be until that changes. If
+[`docs/MCP-PRD.md` OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms)
+comes back yes, this question widens then and not before. A component that pre-writes
+credential-failure wording for a credential that cannot exist is specifying against a
+capability's absence.
+
 ### PQ-09 — How does the MCPB manifest `version` relate to P-08?
 
 [P-08](#p-08--version-scheme) leaves `plugin.json`'s `version` unset during development on purpose, so every commit
@@ -1442,8 +1474,12 @@ Explicitly rejected, with reasons, so these do not resurface.
 
 **Everything already rejected in [`docs/MCP-PRD.md` §8](./MCP-PRD.md#8-out-of-scope)** — TCGplayer, hosted deployment, SSE,
 embeddings for rules, reimplementing Scryfall's search engine, a transport abstraction layer,
-the npm `archidekt` package, bundling the Comprehensive Rules, any paywall or access gate, and
-deck editing outside Archidekt. Referenced, not restated. That list governs here unchanged.
+the npm `archidekt` and `moxfield-api` packages, bundling the Comprehensive Rules, any paywall or
+access gate, any technique for defeating a third party's bot protection, deck platforms beyond
+Archidekt and Moxfield, and writing to Moxfield while its authentication is unreachable.
+Referenced, not restated. That list governs here unchanged, and it is that document's to amend —
+the 2026-08-07 additions and the one amendment are logged in
+[`docs/MCP-PRD.md` §9](./MCP-PRD.md#9-revision-log).
 
 **LSP servers.** Nothing here is a language. The component exists to give Claude code
 intelligence over a codebase; this plugin's subject is card data.
@@ -1534,6 +1570,7 @@ and the correct move is to say so and stop.
 | 2026-08-04 | **Recorded [P-14](#p-14--two-distribution-targets-one-source) — two distribution targets from one source — amending [P-01](#p-01--plugin-is-the-distribution-unit), and appended [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) (MCPB bundle for the Chat tab).** Measured live on Claude Desktop and appended to [§4.2](#42-marketplace-and-install-path) as a dated addendum: a plugin installed from this repo's marketplace onto the **Chat tab delivers `skills/` and does not start its MCP server there**, while an MCPB bundle does expose the server there as `Manabase:card_search` — a prefix derived from the manifest's `display_name`, not its `name`. The Desktop **Code tab is Claude Code** and needs no second artifact. Five of [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab)'s eight criteria are verified (1, 2, 3, 4, 6), including a bundle packed and installed on a machine that had never had one, and criterion 6 — the configuration that produced the original silent substitution now stops instead. Two locked sections were amended rather than rewritten, with the author's explicit decision: [§3.4](#34-cross-platform-reach), because Claude Desktop ships its own Node and the MCPB target therefore has **no** runtime prerequisite where the plugin target requires Node on `PATH`; and [§3.5](#35-what-the-user-must-see-and-must-not), because the manifest `description` is a fourth surface owing the Fan Content disclaimer verbatim and the most prominent one, since Desktop renders it in the install dialog. [§8](#8-out-of-scope) gains an explicit rejection of Claude on the **web** and the remote MCP server it would require — a hosted server would funnel every user through one Scryfall client identity, converting a per-user 2/second budget into a shared quota against an API whose ban risk applies to the whole application ([`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)). [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) widened: an installed `.mcpb` never re-pulls, so a stale `dist/` frozen at pack time is undetectable by any user and a CI check that only rebuilds-and-diffs on commit leaves it unverified. [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) opened: MCPB requires a `version` where [P-08](#p-08--version-scheme) deliberately leaves one unset, and the spike's `0.0.0` is a placeholder no decision stands behind. | A plugin that reaches a surface where its server does not run is not a partial install; it is a **worse-than-nothing** one. Asked for commanders on the Chat tab, the model correctly identified the tool as absent — naming the missing `mcp__plugin_manabase_mtg__card_search` in its reasoning — and then answered from a web search of Scryfall's search pages without saying so. An installed Manabase made answers *less* grounded than no Manabase, silently, which is the same class as the dropped invalid term and the `\A` zero-match. The mitigation shipped in [PC-01](#pc-01--scryfall-query-craft)'s body rather than in packaging, and criterion 6 verifies it fired. The measurements also retire an assumption this document carried implicitly: [P-12](#p-12--plugin-name-and-server-key)'s scoped tool name is constructed **per surface** and is not a property of the server — the same registered `card_search` is `mcp__plugin_manabase_mtg__card_search` in Claude Code and `Manabase:card_search` via MCPB — so it governs permission rules and hook matchers on the Claude Code surface only and must never be written into a skill body. **Still undecided:** whether [PC-01](#pc-01--scryfall-query-craft) needs a loads-*and*-fires criterion. On the Chat tab the skill loaded and the capability was unreachable at the same time, and every criterion satisfiable by reading or measuring the file passed there. |
 | 2026-08-04 | **Four decisions taken in the same session, closing what the row above left open.** **[PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered:** the pack step stamps the MCPB manifest `version` from the commit being packed — nothing hand-synced, no fourth copy of a version string, and no `0.0.0` in an artifact a user installs and cannot update. **[PC-01](#pc-01--scryfall-query-craft) gains criteria 14 and 15**, resolving the loads-versus-fires question the previous row recorded as undecided: 14 requires the skill to appear in the session listing *and* produce a tool call on the surface being claimed; 15 requires that an unreachable tool yields a plain statement of unavailability and no substituted answer. 15 is **[verified 2026-08-04]** — the configuration that produced the original silent web search now stops. **[P-12](#p-12--plugin-name-and-server-key) amended** to say the scoped tool name is constructed per surface and is not a property of the server, with the two traps that follow: never write it into a component that travels between surfaces, and never use it to detect whether the tool is present. **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criteria corrected from four verified to five** — criterion 6 was verified after [§6](#6-roadmap) and the row above were drafted, and both said four. | Three of the four are the same failure seen from different angles: a check that passes without the thing it checks for actually working. [PC-01](#pc-01--scryfall-query-craft)'s static criteria passed twice on skills that did not work, so 14 and 15 exist to make the file-measurable checks insufficient on their own rather than to replace them. [P-12](#p-12--plugin-name-and-server-key) read as a universal fact and was a single-surface one, which is what let a skill body assert a tool name that does not exist where it was sent. [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)'s answer is chosen for the same reason: an installed `.mcpb` never re-pulls, so a version that does not identify its build gives its user no signal at all — the staleness half of [PQ-06](#pq-06--what-keeps-the-committed-dist-honest). The count correction is recorded rather than silently fixed because a criteria tally that drifts between the block and the sections summarizing it is exactly the divergence this document's no-duplicated-decisions rule exists to prevent. |
 | 2026-08-04 | **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) moves from `specified`/unassigned to `in progress`/Slice 11, gains criteria 9, 10 and 11, and criterion 5 is verified.** The build path is committed: `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`), and `.github/workflows/release.yml` — the repo's first `.github/` — which on a `v*` tag typechecks, tests, rebuilds `dist/` and fails on a diff, packs, and attaches `manabase.mcpb` to a Release. **[PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) implemented**, and the piece its answer left open is settled: **a tag versions the bundle, not the plugin**, so [P-08](#p-08--version-scheme) is untouched and Slice 13 still owns the plugin-version question; an untagged pack stamps `0.0.0-dev+<commit>`. **[PQ-06](#pq-06--what-keeps-the-committed-dist-honest) half-answered and deliberately left open** — both halves now have a mechanism, but the CI gate has never run, it cannot be exercised on a machine where `core.autocrlf=true` makes `dist/index.js` report modified with an empty diff, and neither mechanism watches an ordinary commit. [§4.2](#42-marketplace-and-install-path) gains a second dated addendum recording three properties of the Chat-tab install: **the MCPB manifest format has no `skills` field**, verified against the published specification; **double-click is not a reliable install route** and Settings → Extensions → Advanced settings → Install Extension is; and **an installed extension has no update path**. Criterion 3's wording corrected from "double-clicking the `.mcpb`" to "installing the `.mcpb`" — it was written from the documented routes rather than from the run. | The question driving the session was whether a friend can be handed this. The answer for Claude Code is yes and was already; for the Chat tab it is **two installs, permanently** — the format cannot carry a skill, so one-click is not a packaging problem this project can engineer away, and the honest move is to document the pair as one procedure rather than imply a future where it collapses to one. The other two findings are both cases where following the vendor documentation would have produced a broken instruction: double-click is listed first and did not work, and the absence of an update path is stated nowhere, which makes it something a user discovers by silently running a stale server. Recording them in [§4.2](#42-marketplace-and-install-path) rather than only in `README.md` is what keeps a later session from re-deriving them. Criterion 10 is entered **unverified on purpose**: the workflow's value is entirely in a run that has not happened, and marking it verified because the file exists would repeat the [PC-01](#pc-01--scryfall-query-craft) static-criteria failure this document has now recorded twice. |
+| 2026-08-07 | **Moxfield recorded as a second deck platform on this document's side — as pointers only, per [§1](#1-overview)'s boundary rule.** No component was added, no `PC` block was written, no [PC-01](#pc-01--scryfall-query-craft)/[PC-02](#pc-02--bundled-mcp-server)/[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status, and Phase 1 is untouched. What changed: [P-05](#p-05--credentials-collected-through-userconfig) and [P-13](#p-13--no-user-configuration-in-phase-1) gain dated notes recording that Moxfield adds **no** credential to collect; [§4.4](#44-user-configuration) says the same about the mechanism it documents; [PQ-08](#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) is explicitly **not** widened to Moxfield and says why; [§6](#6-roadmap)'s Deck analysis row now names both platforms and records that it waits on the first, not both; [§8](#8-out-of-scope)'s reference to the other document's rejection list is brought current. The substance — [D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second), [D-14](./MCP-PRD.md#d-14--no-npm-moxfield-api-dependency), [D-15](./MCP-PRD.md#d-15--moxfield-writes-are-blocked-upstream-not-merely-last), [§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis), [§4.8](./MCP-PRD.md#48-moxfield), [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms)–[OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) — is all in [`docs/MCP-PRD.md`](./MCP-PRD.md), which owns it. | A data source is server behavior, so the boundary rule puts every Moxfield decision in the other document and leaves this one with the consequences: what the user is prompted for, and what a component may assume exists. Both consequences turned out to be **negative findings**, which is why they are recorded rather than skipped as "nothing changed." The tempting errors here are symmetrical and both silent — declaring a Moxfield `userConfig` field to match Archidekt's shape, which prompts for a credential that cannot be exchanged for a token; and widening [PQ-08](#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) to cover a credential-failure path that does not exist. A future session that finds Moxfield in the MCP PRD and nothing here would reasonably assume this document had not caught up, and would then make one of those two edits. |
 
 ---
 

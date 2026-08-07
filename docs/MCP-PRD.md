@@ -7,7 +7,8 @@
 
 **Document status:** foundation established 2026-07-29. One capability specified
 ([CAP-01](#cap-01--card-search)) and **delivered 2026-08-03** — all twelve acceptance criteria
-verified ([§9](#9-revision-log)). Eight capabilities queued and unassigned.
+verified ([§9](#9-revision-log)). Ten capabilities queued and unassigned — two of them added
+2026-08-07 when Moxfield joined Archidekt as a deck platform ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second), [§4.8](#48-moxfield)).
 
 ---
 
@@ -15,7 +16,7 @@ verified ([§9](#9-revision-log)). Eight capabilities queued and unassigned.
 
 **Problem.** Magic: The Gathering deckbuilding research is spread across tools that don't talk
 to each other. Card search lives on Scryfall, combos on Commander Spellbook, decklists on
-Archidekt, rules in a 975 KB text file. Answering an ordinary question — "what one-mana
+Archidekt or Moxfield, rules in a 975 KB text file. Answering an ordinary question — "what one-mana
 green creatures ramp, are legal in my Commander deck, and cost under a dollar" — means three
 tabs and manual cross-referencing. An LLM with direct access to these sources can answer it
 in one step, but only if the tools expose enough expressiveness to be worth calling.
@@ -56,6 +57,9 @@ the reasoning instead of re-deriving it.
 | [D-10](#d-10--tool-handlers-never-throw) | Tool handlers never throw. They return structured results carrying success or failure | 2026-07-29 |
 | [D-11](#d-11--tool-naming-convention) | Tool naming: `domain_verb_noun` in snake_case | 2026-07-29 |
 | [D-12](#d-12--no-npm-archidekt-dependency) | No dependency on the npm `archidekt` package | 2026-07-29 |
+| [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) | Deck platform order: Archidekt first, Moxfield second. Both are in scope; neither blocks the other's spec | 2026-08-07 |
+| [D-14](#d-14--no-npm-moxfield-api-dependency) | No dependency on the npm `moxfield-api` package. Use plain HTTP | 2026-08-07 |
+| [D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) | Moxfield writes are blocked upstream, not merely last. They stay queued and unspecified until Moxfield has a working third-party authentication path | 2026-08-07 |
 
 ### D-01 — Distribution: local package over stdio
 
@@ -170,6 +174,14 @@ Not a credential problem — [D-01](#d-01--distribution-local-package-over-stdio
 operation is destructive. Every read-only capability should be delivered and stable before
 anything can damage a user's deck.
 
+**Scoped 2026-08-07 by [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) and [D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last).** This decision is unchanged and still
+governs Archidekt. What it did not anticipate is a second deck platform, so read it as naming
+Archidekt specifically rather than as a general rule about deck writes. Moxfield writes are
+blocked by something this decision has no view on — the absence of a working third-party
+authentication path ([§4.8](#48-moxfield)) — and [D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) records that separately. The distinction
+matters: "last" is a scheduling choice this project makes, and "blocked" is a fact about
+someone else's API that no amount of sequencing resolves.
+
 ### D-10 — Tool handlers never throw
 
 **Decided 2026-07-29.**
@@ -199,6 +211,93 @@ reads well and groups related tools without a namespace mechanism.
 Version 0.0.14, last published seven years ago, zero dependents, and its own README states
 Archidekt's API is undocumented and in open beta. It earns nothing over `fetch`. Its value is
 as *documentation* of URL shapes, which [§4.5](#45-archidekt) now records directly.
+
+### D-13 — Deck platform order: Archidekt first, Moxfield second
+
+**Decided 2026-08-07.**
+
+**Both Archidekt and Moxfield are in scope as deck sources. Archidekt is specified and built
+first; Moxfield follows. Neither blocks the other's spec, and neither is a prerequisite for the
+other's capability.**
+
+Two reasons, one of them not technical. The author uses Archidekt and knows its payload shape,
+its category convention, and its failure modes first-hand — [§4.5](#45-archidekt) is the
+longest-standing research record in this document and [OQ-07](#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read) is the only question left
+standing between it and a spec. Moxfield's record starts today. Building the platform the author
+can validate by eye is how a deck-read capability gets its shape right before a second platform
+has to fit that shape.
+
+The second reason is that **deck reading is one capability with two backends, not two unrelated
+capabilities.** Both return the same thing to the model — a decklist with quantities, board
+assignment, and commander designation. Archidekt first means the normalized shape is designed
+against a real payload rather than in the abstract, and Moxfield second means it gets tested
+against a payload the design did not come from. Specifying them simultaneously would produce
+either one shape bent around two APIs or two tools that return different things for the same
+question.
+
+**What this does not decide.** It does not assign phases — [§6](#6-phases) still does that in the sessions
+that specify each one — and it does not make Moxfield conditional on Archidekt shipping. If
+Archidekt's research stalls on [OQ-07](#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read), Moxfield reading is not held hostage to it.
+
+### D-14 — No npm `moxfield-api` dependency
+
+**Decided 2026-08-07.**
+
+**No dependency on the npm `moxfield-api` package.** Use plain HTTP, the same as [D-12](#d-12--no-npm-archidekt-dependency) decided
+for Archidekt.
+
+This one was researched on its merits rather than assumed, because unlike the `archidekt`
+package it is **not abandoned**: `moxfield-api` v2.1.0 is MIT-licensed, written in TypeScript,
+and was last pushed 2026-08-03 — four days before this decision. **[verified 2026-08-07]** It
+still does not earn the dependency, for reasons that have nothing to do with staleness:
+
+- **Its entire API surface is one endpoint.** `src/api/` contains exactly one module,
+  `deck-list`, exposing `decklist.findById()` over `GET /v3/decks/all/{id}`. **[verified]**
+  There is no search, no user lookup, no authentication, and no write path — so it covers the
+  one call this project would find easiest to write itself, and none of the parts that are
+  actually hard.
+- **It sets no `User-Agent`.** Its fetcher is a thin wrapper around global `fetch` that parses
+  JSON, maps 404 to a typed error, and rethrows everything else. **[verified]** Identifying the
+  application is a requirement here ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)), so the one piece of HTTP behavior this
+  project cannot compromise on is the piece the library omits.
+- **It brings runtime dependencies for validation this project does differently.** `zod` and
+  `zod-fetch`. **[verified]** [§4.1](#41-scryfall-rest-api)'s wire types are hand-written minimal
+  shapes covering only the fields actually read; adopting a schema library for one endpoint would
+  add a validation idiom used nowhere else in the codebase.
+- **Its error model is the opposite of [D-10](#d-10--tool-handlers-never-throw)'s.** It throws
+  `MoxfieldError` / `NotFoundMoxfieldError`. Every use would be wrapped in a try/catch that
+  converts back to a `Result`, which is more code than the `fetch` call it replaces.
+
+Its genuine value, exactly as with the `archidekt` package, is as **documentation of URL
+shapes** — and that is transcribed into [§4.8](#48-moxfield) so the package can be ignored
+entirely. Recorded as a decision rather than left implicit because the package is healthy enough
+that a future session would reasonably reach for it.
+
+### D-15 — Moxfield writes are blocked upstream, not merely last
+
+**Decided 2026-08-07.**
+
+**Moxfield writes stay queued and unspecified until Moxfield has a working third-party
+authentication path. This is not a sequencing preference and it is not this project's to
+schedule.**
+
+[D-09](#d-09--archidekt-writes-land-last) puts Archidekt writes last, which is a choice — the write API exists, is reachable, and is
+deferred because it is destructive. Moxfield is a different situation and must not be recorded
+as the same one. Writing to Moxfield requires a token from `POST /v1/account/token` or
+`POST /v2/account/token`, and those endpoints are reported to sit behind Cloudflare or reCAPTCHA
+validation **even for callers whose `User-Agent` Moxfield support confirmed as whitelisted** —
+filed on Moxfield's own issue tracker 2025-11-23, still open with zero maintainer comments as of
+today. **[verified 2026-08-07, §4.8]** There is no documented alternative flow.
+
+**The consequence that binds.** The only ways past a challenge of that kind are to solve it
+programmatically or to drive a real browser session, and [§3.7](#37-undocumented-and-bot-protected-third-party-apis) forbids both outright. So the
+honest position is that this capability is not currently buildable by any means this project
+will use, and saying "last" would imply otherwise to a future session reading the queue.
+
+**What unblocks it.** Moxfield publishing a third-party auth path, or resolving that issue, or
+granting this application credentials that work. Any of those reopens this decision. Until then
+the [§6](#6-phases) queue carries it as blocked with this ID attached, and no plugin-side credential is
+declared for it ([`docs/PLUGIN-PRD.md` P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)).
 
 > **Note on [D-07](#d-07--three-way-cache-split).** This revises the decision as originally stated. The original rationale is
 > preserved above and still holds. The change is in scope of what bulk data is used *for*,
@@ -292,6 +391,46 @@ docs:
 Handlers never throw ([D-10](#d-10--tool-handlers-never-throw)). Additionally, some upstream failures are **inherently
 ambiguous** and the error text must not claim more than is known — see [§4.5](#45-archidekt), where Archidekt
 returns an indistinguishable 404 for private, unlisted, and deleted decks.
+
+**Moxfield returns 404 for an unknown deck ID too** ([§4.8](#48-moxfield)), as an RFC 9110 problem-details body
+carrying no reason beyond `"Not Found"`. **[verified 2026-08-07]** Whether it *also* masks
+private and unlisted decks behind that same 404 is untested ([OQ-11](#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id)). Until that is known, error
+text for a Moxfield deck read is held to the same standard as Archidekt's for the same
+reason — the constraint is that the message must not assert a cause the response does not
+establish, and an untested masking behavior is exactly the case where a confident message
+would be a guess.
+
+### 3.7 Undocumented and bot-protected third-party APIs
+
+Scryfall publishes its limits, so [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) can state them as numbers. Archidekt ([§4.5](#45-archidekt)) and Moxfield
+([§4.8](#48-moxfield)) publish nothing: no documentation, no rate-limit headers, no terms addressing automated
+reads. That absence is not permission, and it is the reason this section exists as a constraint
+rather than as advice inside each dependency's subsection.
+
+- **Identify honestly on every request.** The same app-naming `User-Agent` and `Accept` headers
+  [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) requires for Scryfall apply to every source in [§4](#4-external-dependencies), including these two. This is not
+  only politeness: **Moxfield operates a `User-Agent` whitelist granted by support** ([§4.8](#48-moxfield)), so
+  an identifiable agent is the prerequisite for ever being allowed to ask.
+- **Never defeat bot protection.** No Cloudflare-challenge solver, no `cloudscraper` or
+  equivalent, no headless-browser session, no rotating or browser-impersonating `User-Agent`, no
+  TLS fingerprint spoofing. This is a hard line and it has no exception for "it was the only way
+  that worked." A public third-party wrapper for Moxfield does exactly this ([§4.8](#48-moxfield)); that is a
+  reason to cite it as evidence about the API's posture, and not a pattern to copy.
+- **A block is an answer.** If a source starts returning 403s or challenges to an honestly
+  identified caller, the capability degrades and reports the block. It does not work around it.
+  Sustained circumvention risks the same outcome [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) names for Scryfall — losing access for
+  every user of this application at once — and here it would be forfeiting access that was never
+  granted in the first place.
+- **Self-throttle conservatively where no limit is published.** Absence of a documented limit is
+  absence of evidence, not absence of a limit ([OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits)). Treat an undocumented source as the
+  strictest lane in [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) until told otherwise.
+- **Ask before shipping, not after.** Where a source has a stated channel for requesting
+  approved access, using it is part of the capability's spec work rather than a follow-up
+  ([OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms)).
+
+This constrains research sessions as much as shipped code. A live probe against an undocumented
+API is a real request against someone else's infrastructure: keep it to single calls, spaced,
+with an honest agent — which is how [§4.8](#48-moxfield)'s measurements were taken.
 
 ---
 
@@ -696,6 +835,152 @@ non-commercial and non-paywall implications. Scryfall and Commander Spellbook bo
 under this policy and both carry the disclaimer, which is confirmation that it is the right
 frame for this project too. **[verified]**
 
+### 4.8 Moxfield
+
+**Date verified:** 2026-08-07
+**Base:** `https://api2.moxfield.com` (authentication endpoints also on `https://api.moxfield.com`)
+
+Numbered 4.8 and appended after [§4.7](#47-wotc-fan-content-policy) rather than inserted beside [§4.5](#45-archidekt), because renaming or
+renumbering a heading breaks every link pointing at it. Read it as a sibling of [§4.5](#45-archidekt); the
+policy subsection sitting between them is an artifact of append-only numbering.
+
+**Provides.** Deck read. Deck write exists but is unreachable — see the authentication finding
+below and [D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last).
+
+**There is no official public API and no published documentation.** **[verified — absence
+confirmed, not merely unfound.]** Moxfield's own public repository, `moxfield/moxfield-public`,
+is an issue tracker: its README identifies the product and carries the Wizards trademark
+disclaimer, and documents no endpoint, no terms for automated access, and no rate limit. Every
+URL shape below is therefore reverse-engineered — by this session where marked verified, and by
+third-party wrappers where marked otherwise.
+
+**Auth for reads: none required for public decks, and no bot challenge was encountered.**
+`GET /v3/decks/all/{id}` with an app-naming `User-Agent` and `Accept: application/json` →
+HTTP 200. **[verified]** No Cloudflare interstitial, no JavaScript challenge, no cookie
+requirement. Measured from one machine on one date, so read it as "reads are not challenged by
+default" and not as a guarantee — [§3.7](#37-undocumented-and-bot-protected-third-party-apis) governs what happens if that changes, and the answer
+is not to work around it.
+
+**Endpoints.**
+- `GET /v3/decks/all/{id}` — full deck. **[verified]** `{id}` is the 22-character public ID from
+  the deck's web URL, `https://moxfield.com/decks/{id}`.
+- `POST /v1/account/token` and `POST /v2/account/token` — username/password authentication.
+  **[reported on Moxfield's issue tracker; deliberately not exercised — see below.]**
+- `GET /v2/decks/search`, `GET /v2/cards/search` — **[attributed to third-party wrappers, not
+  verified here.]** Card search is served by [§4.1](#41-scryfall-rest-api) regardless; deck search is not a queued
+  capability.
+
+**Moxfield operates a `User-Agent` whitelist granted by support.** **[verified — reported by a
+third-party developer on Moxfield's issue tracker, with support's confirmation quoted.]** This
+is the closest thing to an access policy Moxfield publishes anywhere, and it means an
+identifiable agent is a prerequisite rather than a courtesy ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)). It also implies a channel
+for asking, which is [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms).
+
+**Authentication is challenged even for whitelisted agents, and the report is unanswered.**
+`moxfield/moxfield-public` issue #143, filed 2025-11-23: a developer whose `User-Agent` support
+confirmed as whitelisted receives Cloudflare/reCAPTCHA validation from both token endpoints, and
+cannot obtain a token at all. `POST /v1/account/token` returns HTTP 400 with an RFC 9110
+problem-details body; `POST /v2/account/token` returns `{"token":["The Token field is
+required."]}`. **The issue is open, unlabeled, and carries zero maintainer comments as of
+2026-08-07** — roughly eight and a half months. **[verified]** This project did not attempt
+authentication: there is no account to test with that is not the author's, and [§3.7](#37-undocumented-and-bot-protected-third-party-apis) forbids
+the techniques that would get past a challenge anyway. This finding is the whole basis of
+[D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last).
+
+**An unknown deck ID returns HTTP 404** as an RFC 9110 problem-details body —
+`{"type":"…rfc9110#section-15.5.5","title":"Not Found","status":404,"traceId":"…"}`, 162 bytes,
+carrying no reason beyond the status. **[verified]** Whether private and unlisted decks are
+masked behind that same 404, as [§4.5](#45-archidekt) found for Archidekt, is **not tested** —
+[OQ-11](#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id). Do not assume parity in either direction; [§3.6](#36-error-surface) is what constrains the message
+until it is known.
+
+**Rate limits.** None documented; no rate-limit, retry-after, or throttling headers observed.
+**[verified absent — meaning unknown.]** Same posture as Archidekt: self-throttle
+conservatively ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)), and see [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits).
+
+#### 4.8.1 The deck payload is enormous — measured
+
+This is the finding that shapes the capability, and it was measured rather than estimated.
+
+**One public deck read returned 1,629,429 bytes** — 1.63 MB of JSON for a single request.
+**[verified 2026-08-07]** The deck holds 250 mainboard cards and 5 maybeboard cards. Byte
+distribution across top-level keys:
+
+| Key | Bytes | Share |
+|---|---|---|
+| `boards` | 996,690 | 61.2% |
+| `tokens` | 296,316 | 18.2% |
+| `tokenMappings` | 251,240 | 15.4% |
+| `authorTags` | 10,925 | 0.7% |
+| everything else (44 more keys) | ~74,000 | ~4.5% |
+
+**Two numbers matter more than the total.** First, **a single card entry is ~3,959 bytes**, so
+the payload scales with deck size and an ordinary 100-card Commander deck's `boards` alone lands
+near 400 KB. Second, **`tokens` plus `tokenMappings` is 33.6% of the response** — a third of
+every Moxfield deck read is token data that no deckbuilding question asked for.
+
+**Set that against the ceiling this project has already hit.** [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s answer records a
+[CAP-01](#cap-01--card-search) response of 116,626 characters that **exceeded a harness tool-result ceiling** at well
+under one page of results (issue #25). This deck read is roughly **fourteen times** that. The
+consequence is not a preference: **a Moxfield deck-read capability cannot pass the upstream
+payload through, at any deck size worth reading.** Trimming is load-bearing from the first line
+of the spec, which is a different starting position from [CAP-01](#cap-01--card-search), where verbosity was
+discovered as a problem after delivery.
+
+**The trim is unusually obvious, because every card carries `scryfall_id`.** **[verified]** The
+nested `card` object holds roughly seventy fields — including `legalities`, `prices`,
+`oracle_text`, `card_faces`, `edhrec_rank`, `multiverse_ids`, and **twelve vendor and affiliate
+URL fields** (`cardKingdomUrl`, `cardMarketUrl`, `tcgPlayerUrl`, `coolStuffIncUrl`,
+`cardTraderUrl`, `starcitygames_url`, `manapool_url`, `cardHoarderUrl`, and their foil variants).
+Almost all of it duplicates, less currently, what [§4.1](#41-scryfall-rest-api) already serves — and [D-06](#d-06--pricing-from-scryfall) makes Scryfall the
+price source regardless, so Moxfield's embedded `prices` must not be read for price answers. A
+deck read that returns name, quantity, board, finish, and `scryfall_id`, then resolves detail
+through [§4.1.2](#412-batch-resolution) batch lookup, is both far smaller and more correct than passing the payload
+through.
+
+**Board structure differs from Archidekt's in a way that affects the normalized shape.**
+`boards` is a map of twelve named boards — `mainboard`, `sideboard`, `maybeboard`, `commanders`,
+`companions`, `signatureSpells`, `attractions`, `stickers`, `contraptions`, `planes`, `schemes`,
+`tokens` — each with a `count` and a `cards` map. **[verified]** Empty boards are still present
+and cost 22 bytes each, so the count is fixed rather than variable. **Commander designation is a
+board here**, where [§4.5](#45-archidekt) found Archidekt expresses it as `categories: ["Commander"]` on the card.
+Companion likewise. Neither platform's convention is more correct, and one of them will have to
+be translated into whatever the tool returns — [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two).
+
+Per-card fields outside the nested card object: `quantity`, `boardType`, `finish`, `isFoil`,
+`isAlter`, `isProxy`, `useCmcOverride`, `useManaCostOverride`, `useColorIdentityOverride`,
+`excludedFromColor`. **[verified]** Deck-level fields worth naming: `name`, `format`,
+`visibility`, `publicUrl`, `publicId`, `createdByUser`, `authors`, `hubs`, `colorIdentity`,
+`bracket`, `createdAtUtc`, `lastUpdatedAtUtc`. **[verified]**
+
+#### 4.8.2 The npm `moxfield-api` package
+
+Researched because [D-14](#d-14--no-npm-moxfield-api-dependency) had to be decided on evidence rather than by analogy to [D-12](#d-12--no-npm-archidekt-dependency).
+**[verified 2026-08-07]** v2.1.0, MIT, TypeScript, ESM-only, last pushed 2026-08-03 — genuinely
+maintained, unlike the seven-year-stale `archidekt` package. Its `src/api/` holds exactly one
+module, `deck-list`, exposing `decklist.findById()` over `GET /v3/decks/all/{id}`, accepting
+either a bare ID or a full deck URL. No authentication, no writes, no search. Its fetcher wraps
+global `fetch`, sets **no headers at all**, and throws typed errors. Runtime dependencies: `zod`
+and `zod-fetch`.
+
+Its URL-shape and input-parsing knowledge is transcribed above so the package can be ignored
+entirely — the same treatment [§4.5](#45-archidekt) gives the `archidekt` package, and for a different reason:
+that one is abandoned, this one is simply narrower than its name suggests. See [D-14](#d-14--no-npm-moxfield-api-dependency).
+
+**A second wrapper is worth knowing about as evidence, not as a model.** A public FastAPI proxy
+for Moxfield uses `cloudscraper` to bypass Cloudflare's JavaScript challenge. **[verified]** Two
+things follow. It is corroboration that Moxfield's protection does bite some callers, which
+makes the honest-`User-Agent` requirement in [§3.7](#37-undocumented-and-bot-protected-third-party-apis) load-bearing rather than decorative. And it
+is precisely the technique [§3.7](#37-undocumented-and-bot-protected-third-party-apis) forbids — recorded here so that a future session that finds
+it while searching recognizes it as a rejected approach rather than a solution.
+
+**Risk.** Moderate for reads, and higher than Archidekt's. Both are undocumented and unversioned,
+so both can change without notice; Moxfield adds an active bot-protection layer that this project
+will not circumvent, which means a posture change upstream is a hard stop rather than a repair
+job. Writes are not at risk because they are not reachable ([D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last)). Mitigation for reads is the
+same as everywhere else here: identify honestly, throttle conservatively, keep the payload
+handling tolerant of unknown fields, and treat a block as an answer.
+
 ---
 
 ## 5. Capabilities
@@ -830,25 +1115,39 @@ most queued capabilities build on. Phase 1 requires no credentials, no bulk-data
 no local storage, so it validates [D-01](#d-01--distribution-local-package-over-stdio)'s install-friction claim before any heavier machinery
 exists.
 
-**Eight capabilities are queued and unassigned.** Phase assignment happens in the sessions
+**Ten capabilities are queued and unassigned.** Phase assignment happens in the sessions
 that specify them, not here. They are, with the dependencies already visible from [§4](#4-external-dependencies):
 
 | Queued capability | Primary source | Notes from research |
 |---|---|---|
 | Combo discovery | Commander Spellbook `/find-my-combos`, `/variants/` ([§4.4](#44-commander-spellbook)) | the primitive already exists and is anonymous |
-| Archidekt deck reading | Archidekt `GET /api/decks/{id}/` ([§4.5](#45-archidekt)) | works unauth; must handle the 404 masking |
+| Archidekt deck reading | Archidekt `GET /api/decks/{id}/` ([§4.5](#45-archidekt)) | works unauth; must handle the 404 masking. **First of the two platforms** ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)) |
+| Moxfield deck reading | Moxfield `GET /v3/decks/all/{id}` ([§4.8](#48-moxfield)) | works unauth; **second** ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)). Payload measured at 1.63 MB, so trimming is part of the spec, not a refinement ([§4.8.1](#481-the-deck-payload-is-enormous--measured)). Shares the normalized shape — [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) |
 | Arena-format decklist export | none beyond [CAP-01](#cap-01--card-search) / deck reading | pure transformation |
 | Decklist pricing | Scryfall `POST /cards/collection` ([§4.1.2](#412-batch-resolution)) | 75/request; inherits [§4.1.3](#413-price-fields--three-verified-traps) price traps |
 | Budget alternatives | Scryfall search + collection | depends on [CAP-01](#cap-01--card-search) and pricing |
 | Archidekt deck writing | Archidekt write API ([§4.5](#45-archidekt)) | **last** per [D-09](#d-09--archidekt-writes-land-last); [OQ-04](#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api) unresolved |
+| Moxfield deck writing | Moxfield write API ([§4.8](#48-moxfield)) | **blocked upstream, not scheduled** ([D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last)) — no working third-party auth path. Unblocks via [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms) |
 | Tag discovery | Scryfall `oracle_tags` / `art_tags` bulk ([§4.3](#43-scryfall-tags-api)) | first capability needing bulk + local storage |
 | Comprehensive Rules lookup | WotC CR TXT ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)) | first capability needing runtime fetch + cache ([D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)) |
 
-Two observations that should inform later phase assignment. **Tag discovery and Rules lookup
+Four observations that should inform later phase assignment. **Tag discovery and Rules lookup
 are the first capabilities that require local persistence** — everything before them is
 stateless request/response, so they carry setup cost the earlier ones don't. And **Archidekt
 deck writing should be strictly last** ([D-09](#d-09--archidekt-writes-land-last)), after deck reading has been stable long
 enough to trust.
+
+Added 2026-08-07 with [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second): **the two deck-reading rows are one capability shape served twice, not
+two independent capabilities.** Whichever is specified first sets the returned shape, which is
+why the order is a locked decision rather than a scheduling detail, and why [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) has to be
+answered by the *first* of them. Everything downstream of deck reading — analysis, Arena export,
+deck pricing — consumes that shape and not a platform's payload, so it inherits both platforms
+for free or neither.
+
+And **the two deck-writing rows are queued for different reasons and must not be collapsed.**
+Archidekt writing is deferred by choice and is buildable today; Moxfield writing is not buildable
+by any means [§3.7](#37-undocumented-and-bot-protected-third-party-apis) permits. A future session that reads "both are last" and schedules them
+together will discover the difference at the worst possible moment.
 
 ---
 
@@ -961,6 +1260,13 @@ evidence is not absence of limits.
 *Resolves by:* asking the Commander Spellbook admins via their Discord (the About page
 directs API questions there), and by conservative self-throttling in the meantime.
 
+**Widened 2026-08-07: Moxfield is a third source in the same position** and is covered by this
+question despite not appearing in its heading, which cannot be renamed without breaking the links
+that point at it. [§4.8](#48-moxfield) found no documented limit and no rate-limit headers there either. Moxfield
+differs from the other two in having a plausible channel to ask — the `User-Agent` whitelist
+implies a support contact — which is [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms). Until any of the three answers, [§3.7](#37-undocumented-and-bot-protected-third-party-apis) is the
+standing rule.
+
 ### OQ-06 — Is Commander Spellbook's combo *data* licensed, as distinct from its code?
 
 The code is MIT; the data has no stated license and there is no ToS page ([§4.4](#44-commander-spellbook)).
@@ -999,6 +1305,69 @@ alternative is to keep USD-only and report the reason precisely enough that the 
 populated and `usd` null — rather than generalizing from one card. Then either extending the
 price shape with an explicit currency field, or deciding the honest `no-price-data` answer is
 sufficient and recording that as settled.
+
+### OQ-10 — Will Moxfield grant this application approved access, and under what terms?
+
+Opened 2026-08-07 by [§4.8](#48-moxfield). Moxfield operates a `User-Agent` whitelist granted by support — the
+only access policy it publishes anywhere — so there is a channel to ask, which is more than
+[§4.5](#45-archidekt) or [§4.4](#44-commander-spellbook) offer. What is unknown is everything that matters: whether an application of
+this shape and size qualifies, what terms come attached, whether a whitelist covers reads only or
+is a prerequisite for the token endpoints as well, and whether approval carries a rate limit that
+[OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) would otherwise have to guess at.
+
+Asking is not optional politeness — [§3.7](#37-undocumented-and-bot-protected-third-party-apis) makes it part of the capability's spec work. Note the
+likely answer is narrow: reads already work unchallenged without approval, so a whitelist may
+change nothing for the read capability and everything for [D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last). It is also possible the
+answer is no, or silence — issue #143 has had no maintainer comment in eight months, so a support
+channel that answers cannot be assumed.
+*Resolves by:* contacting Moxfield support before Moxfield deck reading ships, describing the
+application honestly — local install, 5–20 users, one deck read per user request, no
+redistribution — and recording the reply verbatim here, including a non-reply after a stated
+interval. A no or a silence resolves this question just as much as a yes; what it changes is
+[D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last)'s status, not whether reads ship.
+
+### OQ-11 — Does Moxfield mask private and unlisted decks behind the same 404 as an unknown ID?
+
+Opened 2026-08-07 by [§4.8](#48-moxfield). An unknown deck ID returns a bare RFC 9110 404 carrying no reason
+**[verified]**, but no private or unlisted deck was tested, so it is unknown whether Moxfield
+collapses those cases the way [§4.5](#45-archidekt) verified Archidekt does. The two plausible answers lead to
+different error text: if private decks 404 identically, the message must cover all causes without
+asserting one ([§3.6](#36-error-surface)); if Moxfield distinguishes them — a 403, or a body naming the reason — then
+the capability can say something genuinely more useful than the Archidekt equivalent can, and
+should.
+
+Worth stating explicitly because the tempting move is to assume parity with [§4.5](#45-archidekt) and write one
+error message for both platforms. That would either over-claim on Moxfield or under-claim on
+Archidekt, and the failure is silent in both directions — a user reading "this deck is private or
+was deleted" has no way to tell that the tool guessed.
+*Resolves by:* reading three decks the author owns on Moxfield — one public, one unlisted, one
+private — as an anonymous caller, and recording all three status codes and bodies. Cheap,
+three requests, and it needs an account the author already has rather than any credential the
+server would ever hold.
+
+### OQ-12 — What is the normalized deck shape, and does one tool serve both platforms or two?
+
+Opened 2026-08-07 by [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second). Archidekt and Moxfield answer the same user question and
+disagree structurally about how to say so. Commander designation is `categories: ["Commander"]`
+on a card in Archidekt ([§4.5](#45-archidekt)) and a dedicated `commanders` board in Moxfield ([§4.8.1](#481-the-deck-payload-is-enormous--measured));
+Moxfield has twelve fixed boards where Archidekt has free-form categories; both embed card
+detail that [D-06](#d-06--pricing-from-scryfall) and [§4.1](#41-scryfall-rest-api) say should come from Scryfall instead. Whatever the tool returns
+has to be one shape, because every downstream capability — deck analysis, Arena export, deck
+pricing — consumes the shape rather than the platform.
+
+Two sub-questions, and the second is the one that bites. **What does the shape contain?** The
+strong candidate from [§4.8.1](#481-the-deck-payload-is-enormous--measured) is deliberately thin — name, quantity, board, finish,
+`scryfall_id`, plus deck-level format and identity — with card detail resolved through [§4.1.2](#412-batch-resolution)
+rather than passed through, which is smaller *and* more correct than either platform's embedded
+copy. **And is it one tool or two?** [D-11](#d-11--tool-naming-convention)'s `domain_verb_noun` convention suggests
+`deck_read_archidekt` and `deck_read_moxfield`, which is honest about the URL the user pastes and
+costs a second tool schema in every session ([`docs/PLUGIN-PRD.md` PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)). A single
+`deck_read` that dispatches on the URL's host costs one schema and hides which platform failed
+when one is down.
+*Resolves by:* the Archidekt deck-reading spec session, which is first per [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) and therefore
+owns this. It must answer the shape question against a real Archidekt payload while explicitly
+checking each field against [§4.8.1](#481-the-deck-payload-is-enormous--measured)'s Moxfield record — designing for one platform and
+discovering the second does not fit is the outcome [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)'s ordering exists to prevent.
 
 ---
 
@@ -1044,6 +1413,20 @@ abstraction; an interface with one implementation is over-engineering.
 dependents, and its own README disclaims the API's stability. Its URL documentation is
 transcribed into [§4.5](#45-archidekt) so it can be ignored.
 
+**The npm `moxfield-api` package as a dependency.** Rejected by [D-14](#d-14--no-npm-moxfield-api-dependency), on different grounds
+from the one above — this package is actively maintained. It covers one endpoint, sets no
+`User-Agent`, throws where [D-10](#d-10--tool-handlers-never-throw) requires a returned failure, and brings `zod` for one call.
+[§4.8.2](#482-the-npm-moxfield-api-package) records it so a future session does not re-evaluate it from the package page alone,
+where it looks like a much better fit than it is.
+
+**Any technique for defeating a third party's bot protection.** Rejected by [§3.7](#37-undocumented-and-bot-protected-third-party-apis): no
+Cloudflare-challenge solver, no `cloudscraper`, no headless browser, no browser-impersonating or
+rotating `User-Agent`, no TLS fingerprint spoofing. Named here as well as in the constraint
+because a public Moxfield wrapper does exactly this and is easy to find while researching
+([§4.8.2](#482-the-npm-moxfield-api-package)) — encountering it is not a discovery that this is possible, it is an encounter with a
+rejected approach. This has no exception for "it is the only thing that works," which is the
+form the argument will take.
+
 **Bundling the Comprehensive Rules text in the package.** Rejected by [D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled) on Fan Content
 Policy grounds.
 
@@ -1051,8 +1434,19 @@ Policy grounds.
 Prohibited by Scryfall's data-use rules ([§3.3](#33-legal-and-terms-of-service)) and by the Fan Content Policy's
 non-commercial terms. Not a product option.
 
-**Deck editing outside Archidekt.** No other deck platform is in scope. Archidekt writes are
-last ([D-09](#d-09--archidekt-writes-land-last)); other platforms are not queued at all.
+**Deck platforms other than Archidekt and Moxfield.** ~~No other deck platform is in scope.~~
+**Amended 2026-08-07 by [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second).** The
+entry as originally written rejected every platform but Archidekt, and Moxfield is now in scope
+as the second — read [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) for the reasoning and the ordering. What survives unchanged is the
+rejection of a *third*: Deckstats, TappedOut, MTGGoldfish, Cube Cobra and the rest are not queued
+and are not to be proposed. Two platforms already cost one normalized shape ([OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)) plus two
+undocumented APIs to keep working, and the audience for this project overwhelmingly uses these
+two.
+
+**Writing to Moxfield, for as long as its authentication is unreachable.** Rejected by
+[D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) — not a scheduling call like [D-09](#d-09--archidekt-writes-land-last)'s. Listed here rather than left in the [§6](#6-phases) queue
+alone because the queue entry is easy to read as "later" when the accurate reading is "not by any
+means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms) is the only thing that moves it.
 
 ---
 
@@ -1076,6 +1470,9 @@ last ([D-09](#d-09--archidekt-writes-land-last)); other platforms are not queued
 | 2026-08-04 | **[§4.1.1](#411-search-endpoint) gains a dated addendum pinning regex anchor semantics.** Scryfall evaluates `o:/…/` in multi-line mode: `^` and `$` bind to a line of `oracle_text`, not to the card. Measured live — `o:/^whenever you cast/` 849 cards versus 361 once newline-preceded matches are excluded, so 488 matched on a non-initial line. The stricter escapes are unavailable and **fail in two different ways**: `\z` and `(?-m:^…)` return HTTP 400, while **`\A` returns a well-formed HTTP 200 with `total_cards: 0`** — a silent wrong answer of the same class as the dropped-term behavior recorded in the addendum above. Surfaced by [Slice 9](./slices/TrackB-Slice9.md) ([`docs/slices/TrackB-Slice9-results.md`](./slices/TrackB-Slice9-results.md)) and re-verified with four confirmatory calls before recording. The regex counts in the existing rows stand — they were always line-anchored counts. | The document's regex rows recorded that regex *works* and never what its anchors *mean*, so "starts with" read as whole-text when it is per-line, and every session that wanted a true text-box anchor rediscovered this at the cost of a wasted call. Appended as a dated addendum rather than an edit, per [§4](#4-external-dependencies)'s every-claim-is-dated property. The `\A` asymmetry is the reason this needed recording at all: a 400 teaches the model to retry, a zero-match 200 teaches it to report "no cards match" and stop. |
 | 2026-08-04 | **[OQ-02](#oq-02--how-verbose-should-a-search-result-be) gains a dated status note carrying its first payload measurement — and stays open.** One [CAP-01](#cap-01--card-search) response of 111 cards measured 116,626 characters, `legalities` 54.5% of the bytes and `oracle_text` 25.1%, which confirms the 2026-08-03 note's inference that untrimmed `legalities` is the largest contributor and sharpens it to *the majority*. No field set was trimmed, no verbose mode was added, and no 175-card page was measured, so nothing here answers the question's "resolves by" clause. Nothing else in this document changed: [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) is now cited from [`docs/PLUGIN-PRD.md` §8](./PLUGIN-PRD.md#8-out-of-scope) as the reason a hosted remote MCP server is rejected, and that citation needs no edit here — the constraint it relies on is already stated. | The MCPB / Chat-tab distribution work, 2026-08-04 ([`docs/PLUGIN-PRD.md` P-14](./PLUGIN-PRD.md#p-14--two-distribution-targets-one-source), [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab)) — an unplanned session outside [`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)'s slice sequence. The measurement is recorded because it arrived as a **user-visible failure** rather than as an experiment: `card_search` payloads exceeded the harness's tool-result ceiling below one page (issue #25, open and unfixed). That makes verbosity a delivery constraint and not only a context-budget preference, which is a fact this question was framed without. It is filed as a status note rather than an answer because a measurement is evidence, and [OQ-02](#oq-02--how-verbose-should-a-search-result-be) asks for a decision. |
 | 2026-08-04 | **[OQ-02](#oq-02--how-verbose-should-a-search-result-be) answered: `legalities` is trimmed to the format the query names, with the full map behind an opt-in.** [CAP-01](#cap-01--card-search)'s field list is amended and it gains acceptance criterion 13 — a query naming a format returns that format's legality and no other; a query naming none returns a small default set. Taken on the strength of the same-day measurement in the row above: `legalities` was **54.5%** of a 116,626-character response covering 111 cards. Two alternatives are recorded as rejected. A `fields`/`verbose` parameter the model sets per call does not help the call that fails, because nothing in a well-formed query predicts an oversized result — the failing call asked for 111 legendary creatures, a reasonable answer set whose payload was heavy for reasons invisible at query time. A server-side result cap was rejected because it discards cards the user asked for, producing a worse answer rather than a smaller one. `oracle_text` at 25.1% is deliberately untouched. Unresolved and stated as such in [OQ-02](#oq-02--how-verbose-should-a-search-result-be): a full 175-card page has still never been measured, so whether the trim brings one under a realistic budget is unknown. | This is the only lever that removes bytes **nobody asked for**. A commander query returning Pioneer, Alchemy and Predh legality for every card is answering a question that was never posed, whereas trimming `oracle_text` would remove what the model reasons from. The decision was possible now and not before because [OQ-02](#oq-02--how-verbose-should-a-search-result-be) required a measurement against a real budget, and it finally arrived as a user-visible failure rather than as an estimate — the payload exceeded a harness tool-result ceiling at well under one page, and the recovery available in Claude Code was a shell and `jq`, which the Claude Desktop Chat tab does not have. Verbosity had been framed as crowding out a conversation; on a surface with no shell it makes a well-formed query simply unanswerable. Issue #25 stays open until the trim ships. |
+| 2026-08-07 | **Moxfield adopted as a second deck platform, behind Archidekt.** Three decisions added — [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) (Archidekt first, Moxfield second; both in scope, neither blocking the other), [D-14](#d-14--no-npm-moxfield-api-dependency) (no npm `moxfield-api` dependency), [D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) (Moxfield writes blocked upstream, not merely last). New [§4.8](#48-moxfield) research record with subsections [§4.8.1](#481-the-deck-payload-is-enormous--measured) (payload measurement) and [§4.8.2](#482-the-npm-moxfield-api-package) (the npm package). New constraint [§3.7](#37-undocumented-and-bot-protected-third-party-apis) governing undocumented and bot-protected APIs, covering Archidekt as well as Moxfield. [§6](#6-phases) gains two queued rows (eight capabilities → ten) and two observations. [§7](#7-open-questions) gains [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms)–[OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two); [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) widened by note to cover Moxfield without renaming its heading. [D-09](#d-09--archidekt-writes-land-last) scoped by note to Archidekt specifically. [§3.6](#36-error-surface) gains Moxfield's 404 finding. [§8](#8-out-of-scope) amended — see the row below. **No capability was specified and no phase was assigned**; [CAP-01](#cap-01--card-search) is untouched, as is every existing decision's rationale. | Requested directly: add Moxfield alongside Archidekt, Archidekt first because the author uses it. Queued at parity with Archidekt rather than specified, because Archidekt deck reading is itself only a [§6](#6-phases) row — writing CAP blocks for Moxfield would specify it *ahead* of the platform [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) puts first, and [§5](#5-capabilities) requires a CAP block be precise enough to build against. Research was done live, per [§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s own rule: three single spaced requests with an honest `User-Agent`, no authentication attempted. |
+| 2026-08-07 | **[§8](#8-out-of-scope)'s "Deck editing outside Archidekt" entry amended** — its "no other deck platform is in scope" claim is struck and superseded by [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second), with the rejection of a *third* platform preserved and named. Two entries added: the npm `moxfield-api` package, and any technique for defeating bot protection. | The entry became false the moment Moxfield was adopted, and a stale rejection in [§8](#8-out-of-scope) is worse than none — the section exists so rejected ideas do not resurface, which means a future session is entitled to treat it as current. Struck rather than deleted so the change is visible as a reversal. The bot-protection entry is listed in [§8](#8-out-of-scope) as well as [§3.7](#37-undocumented-and-bot-protected-third-party-apis) because a working `cloudscraper`-based wrapper is one search result away from anyone researching this API, and it needs to read as rejected rather than as available. |
+| 2026-08-07 | **The Moxfield deck payload measured at 1,629,429 bytes for one deck** — `boards` 61.2%, `tokens` 18.2%, `tokenMappings` 15.4%, one card entry ~3,959 bytes ([§4.8.1](#481-the-deck-payload-is-enormous--measured)). Recorded against [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s 116,626-character ceiling finding, which it exceeds by roughly fourteen times. [OQ-02](#oq-02--how-verbose-should-a-search-result-be) itself is **not** reopened and its answer is unchanged. | The measurement is the reason Moxfield deck reading cannot be specified as a passthrough, and it was available for the cost of one request, so it belongs in the record before the spec session rather than after it. It changes the starting position rather than a decision: [CAP-01](#cap-01--card-search) discovered its verbosity problem after delivery and paid for it with issue #25, and this is the same problem visible in advance. Every card carrying `scryfall_id` is what makes the trim obvious — the payload can be reduced to identifiers and resolved through [§4.1.2](#412-batch-resolution), which is both smaller and more correct than Moxfield's embedded copy, since [D-06](#d-06--pricing-from-scryfall) makes Scryfall the price source. |
 
 ---
 

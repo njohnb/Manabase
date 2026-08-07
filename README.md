@@ -222,7 +222,10 @@ paper Black Lotus. Those report as missing today. Whether to fall back to EUR is
 
 **Planned sources**, for capabilities that are queued and unassigned — none of these are
 reached today: [Commander Spellbook](https://commanderspellbook.com) for combo data,
-[Archidekt](https://archidekt.com) for deck data, and Scryfall's Tags API for tag discovery.
+[Archidekt](https://archidekt.com) and [Moxfield](https://moxfield.com) for deck data, and
+Scryfall's Tags API for tag discovery. Deck reading is planned for Archidekt first and Moxfield
+second ([`docs/MCP-PRD.md` D-13](./docs/MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)); neither
+needs an account, and reading a private deck is not something the plugin will be able to do.
 Comprehensive Rules text is © Wizards of the Coast; when rules lookup lands, the plugin will
 resolve and fetch the official published file at runtime rather than redistribute a copy
 ([`docs/MCP-PRD.md` D-08](./docs/MCP-PRD.md#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)).
