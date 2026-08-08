@@ -1339,6 +1339,27 @@ discovery or rules lookup in [`docs/MCP-PRD.md` §6](./MCP-PRD.md#6-phases). Thi
 document's [OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced). Whichever way it goes, [§3.4](#34-cross-platform-reach) constrains the mechanism: a hook here must be
 exec form.
 
+**Hook half answered 2026-08-07: never a `SessionStart` hook.** Recorded as a standing constraint
+rather than left to be re-argued by whichever capability first wants a refresh trigger. Three
+reasons converge and nothing was found opposing them: the every-project cost stated above, for
+5–20 people, in projects overwhelmingly unrelated to Magic; Phase 1 ships no hook deliberately
+([§4.1](#41-harness-features-relied-on), [P-07](#p-07--skills-not-commands)); and
+[§3.4](#34-cross-platform-reach) makes the first component to need a hook the owner of the
+exec-form and Windows-shell problem rather than the inheritor of a solution. Deciding it now costs
+nothing and pre-empts nothing.
+
+**State the constraint at its true width, because it is easy to over-read.** It rules out **this
+plugin shipping a `SessionStart` hook** — not hooks in general, and not background refresh in
+general. A capability that needs fresh bulk data may still refresh lazily on first use, on an
+explicit user-invoked action, or on a staleness check inside the tool call, all of which cost
+nothing in a project that has nothing to do with Magic, which is the entire objection. It
+forecloses one mechanism, not the goal that mechanism would have served.
+
+**The rest of the question stays open** — storage layout, and whether first use blocks on a
+download. Nothing was implemented and no [§5](#5-components) criterion changed status.
+*Resolves by:* unchanged — the capability that first needs local persistence, tag discovery or
+rules lookup.
+
 ### PQ-04 — How would the author detect that a friend's skill listing has been budget-trimmed?
 
 [§3.1](#31-context-budget)'s degradation is silent and `/doctor` is local. A friend whose listing overflowed would
@@ -1348,6 +1369,29 @@ report it as a bug at all.
 the README is sufficient, or whether [PC-01](#pc-01--scryfall-query-craft) needs to be robust to having no description — which
 it cannot be, since the description *is* the invocation mechanism. Likely a documentation
 answer, but confirm it rather than assuming.
+
+**Answered 2026-08-07: a README line is sufficient, and it names the by-name fallback.** The
+mitigation is what makes documentation sufficient rather than resigned. [§3.1](#31-context-budget)
+records that trimming drops descriptions and **keeps names**, so a trimmed skill is still
+invocable: the user is un-prompted rather than stuck, which turns an undetectable degradation into
+a recoverable one. The line leads with the symptom, because that is what a friend actually
+notices, then the recovery, then the diagnosis:
+
+> If Claude does not reach for Magic knowledge on its own, invoke
+> `manabase:scryfall-query-craft` by name — it still works when the skill listing has been trimmed.
+> Run `/doctor` to confirm whether trimming is what happened.
+
+Two things it deliberately does not do. It does not claim `/doctor` will name this plugin among the
+contributors — unverified until [Slice 10](./slices/TrackC-Slice10.md) measures it, and the line
+reads correctly either way. And it does not attempt to make
+[PC-01](#pc-01--scryfall-query-craft) robust to having no description, which is impossible for the
+reason this question already gives.
+
+**The line is not written yet.** [`README.md`](../README.md) is unchanged and no
+[PC-01](#pc-01--scryfall-query-craft) criterion changed status.
+*Resolves by:* adding the line to [`README.md`](../README.md) — [Slice 12](./slices/TrackC-Slice12.md)
+already carries that task — and confirming at [Slice 10](./slices/TrackC-Slice10.md) whether
+`/doctor` names this plugin, which sharpens the last sentence but gates neither of the first two.
 
 ### PQ-05 — Should the plugin be submitted to the community marketplace once it is stable?
 
@@ -1396,6 +1440,26 @@ commit in exactly the drift this question describes; nothing yet checks `dist/` 
 The user-facing half is untouched either way: a released bundle still carries its `dist/` until
 someone reinstalls, because there is no update path
 ([§4.2](#42-marketplace-and-install-path)).
+
+**Remedy for the ordinary-commit half decided 2026-08-07: add `ci.yml` on `pull_request` and
+`push: main`, running typecheck → test → build → `git diff --exit-code -- dist/`.** This is the
+remedy the paragraph above already worked out; recording it as decided means
+[Slice 11](./slices/TrackC-Slice11.md) implements it rather than re-arguing it. It closes the half
+that leaves every ordinary commit unchecked and, as a side effect, runs the rebuild-and-diff
+mechanism for the first time on any commit rather than on a tag — the local CRLF false alarm is a
+working-tree artifact of `core.autocrlf=true` and does not reach a Linux runner that checks out LF.
+It needs no harness: a branch and a push.
+
+**The user-facing half stays open and CI cannot close it.** A released `.mcpb` carries whatever
+`dist/` it was packed with until someone reinstalls, because Desktop has no update path
+([§4.2](#42-marketplace-and-install-path)). CI can guarantee that what was packed matched `src/`
+**at pack time** and says nothing about what a user is running today. The `0.0.0-dev+<commit>`
+stamp remains the only mitigation, and it distinguishes a hand-packed artifact from a release
+rather than detecting staleness.
+
+**Nothing was implemented on 2026-08-07** — `.github/workflows/` still holds `release.yml` alone.
+*Resolves by:* [Slice 11](./slices/TrackC-Slice11.md), which is unblocked, adding `ci.yml`, plus
+the release gate actually executing once against a real tag.
 
 ### PQ-07 — Is deck optimization a skill or an agent?
 
@@ -1571,6 +1635,9 @@ and the correct move is to say so and stop.
 | 2026-08-04 | **Four decisions taken in the same session, closing what the row above left open.** **[PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered:** the pack step stamps the MCPB manifest `version` from the commit being packed — nothing hand-synced, no fourth copy of a version string, and no `0.0.0` in an artifact a user installs and cannot update. **[PC-01](#pc-01--scryfall-query-craft) gains criteria 14 and 15**, resolving the loads-versus-fires question the previous row recorded as undecided: 14 requires the skill to appear in the session listing *and* produce a tool call on the surface being claimed; 15 requires that an unreachable tool yields a plain statement of unavailability and no substituted answer. 15 is **[verified 2026-08-04]** — the configuration that produced the original silent web search now stops. **[P-12](#p-12--plugin-name-and-server-key) amended** to say the scoped tool name is constructed per surface and is not a property of the server, with the two traps that follow: never write it into a component that travels between surfaces, and never use it to detect whether the tool is present. **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criteria corrected from four verified to five** — criterion 6 was verified after [§6](#6-roadmap) and the row above were drafted, and both said four. | Three of the four are the same failure seen from different angles: a check that passes without the thing it checks for actually working. [PC-01](#pc-01--scryfall-query-craft)'s static criteria passed twice on skills that did not work, so 14 and 15 exist to make the file-measurable checks insufficient on their own rather than to replace them. [P-12](#p-12--plugin-name-and-server-key) read as a universal fact and was a single-surface one, which is what let a skill body assert a tool name that does not exist where it was sent. [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)'s answer is chosen for the same reason: an installed `.mcpb` never re-pulls, so a version that does not identify its build gives its user no signal at all — the staleness half of [PQ-06](#pq-06--what-keeps-the-committed-dist-honest). The count correction is recorded rather than silently fixed because a criteria tally that drifts between the block and the sections summarizing it is exactly the divergence this document's no-duplicated-decisions rule exists to prevent. |
 | 2026-08-04 | **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) moves from `specified`/unassigned to `in progress`/Slice 11, gains criteria 9, 10 and 11, and criterion 5 is verified.** The build path is committed: `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`), and `.github/workflows/release.yml` — the repo's first `.github/` — which on a `v*` tag typechecks, tests, rebuilds `dist/` and fails on a diff, packs, and attaches `manabase.mcpb` to a Release. **[PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) implemented**, and the piece its answer left open is settled: **a tag versions the bundle, not the plugin**, so [P-08](#p-08--version-scheme) is untouched and Slice 13 still owns the plugin-version question; an untagged pack stamps `0.0.0-dev+<commit>`. **[PQ-06](#pq-06--what-keeps-the-committed-dist-honest) half-answered and deliberately left open** — both halves now have a mechanism, but the CI gate has never run, it cannot be exercised on a machine where `core.autocrlf=true` makes `dist/index.js` report modified with an empty diff, and neither mechanism watches an ordinary commit. [§4.2](#42-marketplace-and-install-path) gains a second dated addendum recording three properties of the Chat-tab install: **the MCPB manifest format has no `skills` field**, verified against the published specification; **double-click is not a reliable install route** and Settings → Extensions → Advanced settings → Install Extension is; and **an installed extension has no update path**. Criterion 3's wording corrected from "double-clicking the `.mcpb`" to "installing the `.mcpb`" — it was written from the documented routes rather than from the run. | The question driving the session was whether a friend can be handed this. The answer for Claude Code is yes and was already; for the Chat tab it is **two installs, permanently** — the format cannot carry a skill, so one-click is not a packaging problem this project can engineer away, and the honest move is to document the pair as one procedure rather than imply a future where it collapses to one. The other two findings are both cases where following the vendor documentation would have produced a broken instruction: double-click is listed first and did not work, and the absence of an update path is stated nowhere, which makes it something a user discovers by silently running a stale server. Recording them in [§4.2](#42-marketplace-and-install-path) rather than only in `README.md` is what keeps a later session from re-deriving them. Criterion 10 is entered **unverified on purpose**: the workflow's value is entirely in a run that has not happened, and marking it verified because the file exists would repeat the [PC-01](#pc-01--scryfall-query-craft) static-criteria failure this document has now recorded twice. |
 | 2026-08-07 | **Moxfield recorded as a second deck platform on this document's side — as pointers only, per [§1](#1-overview)'s boundary rule.** No component was added, no `PC` block was written, no [PC-01](#pc-01--scryfall-query-craft)/[PC-02](#pc-02--bundled-mcp-server)/[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status, and Phase 1 is untouched. What changed: [P-05](#p-05--credentials-collected-through-userconfig) and [P-13](#p-13--no-user-configuration-in-phase-1) gain dated notes recording that Moxfield adds **no** credential to collect; [§4.4](#44-user-configuration) says the same about the mechanism it documents; [PQ-08](#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) is explicitly **not** widened to Moxfield and says why; [§6](#6-roadmap)'s Deck analysis row now names both platforms and records that it waits on the first, not both; [§8](#8-out-of-scope)'s reference to the other document's rejection list is brought current. The substance — [D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second), [D-14](./MCP-PRD.md#d-14--no-npm-moxfield-api-dependency), [D-15](./MCP-PRD.md#d-15--moxfield-writes-are-blocked-upstream-not-merely-last), [§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis), [§4.8](./MCP-PRD.md#48-moxfield), [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms)–[OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) — is all in [`docs/MCP-PRD.md`](./MCP-PRD.md), which owns it. | A data source is server behavior, so the boundary rule puts every Moxfield decision in the other document and leaves this one with the consequences: what the user is prompted for, and what a component may assume exists. Both consequences turned out to be **negative findings**, which is why they are recorded rather than skipped as "nothing changed." The tempting errors here are symmetrical and both silent — declaring a Moxfield `userConfig` field to match Archidekt's shape, which prompts for a credential that cannot be exchanged for a token; and widening [PQ-08](#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) to cover a credential-failure path that does not exist. A future session that finds Moxfield in the MCP PRD and nothing here would reasonably assume this document had not caught up, and would then make one of those two edits. |
+| 2026-08-07 | **[PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)'s hook half answered: never a `SessionStart` hook**, recorded as a standing constraint. The entry states the constraint at its true width — it rules out **this plugin shipping** such a hook, not hooks in general and not background refresh in general, so lazy first-use refresh, an explicit user-invoked action, and an in-tool staleness check all remain available. Storage layout and whether first use blocks on a download stay open and stay with the capability that first needs persistence, which is the other half of [`docs/MCP-PRD.md` OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced). No component was added and no [§5](#5-components) criterion changed status. | The question was recorded in 2026-07-29 as a *disagreement* with the brief rather than a gap, and the three reasons against the hook — the every-project network call for 5–20 users, Phase 1's deliberate absence of any hook, and [§3.4](#34-cross-platform-reach) making the first hook component own the exec-form and Windows-shell problem — converge with nothing found opposing them. Deciding it now costs nothing and pre-empts nothing, and it stops the next capability that wants a refresh trigger from re-arguing it from scratch. The width caveat is in the entry because the failure mode of an over-read constraint is a capability that concludes it may not refresh at all. |
+| 2026-08-07 | **[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) answered: a README line is sufficient, and it names invoking `manabase:scryfall-query-craft` by name before it names `/doctor`.** The drafted wording is recorded in the entry. **The line is not written** — [`README.md`](../README.md) is unchanged and no [PC-01](#pc-01--scryfall-query-craft) criterion changed status; [Slice 12](./slices/TrackC-Slice12.md) already carries the task. | What makes documentation sufficient here rather than resigned is a fact this question was framed without: [§3.1](#31-context-budget) records that trimming drops descriptions and **keeps names**, so a trimmed skill is still invocable and the degradation is recoverable rather than merely detectable. That is a materially different thing to document than "run `/doctor`". The line deliberately does not assert that `/doctor` names this plugin among the contributors — unverified until [Slice 10](./slices/TrackC-Slice10.md) — and deliberately does not try to make [PC-01](#pc-01--scryfall-query-craft) robust to having no description, which is impossible because the description *is* the invocation mechanism. |
+| 2026-08-07 | **[PQ-06](#pq-06--what-keeps-the-committed-dist-honest)'s remaining commit-half remedy decided: a `ci.yml` on `pull_request` and `push: main` running typecheck → test → build → `git diff --exit-code -- dist/`.** [Slice 11](./slices/TrackC-Slice11.md) implements it. **The user-facing half stays open and is not closable by CI** — a released `.mcpb` carries its `dist/` until someone reinstalls, so CI can only guarantee that what was packed matched `src/` at pack time. **Nothing was implemented**: `.github/workflows/` still holds `release.yml` alone, and the question stays open. | The remedy was already worked out inside the question on 2026-08-04 and left unrecorded as a decision, which is the state that invites a slice to re-argue it or to pick a different mechanism. Recording it converts [Slice 11](./slices/TrackC-Slice11.md)'s "recommended" CI check into its assignment. The side effect matters as much as the fix: this is also what runs the rebuild-and-diff mechanism for the first time, since the release gate has never executed and cannot be exercised on a machine where `core.autocrlf=true` makes `dist/index.js` report modified with an empty diff. Splitting the two halves explicitly is what keeps a future session from closing this question the moment CI goes green. |
 
 ---
 

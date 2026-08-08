@@ -106,6 +106,45 @@ context-cost measurement has been taken, so
 unverified, as are
 [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5, 8 and 10.
 
+**A decision-only session landed 2026-08-07 — no slice, no PR, no code change.** Eight open
+questions were settled at a desk and written into their owning PRDs, and four live measurements
+were appended to [`MCP-PRD.md` §4.1.1](./MCP-PRD.md#411-search-endpoint) and
+[§4.6](./MCP-PRD.md#46-comprehensive-rules-wizards-of-the-coast) as dated addenda. **No slice
+status changed and no acceptance criterion of
+[CAP-01](./MCP-PRD.md#cap-01--card-search), [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) changed status** — every item below is
+decided and unwritten. Three of them reach work this document schedules:
+
+- [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be) is **answered in full** and
+  now carries **two** levers, not one — the queried-format `legalities` default plus a
+  server-enforced page cap near 120 cards, because a full 175-card page was finally measured at
+  169,504 characters and the best available trim still lands in the same order of magnitude as the
+  payload that already failed. Whoever fixes issue #25 is implementing both, and that work is still
+  unscheduled here.
+- [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s remaining commit-half has a
+  **decided remedy** — a `ci.yml` on `pull_request` and `push: main` running typecheck → test →
+  build → `git diff --exit-code -- dist/`. [Slice 11](./slices/TrackC-Slice11.md) implements it
+  rather than choosing it, so that slice's "recommended" wording now reads as its assignment. Its
+  user-facing half stays open and CI cannot close it.
+- [PQ-04](./PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)
+  is **answered** with drafted README wording that names invoking the skill by name before it names
+  `/doctor`. [Slice 12](./slices/TrackC-Slice12.md) already owns writing it; the line does not exist
+  yet.
+
+The other five bind queued packs in [§6](#6-beyond-phase-1--queued-slice-packs) rather than Phase 1:
+[OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) (cache
+location recorded as already shipped; refresh trigger still open) and
+[PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)
+(**never** a `SessionStart` hook) both land on the tag-discovery pack;
+[OQ-08](./MCP-PRD.md#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)
+(one `.txt` observed; most-recent-by-date rule still required) on the rules-lookup pack;
+[OQ-09](./MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) (no
+EUR fallback; a distinct `no-usd-price` reason instead) on pricing; and
+[OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)
+(**one tool, `deck_read`**, over one thin shape) on the Archidekt deck-reading pack, which still
+owns the CAP block and the missing `deckFormat` table.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -120,7 +159,7 @@ unverified, as are
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
 | MCPB bundle | **Build path committed, no bundle released.** `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented) and refuses a `dist/` older than `src/`. **No version is tagged, so the release workflow has never run and there is nothing to download**; the Chat-tab install still means building it yourself. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `in progress`, assigned to [Slice 11](./slices/TrackC-Slice11.md), criteria 1–6 and 9 and 11 verified |
-| Known open defect | Issue #25 (open, unfixed): a `card_search` payload exceeds the harness tool-result ceiling below one page. First measurement — 111 cards, 116,626 characters, `legalities` 54.5% of bytes — recorded against [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be), which stays **open** |
+| Known open defect | Issue #25 (open, unfixed): a `card_search` payload exceeds the harness tool-result ceiling below one page. First measurement — 111 cards, 116,626 characters, `legalities` 54.5% of bytes — recorded against [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be). That question is **answered in full as of 2026-08-07** — the queried-format `legalities` default *and* a server-enforced page cap near 120 cards — but **nothing is implemented**, so the defect is unchanged and issue #25 stays open |
 
 Two properties of the existing scaffold worth preserving on purpose:
 

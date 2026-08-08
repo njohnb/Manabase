@@ -542,6 +542,65 @@ not a newline. **[inferred]**
 The regex counts in the rows above stand; they were always line-anchored counts, and only the
 reading of them was loose.
 
+**Addendum — a negated numeric comparison is unusable, and it fails silently in two different
+ways. [verified 2026-08-07]** Measured while settling
+[OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists), whose
+"resolves by" clause asks how many paper printings carry `eur` with `usd` null. The obvious query
+for that — negate the USD comparison — does not work, and it does not say so.
+
+| Query, `unique=prints` | `total_cards` | Observed |
+|---|---|---|
+| `game:paper` | 96,709 | baseline |
+| `game:paper -usd>=0.01` | **96,709** | HTTP 200, identical to the baseline — the term was dropped |
+| `game:paper eur>=0.01` | 92,688 | baseline |
+| `game:paper eur>=0.01 -usd>=0.01` | **92,688** | HTTP 200, identical to its baseline — the term was dropped |
+| `game:paper usd>=0.01` | 93,662 | — |
+| `game:paper eur>=0.01 -(usd>=0.01)` | — | HTTP 404, zero matches |
+| `game:paper eur>=0.01 usd<0.01` | — | HTTP 404, zero matches |
+
+**Scryfall's syntax cannot express "this field is null."** The bare negated form is dropped like
+any unrecognized term, per the dropped-term addendum recorded above, while the parenthesized and
+`<`-form alternatives match nothing at all. This is a **third** member of the silent-wrong-answer
+family this section already carries, alongside the dropped invalid term and the `\A` zero-match
+regex trap: a query that looks like it worked, computed from fewer constraints than it names.
+Trusting the bare negated form here would have reported that 96% of paper printings lack a USD
+price.
+
+The usable bound comes from subtracting non-negated counts instead: **96,709 − 93,662 = 3,047
+paper printings, 3.15%, carry no USD price**, and EUR-only printings are a subset of that. Ground
+truth is unchanged — all three paper Black Lotus printings still return `usd: null` with `eur`
+populated ([§4.1.3](#413-price-fields--three-verified-traps)). **[verified]**
+
+**Addendum — a full 175-card page measures 169,504 characters through the delivered shaping.
+[verified 2026-08-07]** This is the measurement
+[OQ-02](#oq-02--how-verbose-should-a-search-result-be) had never had. One real page was fed
+through [`src/tools/card-search.ts`](../src/tools/card-search.ts) with a fake client, so these are
+shaped bytes rather than wire bytes.
+
+| | chars | per card | share |
+|---|---|---|---|
+| Full shaped page, 175 cards | 169,504 | 969 | — |
+| of which `legalities` | 84,226 | 481 | 49.7% |
+| of which `oracle_text` | 29,334 | 168 | 17.3% |
+| of which `price` | 8,717 | 50 | 5.1% |
+| Trimmed to the seven default formats | 109,059 | 623 | −35.7% |
+| Trimmed to the queried format alone | 88,953 | 508 | −47.5% |
+
+It **confirms the trim and refutes it as sufficient**: the best available trim, 88,953, still lands
+in the same order of magnitude as the 116,626-character response that had already breached a
+harness tool-result ceiling (issue #25). That is what forced the second lever in
+[OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s answer. Note also that per-card cost
+varies with the cards a query returns — 969 characters here against issue #25's 1,050 — so a
+budget derived from one page is an estimate and not a constant. **[verified]**
+
+**Addendum — Scryfall returns 23 legality keys, not "roughly 21". [verified 2026-08-07]** The full
+set as returned on a card object: `standard`, `future`, `historic`, `timeless`, `gladiator`,
+`pioneer`, `modern`, `legacy`, `pauper`, `vintage`, `penny`, `commander`, `oathbreaker`,
+`standardbrawl`, `brawl`, `competitivebrawl`, `alchemy`, `paupercommander`, `duel`, `oldschool`,
+`premodern`, `predh`, `tlr`. [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s seven-format
+default set is chosen from this list; the "roughly 21" it was framed against was an estimate rather
+than an observation.
+
 **Critical architectural fact.** These operators are evaluated **server-side**. They are not
 fields on the card object and cannot be reproduced from bulk data without reimplementing
 Scryfall's query engine. This is the fact behind [D-07](#d-07--three-way-cache-split). **[verified]**
@@ -824,6 +883,21 @@ locally, revalidate on version change.
 **URL resolution by scraping** — a redesign of the landing page breaks it. Mitigation: keep
 the cached copy usable when resolution fails, and report staleness rather than failing hard.
 
+**Addendum — the landing page listed exactly one `.txt` on 2026-08-07, and the file has turned
+over since 2026-07-29. [verified 2026-08-07]** The single href was
+`MagicCompRules 20260807.txt`, stamped the same day it was read, so this observation sits
+immediately after an update rather than in the quiet middle of a cycle. The
+2026-07-29 record above is left as written: `MagicCompRules 20260619.txt` was current then, and
+the turnover is the roughly-quarterly cadence that record inferred, now observed once rather than
+inferred. Scraping a single `.txt` href is therefore correct against today's page.
+
+This is recorded as a half-answer to
+[OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)
+and **not** as a licence to write the scraper against one hypothesis. "Does the page *ever* list
+two" is a claim about a year of behavior and one GET is the weakest possible evidence for it, so
+the parser must still take the most recent `.txt` **by its date stamp** rather than the first match
+in document order. **[verified for the single observation; the "ever" question stays open.]**
+
 ### 4.7 WotC Fan Content Policy
 
 **Date verified:** 2026-07-29
@@ -1093,6 +1167,16 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   finished: [OQ-02](#oq-02--how-verbose-should-a-search-result-be) and
   [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) are both
   live against this block.
+- **Delivery-note addendum (2026-08-07).** The note above is dated 2026-08-03 and is accurate for
+  that date — criterion 13 was added 2026-08-04, after it was written. Read together they mislead,
+  so state it plainly: **[CAP-01](#cap-01--card-search) is delivered against criteria 1–12, and
+  criterion 13 is not implemented.** The dated note is left exactly as written, per this document's
+  append-only handling of dated records.
+  [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s completed answer has since added a
+  server-enforced page cap on top of criterion 13's trim, so that criterion is now **narrower than
+  the decision it serves**; whether it is widened or a fourteenth criterion is added belongs to the
+  slice that implements the trim, not here. Neither the trim nor the cap is in
+  [`src/`](../src/tools/card-search.ts).
 
 ---
 
@@ -1237,6 +1321,48 @@ still unmeasured, so whether the trim alone brings a full page under a realistic
 known — this answers the *field set* half of the resolution and the *verbose mode* half, not the
 measurement half.
 
+**Completed 2026-08-07 — the three gaps the 2026-08-04 answer left are closed, and the third one
+closed against the design rather than for it.**
+
+1. **The default set is the seven paper constructed formats** — `standard`, `pioneer`, `modern`,
+   `legacy`, `vintage`, `commander`, `pauper` — used only when the query names no format. It drops
+   the sixteen a paper deckbuilder never asks after: the digital-only ladder (`historic`,
+   `timeless`, `alchemy`, `gladiator`, `brawl`, `standardbrawl`, `competitivebrawl`), the niche and
+   historical (`oldschool`, `premodern`, `predh`, `penny`, `duel`, `oathbreaker`,
+   `paupercommander`, `tlr`), and `future`, which is not a format anyone plays. The count this
+   question was framed against was wrong: Scryfall returns **23** keys, not "roughly 21"
+   ([§4.1.1](#411-search-endpoint), 2026-08-07).
+2. **The opt-in is an enum — `legalities: "queried" | "default" | "all"`, defaulting to
+   `"queried"`.** One field with three named states maps exactly onto the three behaviors already
+   decided above, which neither a `verbose` boolean nor a `fields` list can do: a boolean cannot
+   express "queried", and a `fields` list is a general mechanism invented to serve one specific
+   need, which invites every future field into the same negotiation.
+3. **A full 175-card page was measured, and the trim alone is not enough.** It shapes to 169,504
+   characters; the seven-format trim reaches 109,059 and the queried-format trim 88,953, against a
+   ceiling that 116,626 characters already breached. Figures and method in
+   [§4.1.1](#411-search-endpoint) (2026-08-07).
+
+**The answer therefore carries a second lever: a server-enforced page cap near 120 cards**, on top
+of the queried-format default. The two are independent and they multiply — at 508 characters per
+card under the queried default, a capped response lands near 61,000 characters, roughly half the
+known-bad payload. That headroom is deliberate rather than timid: per-card cost measured 969
+characters on the full page against issue #25's 1,050, so it varies by at least 8% with the cards a
+query happens to return, and the ceiling itself is known only as an upper bound.
+
+**The cap reports itself, so it is a stated boundary and never a silent truncation.**
+[CAP-01](#cap-01--card-search) already returns the total count and whether more results exist, so a
+capped response surfaces through the existing `has_more` / `note` fields and the model can narrow
+or page deliberately. This is where the 2026-08-04 answer is *extended* rather than restated: a cap
+was rejected there as discarding cards the user asked for, and that objection is answered by the
+cap announcing itself — the reason it is taken now is that the largest available trim has since
+been measured and shown insufficient on its own. The 2026-08-04 reasoning is kept as recorded.
+
+**Nothing is implemented.** Neither the trim nor the cap exists in `src/`, no
+[CAP-01](#cap-01--card-search) acceptance criterion changed status on 2026-08-07, and issue #25
+stays open.
+*Resolves by:* implementing the trim and the cap with unit tests, then one live search to confirm
+the shaped page against a real harness rather than a local measurement.
+
 ### OQ-03 — What is the bulk-data storage strategy, and when is it introduced?
 
 `oracle_tags`/`art_tags` (tag discovery) and the CR text (rules lookup) both need local
@@ -1244,6 +1370,26 @@ persistence. Where does it live on a user's machine, what is the refresh trigger
 first run block on a download? Under [D-01](#d-01--distribution-local-package-over-stdio) this is an install-friction question, so it is
 product-relevant, not purely design.
 *Resolves by:* specifying the tag-discovery capability, which is the first to need it.
+
+**Split 2026-08-07: the location half is answered and shipped; the other two halves stay open.**
+This records what already exists rather than choosing anything new.
+[`src/config.ts`](../src/config.ts) resolves `CLAUDE_PLUGIN_DATA` when it is set and non-empty,
+and otherwise `%LOCALAPPDATA%\manabase` on Windows, `~/Library/Caches/manabase` on macOS, and
+`$XDG_CACHE_HOME/manabase` or `~/.cache/manabase` elsewhere — read once at the entry point per
+[D-03](#d-03--testability-handlers-callable-as-plain-functions) and injectable so the branches are
+testable. [`docs/PLUGIN-PRD.md` §4.5](./PLUGIN-PRD.md#45-persistent-data) has recorded this as
+implemented since 2026-08-04; this entry's own text had not caught up, so a session reading this
+section alone would have believed the location was undecided and could have re-decided it
+differently.
+
+**Still open: the refresh trigger, and whether first run blocks on a download.** Both stay with the
+capability that first needs persistence. One half of the trigger question is now settled on the
+plugin side — never a `SessionStart` hook,
+[`docs/PLUGIN-PRD.md` PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)
+— which forecloses one mechanism and leaves the trigger itself unanswered here.
+*Resolves by:* unchanged — the tag-discovery capability spec. It should use the
+bundled-manifest-comparison pattern rather than testing for file existence, and read
+`jsonl_download_uri` from the API rather than constructing bulk URLs ([§4.2](#42-scryfall-bulk-data)).
 
 ### OQ-04 — What is the behavior and blast radius of Archidekt's write API?
 
@@ -1286,6 +1432,18 @@ URL resolution depends on scraping a single `.txt` href ([§4.6](#46-comprehensi
 listed, "most recent" needs a rule.
 *Resolves by:* re-checking the landing page across a set release boundary.
 
+**Half answered 2026-08-07, and the half that is answered is the weaker one.** The landing page
+listed **exactly one `.txt`** that day, `MagicCompRules 20260807.txt`, recorded with the
+observation's caveats in [§4.6](#46-comprehensive-rules-wizards-of-the-coast). Scraping a single
+`.txt` href is correct against today's page.
+
+**The "ever" half stays open, and the scraper must be written as though it were open.** One GET is
+the weakest possible evidence for a claim about a year of behavior, so the resolver takes the most
+recent `.txt` **by its date stamp**, never the first match in document order. Writing it to assume
+one href on the strength of having seen one href is the failure this half-answer exists to prevent.
+Mid-cycle corrections are equally untouched.
+*Resolves by:* unchanged — re-checking the landing page across a set release boundary.
+
 ### OQ-09 — Should price resolution fall back to EUR when no USD price exists?
 
 Opened 2026-08-03 by [CAP-01](#cap-01--card-search)'s acceptance pass. The delivered price
@@ -1305,6 +1463,34 @@ alternative is to keep USD-only and report the reason precisely enough that the 
 populated and `usd` null — rather than generalizing from one card. Then either extending the
 price shape with an explicit currency field, or deciding the honest `no-price-data` answer is
 sufficient and recording that as settled.
+
+**Answered 2026-08-07: no EUR fallback.** Price resolution stays USD-only and
+[D-06](#d-06--pricing-from-scryfall)'s one-number-per-printing contract is untouched. What changes
+is the *failure*: a distinct `no-usd-price` reason carrying the EUR figure, so the model can say
+"no USD price; this card trades in EUR at €11,658.96" rather than the flatly wrong "no price data".
+That is the cheap alternative this question already identified, taken rather than merely noted.
+
+**The measurement supports taking it.** At most **3,047 paper printings — 3.15% — carry no USD
+price**, and EUR-only printings are a subset of that; the counts and the method are in
+[§4.1.1](#411-search-endpoint) (2026-08-07). A 3% tail does not justify changing what a price
+*means*. Note what a fallback would have cost beyond the contract: every downstream consumer would
+have had to read a currency field before comparing two numbers, and any that forgot would compare
+euros to dollars and be wrong silently. A `no-usd-price` reason cannot be misread that way, because
+it is not a price.
+
+**The measurement method this question prescribed was tested and is invalid.** `eur>=0.01
+-usd>=0.01 game:paper` returns the same count as `eur>=0.01 game:paper` — the negated term is
+silently dropped — and the parenthesized and `<`-form alternatives return zero matches. The 3.15%
+bound above comes from subtracting non-negated counts instead. Full table in
+[§4.1.1](#411-search-endpoint); that finding outlives this question and is recorded there
+regardless of what happens here.
+
+**Nothing is implemented.** [`src/scryfall/prices.ts`](../src/scryfall/prices.ts) still returns
+`no-price-data`, and no [CAP-01](#cap-01--card-search) acceptance criterion changed status on
+2026-08-07.
+*Resolves by:* adding the `no-usd-price` variant to `resolvePrice` with unit tests over a EUR-only
+fixture, and teaching [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) to report it as a
+currency gap rather than as missing data.
 
 ### OQ-10 — Will Moxfield grant this application approved access, and under what terms?
 
@@ -1368,6 +1554,42 @@ when one is down.
 owns this. It must answer the shape question against a real Archidekt payload while explicitly
 checking each field against [§4.8.1](#481-the-deck-payload-is-enormous--measured)'s Moxfield record — designing for one platform and
 discovering the second does not fit is the outcome [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)'s ordering exists to prevent.
+
+**Answered 2026-08-07: one tool, `deck_read`, over one thin normalized shape.** Two tools would buy
+the ability to document platform-specific error behavior per schema, and that is the only thing
+they buy; it is not worth a second schema, a second name to keep in sync, and a second place for
+the two shapes to drift apart. Per-platform error differences — including whatever
+[OQ-11](#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id)
+finds — are expressible in one tool's failure surface under [§3.6](#36-error-surface).
+
+`deck_read` takes either a deck URL or an explicit platform-and-id pair, and returns:
+
+```
+{ platform, name, format, color_identity,
+  cards: [ { name, quantity, board, finish, scryfall_id } ] }
+```
+
+Thin by construction: no oracle text, no prices, and no embedded card detail from either platform.
+`scryfall_id` on every card is what makes that affordable — detail is reached through
+[§4.1.2](#412-batch-resolution) batch lookup, which is smaller *and* more correct than either
+platform's copy, since [D-06](#d-06--pricing-from-scryfall) makes Scryfall the price source.
+`board` is a normalized enum spanning Archidekt's free-form categories and Moxfield's twelve fixed
+boards, and it is where the structural disagreement this question names gets absorbed: commander
+designation becomes `board: "commander"` whether it arrived as an Archidekt category
+([§4.5](#45-archidekt)) or a Moxfield board ([§4.8.1](#481-the-deck-payload-is-enormous--measured)).
+
+This needs **no amendment to [D-11](#d-11--tool-naming-convention)** — `deck_read` satisfies
+`domain_verb_noun`, and that decision's `deck_read_archidekt` is an example rather than a mandate —
+and it does not wait on
+[`docs/PLUGIN-PRD.md` PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports),
+since one schema beats two under either answer to it.
+
+**One piece is still missing and it is not settleable at a desk.** Archidekt's `deckFormat` is an
+integer and no integer→name mapping is recorded anywhere, so a normalized string `format` needs
+that table and it can only come from live data. Nothing is specified and no CAP block was written.
+*Resolves by:* unchanged — the Archidekt deck-reading spec session, which owns this per
+[D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) and must still discover the
+`deckFormat` table.
 
 ---
 
@@ -1473,6 +1695,12 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-07 | **Moxfield adopted as a second deck platform, behind Archidekt.** Three decisions added — [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) (Archidekt first, Moxfield second; both in scope, neither blocking the other), [D-14](#d-14--no-npm-moxfield-api-dependency) (no npm `moxfield-api` dependency), [D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) (Moxfield writes blocked upstream, not merely last). New [§4.8](#48-moxfield) research record with subsections [§4.8.1](#481-the-deck-payload-is-enormous--measured) (payload measurement) and [§4.8.2](#482-the-npm-moxfield-api-package) (the npm package). New constraint [§3.7](#37-undocumented-and-bot-protected-third-party-apis) governing undocumented and bot-protected APIs, covering Archidekt as well as Moxfield. [§6](#6-phases) gains two queued rows (eight capabilities → ten) and two observations. [§7](#7-open-questions) gains [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms)–[OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two); [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) widened by note to cover Moxfield without renaming its heading. [D-09](#d-09--archidekt-writes-land-last) scoped by note to Archidekt specifically. [§3.6](#36-error-surface) gains Moxfield's 404 finding. [§8](#8-out-of-scope) amended — see the row below. **No capability was specified and no phase was assigned**; [CAP-01](#cap-01--card-search) is untouched, as is every existing decision's rationale. | Requested directly: add Moxfield alongside Archidekt, Archidekt first because the author uses it. Queued at parity with Archidekt rather than specified, because Archidekt deck reading is itself only a [§6](#6-phases) row — writing CAP blocks for Moxfield would specify it *ahead* of the platform [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) puts first, and [§5](#5-capabilities) requires a CAP block be precise enough to build against. Research was done live, per [§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s own rule: three single spaced requests with an honest `User-Agent`, no authentication attempted. |
 | 2026-08-07 | **[§8](#8-out-of-scope)'s "Deck editing outside Archidekt" entry amended** — its "no other deck platform is in scope" claim is struck and superseded by [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second), with the rejection of a *third* platform preserved and named. Two entries added: the npm `moxfield-api` package, and any technique for defeating bot protection. | The entry became false the moment Moxfield was adopted, and a stale rejection in [§8](#8-out-of-scope) is worse than none — the section exists so rejected ideas do not resurface, which means a future session is entitled to treat it as current. Struck rather than deleted so the change is visible as a reversal. The bot-protection entry is listed in [§8](#8-out-of-scope) as well as [§3.7](#37-undocumented-and-bot-protected-third-party-apis) because a working `cloudscraper`-based wrapper is one search result away from anyone researching this API, and it needs to read as rejected rather than as available. |
 | 2026-08-07 | **The Moxfield deck payload measured at 1,629,429 bytes for one deck** — `boards` 61.2%, `tokens` 18.2%, `tokenMappings` 15.4%, one card entry ~3,959 bytes ([§4.8.1](#481-the-deck-payload-is-enormous--measured)). Recorded against [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s 116,626-character ceiling finding, which it exceeds by roughly fourteen times. [OQ-02](#oq-02--how-verbose-should-a-search-result-be) itself is **not** reopened and its answer is unchanged. | The measurement is the reason Moxfield deck reading cannot be specified as a passthrough, and it was available for the cost of one request, so it belongs in the record before the spec session rather than after it. It changes the starting position rather than a decision: [CAP-01](#cap-01--card-search) discovered its verbosity problem after delivery and paid for it with issue #25, and this is the same problem visible in advance. Every card carrying `scryfall_id` is what makes the trim obvious — the payload can be reduced to identifiers and resolved through [§4.1.2](#412-batch-resolution), which is both smaller and more correct than Moxfield's embedded copy, since [D-06](#d-06--pricing-from-scryfall) makes Scryfall the price source. |
+| 2026-08-07 | **[§4.1.1](#411-search-endpoint) gains three dated addenda and [§4.6](#46-comprehensive-rules-wizards-of-the-coast) one.** (a) **A negated numeric comparison is unusable and fails silently in two different ways** — a bare `-usd>=0.01` is dropped, returning HTTP 200 with a count identical to the baseline, while `-(usd>=0.01)` and `usd<0.01` return zero matches, so **Scryfall's syntax cannot express "this field is null."** The usable bound comes from subtracting non-negated counts instead: 96,709 − 93,662 = **3,047 paper printings, 3.15%**, carry no USD price. (b) **A full 175-card page measures 169,504 characters** through the delivered shaping — `legalities` 49.7%, `oracle_text` 17.3% — against the 116,626 that already breached a harness tool-result ceiling; the seven-format trim reaches 109,059 and the queried-format trim 88,953. (c) **Scryfall returns 23 legality keys, not "roughly 21"**, listed in full. (d) The Comprehensive Rules landing page listed **exactly one `.txt`** that day, `MagicCompRules 20260807.txt`, and the 2026-07-29 record's `20260619` file has turned over. | A desk session settling open questions, which **implemented nothing** — see the rows below. Each measurement outlives the question that prompted it, which is why it is filed here rather than only in a [§7](#7-open-questions) entry. (a) is a third member of the silent-wrong-answer family this section already carries, alongside the dropped invalid term and the `\A` zero-match regex trap, and trusting the bare negated form would have reported that 96% of paper printings lack a USD price. (b) is the measurement [OQ-02](#oq-02--how-verbose-should-a-search-result-be) had asked for since 2026-08-03 and never had, and it **refutes the trim as sufficient** rather than confirming it. (c) corrects a count that had only ever been an estimate. All four appended as dated addenda, per [§4](#4-external-dependencies)'s every-claim-is-dated property — nothing already recorded there was edited, including the superseded `20260619` filename. |
+| 2026-08-07 | **[OQ-02](#oq-02--how-verbose-should-a-search-result-be) completed — both levers.** The 2026-08-04 answer's three open gaps are closed: the small default set is the **seven paper constructed formats** (`standard`, `pioneer`, `modern`, `legacy`, `vintage`, `commander`, `pauper`), used only when the query names none; the opt-in is an enum, **`legalities: "queried" \| "default" \| "all"`, defaulting to `"queried"`**; and a full 175-card page was measured. The measurement closed the third gap **against** the design, so the answer gains a second lever the 2026-08-04 entry did not anticipate: a **server-enforced page cap near 120 cards**, surfaced through [CAP-01](#cap-01--card-search)'s existing `has_more` / `note` fields so it is a stated boundary and never a silent truncation. **Nothing was implemented and no [CAP-01](#cap-01--card-search) acceptance criterion changed status**; issue #25 stays open. | The 2026-08-04 answer rejected a server-side cap for discarding cards the user asked for, and that objection is answered by the cap announcing itself rather than by the objection being wrong — what changed is the evidence: the largest available trim has now been measured and lands in the same order of magnitude as a payload that already failed, so the trim cannot be the whole answer. The enum was preferred over the two alternatives this question named because the three behaviors were already decided and one field with three named states expresses exactly them: a `verbose` boolean cannot express "queried", and a `fields` list is a general mechanism invented for one need that then invites every future field into the same negotiation. **Raised for this document's owner and deliberately not resolved here:** [CAP-01](#cap-01--card-search)'s delivery note reads "All twelve acceptance criteria are verified" while the block carries thirteen, and this answer adds a page cap on top of criterion 13's trim — the note, the criteria list, and [§5](#5-capabilities) are untouched by this row. |
+| 2026-08-07 | **[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) split: the location half is recorded as answered and shipped; the refresh trigger and the first-run question stay open.** Nothing new was chosen — [`src/config.ts`](../src/config.ts) has implemented the `CLAUDE_PLUGIN_DATA`-else-platform-cache rule since [Slice 1](./slices/TrackA-Slice1.md), and [`docs/PLUGIN-PRD.md` §4.5](./PLUGIN-PRD.md#45-persistent-data) has recorded it as implemented since 2026-08-04. | This entry's text was unchanged from its original wording, so the two documents disagreed about whether a decision existed: a session reading this [§7](#7-open-questions) alone would have believed the cache location was undecided and could have re-decided it differently from what ships. Recorded as a split rather than an answer because two thirds of the question genuinely remain, and they stay with the capability that first needs persistence. |
+| 2026-08-07 | **[OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled) half answered.** Exactly one `.txt` was listed on 2026-08-07 ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)), so scraping a single href is correct against today's page. The "ever" half and mid-cycle corrections stay open, and the entry now **binds the scraper to a most-recent-by-date rule rather than a first match**. | One GET is the weakest possible evidence for a claim about a year of behavior. The recorded half is therefore paired with an explicit constraint on the implementation, because the failure this question exists to prevent is a scraper written to assume one href on the strength of having seen one href — and that failure would be silent, returning a stale rules file rather than an error. |
+| 2026-08-07 | **[OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) answered: no EUR fallback.** Resolution stays USD-only and [D-06](#d-06--pricing-from-scryfall)'s one-number-per-printing contract is untouched. What changes is the failure — a distinct **`no-usd-price`** reason carrying the EUR figure, so the model reports a currency gap instead of the flatly wrong "no price data". Bounded at **at most 3,047 paper printings, 3.15%** ([§4.1.1](#411-search-endpoint)). This question's own prescribed measurement method is recorded as **invalid**: the negated term it depends on is silently dropped. **Not implemented** — [`src/scryfall/prices.ts`](../src/scryfall/prices.ts) is unchanged and no [CAP-01](#cap-01--card-search) criterion changed status. | A 3% tail does not justify changing what a price *means*. The fallback's real cost is downstream and silent: every consumer would have to read a currency field before comparing two numbers, and any that forgot would compare euros to dollars and be wrong with no signal — whereas a `no-usd-price` reason cannot be misread as a price, because it is not one. Recording the prescribed method as invalid matters as much as the verdict: a later session re-checking the bound would otherwise re-run the same negated query and get the same confidently wrong 96%. |
+| 2026-08-07 | **[OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) answered: one tool, `deck_read`, over one thin normalized shape** — `{ platform, name, format, color_identity, cards: [{ name, quantity, board, finish, scryfall_id }] }`, with `board` a normalized enum spanning Archidekt's free-form categories and Moxfield's twelve fixed boards, and card detail reached through [§4.1.2](#412-batch-resolution) rather than passed through. **No amendment to [D-11](#d-11--tool-naming-convention)** is needed and it does not wait on [`docs/PLUGIN-PRD.md` PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports). **No CAP block was written and nothing is specified**; Archidekt's `deckFormat` integer→name table is still missing and still needs live data. | Two tools buy exactly one thing — per-schema documentation of platform-specific error behavior — which one tool's failure surface can express anyway under [§3.6](#36-error-surface), and they cost a second schema, a second name to keep in sync, and a second place for the shapes to drift apart. The shape is settled ahead of the spec session rather than by it because every downstream capability consumes the shape rather than the platform, and [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)'s ordering exists precisely to stop the first platform's payload from becoming the shape by default. This is a decision, not a specification: the Archidekt spec session still owns the CAP block and must check each field above against [§4.8.1](#481-the-deck-payload-is-enormous--measured)'s Moxfield record. |
 
 ---
 

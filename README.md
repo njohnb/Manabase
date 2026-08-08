@@ -30,8 +30,9 @@ costs a session. [`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what rema
 
 **One known limitation, open and unfixed:** a `card_search` result for a broad query can exceed
 the harness's tool-result size ceiling before it reaches a full page of matches (issue #25; 111
-cards measured 116,626 characters). Narrow the query. The fix is a specification question —
-[`docs/MCP-PRD.md` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be).
+cards measured 116,626 characters). Narrow the query. The fix is **decided but not built**
+(2026-08-07): legalities trimmed to the format the query names, plus a page cap that reports
+itself — [`docs/MCP-PRD.md` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be).
 
 ## Where it runs
 
@@ -217,8 +218,11 @@ Prices are Scryfall's TCGplayer-derived market price — one number per printing
 never as $0, and a digital-only printing says so rather than claiming no price data exists.
 
 Some paper printings carry no USD price at all, only EUR — as of 2026-08-03 that includes every
-paper Black Lotus. Those report as missing today. Whether to fall back to EUR is
-[open question OQ-09](./docs/MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists).
+paper Black Lotus, and at most 3.15% of paper printings overall. Those report as missing today.
+**There will be no EUR fallback** — a price that could silently be in either currency is worse than
+none — but the report will get more precise: a distinct "no USD price" reason carrying the EUR
+figure, decided 2026-08-07 and not yet built
+([OQ-09](./docs/MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists)).
 
 **Planned sources**, for capabilities that are queued and unassigned — none of these are
 reached today: [Commander Spellbook](https://commanderspellbook.com) for combo data,

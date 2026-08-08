@@ -279,8 +279,8 @@ frontmatter is byte-identical, so Slice 9's numbers stand.
 **Issue #25 is open and unfixed:** a `card_search` payload exceeds the harness tool-result ceiling
 below one page — 111 cards, 116,626 characters, `legalities` 54.5% of the bytes and `oracle_text`
 25.1%. That is the first payload measurement `OQ-02` has ever had and it confirms the
-untrimmed-`legalities` inference, but `OQ-02` stays **open**: nothing has been trimmed and no
-verbose mode exists.
+untrimmed-`legalities` inference. `OQ-02` was answered in full on 2026-08-07 (below), but
+**nothing has been trimmed, there is no cap and no verbose mode**, so the defect is unchanged.
 
 **Moxfield joined Archidekt as a deck platform, 2026-08-07 — docs only, nothing built.** `D-13`
 orders them: Archidekt first because the author uses it, Moxfield second, neither blocking the
@@ -297,6 +297,41 @@ unchallenged on both platforms. And **one Moxfield deck read measured 1.63 MB** 
 `tokenMappings` alone are 33.6% of it), ~14× the payload that already blew the harness ceiling in
 issue #25 — so a passthrough is off the table from the first line of that spec, and every card
 carrying `scryfall_id` is what makes the trim obvious. Ten capabilities are now queued, not eight.
+
+**A decision-only session, 2026-08-07 — eight open questions settled and nothing implemented.** No
+slice, no PR, no code, and **no `CAP` or `PC` acceptance criterion changed status**; every item here
+is decided and unwritten. `OQ-02` is answered in full and carries **two** levers: a
+`legalities: "queried" | "default" | "all"` enum defaulting to `"queried"`, whose default set is the
+seven paper constructed formats (standard, pioneer, modern, legacy, vintage, commander, pauper),
+**plus** a server-enforced page cap near 120 cards reported through the existing `has_more`/`note`
+fields so it is never a silent truncation. The cap exists because a full 175-card page was finally
+measured — 169,504 characters, and the best available trim still reaches 88,953 against the 116,626
+that already failed, so the trim alone is refuted rather than confirmed. `OQ-09` is **no EUR
+fallback**: USD-only stands, `D-06` is untouched, and a new `no-usd-price` reason carries the EUR
+figure; at most 3,047 paper printings (3.15%) lack a USD price. `OQ-12` is **one tool, `deck_read`**,
+over one thin shape — `{ platform, name, format, color_identity, cards: [{ name, quantity, board,
+finish, scryfall_id }] }`, no `D-11` amendment needed, and Archidekt's `deckFormat` integer→name
+table is still missing. `OQ-03`'s location half is recorded as already shipped in `config.ts`, its
+refresh trigger still open. `OQ-08` is half answered — one `.txt` on the CR page that day, and the
+scraper must still take the most recent **by date stamp**, never the first match. `PQ-03` is **never
+a `SessionStart` hook**, scoped to this plugin shipping one rather than to background refresh
+generally. `PQ-04`: a README line is sufficient, and it names invoking
+`manabase:scryfall-query-craft` by name before `/doctor`, because trimming keeps names. `PQ-06`'s
+commit half gets a `ci.yml` on `pull_request` and `push: main` running typecheck → test → build →
+`git diff --exit-code -- dist/` (Slice 11 implements), while its **user-facing half stays open and
+CI cannot close it**.
+
+Two live findings from that session bind future queries, both in `MCP-PRD.md` §4.1.1. **A negated
+numeric comparison is unusable and fails silently two ways** — a bare `-usd>=0.01` is dropped for an
+HTTP 200 with an unchanged count, while `-(usd>=0.01)` and `usd<0.01` match nothing, so Scryfall
+cannot express "this field is null"; it is a third member of the family holding the
+dropped-invalid-term behavior and the `\A` zero-match trap, and trusting it would have reported that
+96% of paper printings lack a USD price. And **Scryfall returns 23 legality keys, not 21.** §4.6
+separately records the CR page turning over to `MagicCompRules 20260807.txt`.
+
+**One conflict is open and is the session's call, not `doc-sync`'s:** `CAP-01` is delivered under a
+note reading "All twelve acceptance criteria are verified" while the block carries thirteen, and
+`OQ-02`'s answer now adds a page cap on top of criterion 13's trim.
 
 Track C has not started, and `PC-03` does not change that — it serves a surface, not a capability,
 and Phase 1 is still `PC-01` plus `PC-02`. Assigning it to Slice 11 gives it a schedule slot, not
@@ -320,9 +355,11 @@ today is not one Slice 8 invalidates. `docs/DEV-ROADMAP.md` §5 has the graph.
    `!"Black Lotus"` returns the MTGO printing. Digital is checked *first* and reported as
    `digital-only`, never as "no price data".
 
-Prices stay strings. A missing price is reported as missing, never as `$0`. Whether to fall back
-to EUR when no USD exists is open question `OQ-09` — as of 2026-08-03 no paper Black Lotus
-printing carries a USD price at all.
+Prices stay strings. A missing price is reported as missing, never as `$0`. **`OQ-09` was answered
+2026-08-07: no EUR fallback.** USD-only stands, `D-06` is untouched, and a distinct `no-usd-price`
+reason carries the EUR figure instead — so a currency gap is never reported as missing data. At most
+3,047 paper printings (3.15%) lack a USD price. **Not implemented:** `prices.ts` is unchanged, and
+as of 2026-08-03 no paper Black Lotus printing carries a USD price at all.
 
 Also non-obvious: **Scryfall answers a valid query with zero matches as HTTP 404.** `cardSearch`
 maps that to a successful empty result, because "no cards match" is a search outcome, not a
