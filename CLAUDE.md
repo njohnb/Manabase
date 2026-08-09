@@ -159,8 +159,10 @@ importing JSON, so they behave identically under type stripping and under the bu
 
 ## Current state (2026-08-04)
 
-Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered**,
-with all twelve acceptance criteria verified — nine live against real Scryfall.
+Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered
+against criteria 1–12**, all twelve verified — nine live against real Scryfall. **Criterion 13 was
+added 2026-08-04, after delivery, and is not implemented**, so Track A being complete does not mean
+the block is fully satisfied; the slice that implements `OQ-02`'s trim and page cap owns it.
 
 Track B has started. Slice 7 (install verification) landed 2026-08-04 as PRs #13 and #14: the
 plugin **has** now been installed from a marketplace on a cold profile, and six of `PC-02`'s ten
@@ -279,8 +281,8 @@ frontmatter is byte-identical, so Slice 9's numbers stand.
 **Issue #25 is open and unfixed:** a `card_search` payload exceeds the harness tool-result ceiling
 below one page — 111 cards, 116,626 characters, `legalities` 54.5% of the bytes and `oracle_text`
 25.1%. That is the first payload measurement `OQ-02` has ever had and it confirms the
-untrimmed-`legalities` inference, but `OQ-02` stays **open**: nothing has been trimmed and no
-verbose mode exists.
+untrimmed-`legalities` inference. `OQ-02` was answered in full on 2026-08-07 (below), but
+**nothing has been trimmed, there is no cap and no verbose mode**, so the defect is unchanged.
 
 **Moxfield joined Archidekt as a deck platform, 2026-08-07 — docs only, nothing built.** `D-13`
 orders them: Archidekt first because the author uses it, Moxfield second, neither blocking the
@@ -298,15 +300,88 @@ unchallenged on both platforms. And **one Moxfield deck read measured 1.63 MB** 
 issue #25 — so a passthrough is off the table from the first line of that spec, and every card
 carrying `scryfall_id` is what makes the trim obvious. Ten capabilities are now queued, not eight.
 
-Track C has not started, and `PC-03` does not change that — it serves a surface, not a capability,
-and Phase 1 is still `PC-01` plus `PC-02`. Assigning it to Slice 11 gives it a schedule slot, not
-a place in the Phase 1 dependency graph. No context-cost measurement exists, so `PC-01`'s criterion 2 (Slice 10)
-and `PC-02`'s criteria 5, 8 and 10 are still unverified.
+**A decision-only session, 2026-08-07 — eight open questions settled and nothing implemented.** No
+slice, no PR, no code, and **no `CAP` or `PC` acceptance criterion changed status**; every item here
+is decided and unwritten. `OQ-02` is answered in full and carries **two** levers: a
+`legalities: "queried" | "default" | "all"` enum defaulting to `"queried"`, whose default set is the
+seven paper constructed formats (standard, pioneer, modern, legacy, vintage, commander, pauper),
+**plus** a server-enforced page cap near 120 cards reported through the existing `has_more`/`note`
+fields so it is never a silent truncation. The cap exists because a full 175-card page was finally
+measured — 169,504 characters, and the best available trim still reaches 88,953 against the 116,626
+that already failed, so the trim alone is refuted rather than confirmed. `OQ-09` is **no EUR
+fallback**: USD-only stands, `D-06` is untouched, and a new `no-usd-price` reason carries the EUR
+figure; at most 3,047 paper printings (3.15%) lack a USD price. `OQ-12` is **one tool, `deck_read`**,
+over one thin shape — `{ platform, name, format, color_identity, cards: [{ name, quantity, board,
+finish, scryfall_id }] }`, no `D-11` amendment needed, and Archidekt's `deckFormat` integer→name
+table is still missing. `OQ-03`'s location half is recorded as already shipped in `config.ts`, its
+refresh trigger still open. `OQ-08` is half answered — one `.txt` on the CR page that day, and the
+scraper must still take the most recent **by date stamp**, never the first match. `PQ-03` is **never
+a `SessionStart` hook**, scoped to this plugin shipping one rather than to background refresh
+generally. `PQ-04`: a README line is sufficient, and it names invoking
+`manabase:scryfall-query-craft` by name before `/doctor`, because trimming keeps names. `PQ-06`'s
+commit half gets a `ci.yml` on `pull_request` and `push: main` running typecheck → test → build →
+`git diff --exit-code -- dist/` (Slice 11 implements), while its **user-facing half stays open and
+CI cannot close it**.
 
-Slice 12 is next on the critical path but is **not** unblocked: it waits on Slice 10 as well as on
-6 and 9. Two slices are unblocked: 10 and 11. Slice 10 is the only remaining gate on the critical
-path, and it no longer has a reason to wait, since `SKILL.md` now exists and a baseline measured
-today is not one Slice 8 invalidates. `docs/DEV-ROADMAP.md` §5 has the graph.
+Two live findings from that session bind future queries, both in `MCP-PRD.md` §4.1.1. **A negated
+numeric comparison is unusable and fails silently two ways** — a bare `-usd>=0.01` is dropped for an
+HTTP 200 with an unchanged count, while `-(usd>=0.01)` and `usd<0.01` match nothing, so Scryfall
+cannot express "this field is null"; it is a third member of the family holding the
+dropped-invalid-term behavior and the `\A` zero-match trap, and trusting it would have reported that
+96% of paper printings lack a USD price. And **Scryfall returns 23 legality keys, not 21.** §4.6
+separately records the CR page turning over to `MagicCompRules 20260807.txt`.
+
+**That conflict was settled 2026-08-08 and the stale copies are corrected.** `CAP-01`'s delivery
+note reads "All twelve acceptance criteria are verified" while the block carries thirteen; the
+block's own 2026-08-07 addendum already resolved it — delivered against 1–12, criterion 13 not
+implemented — but four summaries still said "all twelve" flatly. `MCP-PRD.md`'s header,
+`DEV-ROADMAP.md` §2, `README.md` and this file now all say 1–12 and name 13 as outstanding. The
+dated notes themselves are untouched. Whether criterion 13 is widened for `OQ-02`'s page cap, or a
+fourteenth added, still belongs to the slice that implements the trim.
+
+Track C has started. `PC-03` does not change what Phase 1 is — it serves a surface, not a
+capability, and Phase 1 is still `PC-01` plus `PC-02`; assigning it to Slice 11 gives it a
+schedule slot, not a place in the dependency graph.
+
+**Slice 10 (context-cost measurement) landed 2026-08-08 — measurement only, no code.** Claude
+Code 2.1.226, model `claude-opus-5[1m]`, installed plugin `be2839453a11`, the author's full
+two-plugin load. Evidence: `docs/slices/TrackC-Slice10-results.md`. `PC-02` criterion 10 is
+**verified** and its always-on cost — the one genuine unknown in PLUGIN-PRD §5 — is **0**.
+`PC-02`'s criteria 5 and 8 stay unverified. **`PC-01` criterion 2 is measured and NOT met, and is
+not a clean fail either:** ~260 by `claude plugin details`, ~270 by `/context`, against a ≤250
+gate — verdict **ambiguous-because-scaled**, because per-component figures are proportionally
+scaled, not measured (this run saw a per-component ~260 exceed the whole-plugin ~258, which cannot
+be literal). No instrument reports it under the gate and none reports a precise figure, so never
+record it as passed and never as a clean fail. **The skill text was deliberately not shortened**
+(decided with the author): Slice 9 measured 10/10 trigger accuracy on this exact frontmatter, and
+shortening it is Slice 8's edit and would invalidate that rate.
+
+**`PQ-01` is answered and its stake is retired.** MCP tool schemas do not count toward the
+always-on total — A/B with `.mcp.json` ~258, without ~258, restored ~258, control holding — and
+the reason is stronger than "unreported": on the Claude Code surface schemas are **deferred**,
+0 tokens resident and ~398 on demand for `card_search`. The question mattered because a resident
+schema *cannot* be budget-trimmed; deferral removes the premise, so tool count and description
+length are ordinary prudence rather than a context-budget constraint, and `OQ-01` gains no cost
+side — `MCP-PRD.md` is untouched by that slice. Two limits: deferral is the harness default, not a
+guarantee (a server that opts out pays ~398 every session), and it is **unmeasured on the Chat
+tab**. **`PQ-02` is answered:** the skill listing is 4.2k of a ~10,000-token budget across 47
+skills with nothing trimmed; Manabase is ~270 of it (~2.7%). **Never quote that headroom without
+the model** — the budget is 1% of the *context window*, so the same install on a 200k-context
+model would face certain trimming. Over half the listing (~52%) is built-in skills no plugin
+controls. `/doctor` on 2.1.226 is a health-check workflow: it neither prices the listing against a
+budget nor names contributors, so `/context` is the instrument; three places in `PLUGIN-PRD.md`
+still describe `/doctor` in that role and its §4.6.1 addendum records the correction. That answers
+`PQ-04`'s follow-up negatively, and `PQ-04` itself stays answered — the README line Slice 12 owns
+is unaffected; only its closing `/doctor` sentence is stale, which is Slice 12's call.
+
+Two method findings bind anything that measures or perturbs "the installed plugin": it is a
+**pinned clone in the plugin cache keyed by commit SHA**, not the working tree — acting on the
+repo instead returns a plausible number that means nothing — and `claude plugin details` **re-reads
+from disk every invocation**, so no reload, update or reinstall is needed for a change to register.
+
+Slice 12 is now **unblocked** and next on the critical path: it waited on 6, 9 and 10, and all
+three have landed. The unblocked set is 11 and 12; 13 waits on both. `docs/DEV-ROADMAP.md` §5 has
+the graph.
 
 ## Price handling — the three traps
 
@@ -320,9 +395,11 @@ today is not one Slice 8 invalidates. `docs/DEV-ROADMAP.md` §5 has the graph.
    `!"Black Lotus"` returns the MTGO printing. Digital is checked *first* and reported as
    `digital-only`, never as "no price data".
 
-Prices stay strings. A missing price is reported as missing, never as `$0`. Whether to fall back
-to EUR when no USD exists is open question `OQ-09` — as of 2026-08-03 no paper Black Lotus
-printing carries a USD price at all.
+Prices stay strings. A missing price is reported as missing, never as `$0`. **`OQ-09` was answered
+2026-08-07: no EUR fallback.** USD-only stands, `D-06` is untouched, and a distinct `no-usd-price`
+reason carries the EUR figure instead — so a currency gap is never reported as missing data. At most
+3,047 paper printings (3.15%) lack a USD price. **Not implemented:** `prices.ts` is unchanged, and
+as of 2026-08-03 no paper Black Lotus printing carries a USD price at all.
 
 Also non-obvious: **Scryfall answers a valid query with zero matches as HTTP 404.** `cardSearch`
 maps that to a successful empty result, because "no cards match" is a search outcome, not a
@@ -358,8 +435,10 @@ directions:
 - **`CLAUDE.md` stays bare on purpose.** This file is loaded whole into every session, so every
   character is always-on context cost — and a link costs roughly `73` characters against a `6`
   character ID. Linking its references would grow it by about a fifth to serve a reader that
-  greps rather than clicks. Context budget is a live question here (`PQ-01`, `PQ-02`, Slice 10),
-  so this is a measured trade, not an oversight. Cite by ID and let the reader search.
+  greps rather than clicks. Context budget is measured here, not guessed (`PQ-01` and `PQ-02`,
+  answered by Slice 10), so this is a measured trade, not an oversight — and this file is the
+  single largest resident item on the author's machine at 11.9k tokens, against ~270 for the
+  whole shipped plugin. Cite by ID and let the reader search.
 
 A few `§` references are deliberately left unlinked where the sentence means "the owning PRD" or
 "both PRDs" — linking them would assert a specific document and be wrong. Leave them bare. That

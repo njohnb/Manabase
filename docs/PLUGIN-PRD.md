@@ -16,6 +16,29 @@ has never been installed from a marketplace, `SKILL.md` is unwritten, and
 `claude plugin details` has never been run, so every PC-01 and PC-02 acceptance criterion and
 every PQ remains open. Tracked as Tracks B and C in `docs/DEV-ROADMAP.md`.
 
+**Build status 2026-08-08 — supersedes the block above, every clause of which is now false.** The
+dated block is left as written, per this document's handling of dated records; read this one for
+current state. The plugin **has** been installed from a marketplace on a cold profile
+([Slice 7](./slices/TrackB-Slice7.md)); `SKILL.md` **is** written and verified loading in a real
+harness ([Slice 8](./slices/TrackB-Slice8.md), [Slice 9](./slices/TrackB-Slice9.md)); and
+`claude plugin details` **has** been run ([Slice 10](./slices/TrackC-Slice10.md)). Verified so far:
+[PC-01](#pc-01--scryfall-query-craft) criteria 1, 3–11, 13 and 15, and
+[PC-02](#pc-02--bundled-mcp-server) criteria 1, 2, 3, 4, 6, 7 and 10. Three
+[PC-01](#pc-01--scryfall-query-craft) criteria are **not** verified and each for a different reason:
+**2** is measured and not met (~260/~270 against a ≤250 gate, recorded ambiguous-because-scaled
+rather than as a pass or a clean fail); **12** was *not measured* with the skill — never a fail,
+but its probe hands over an operator `SKILL.md` names as unreal, so no error was produced to retry
+from; and **14** has no recorded result since it was added 2026-08-04, after the run that would
+have covered it. [PC-02](#pc-02--bundled-mcp-server)'s criteria 5 and 8 remain open, and 9 is
+deliberately not met while [P-08](#p-08--version-scheme) leaves `version` unset. [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports),
+[PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed),
+[PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook),
+[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) and
+[PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) are answered; the rest stay open.
+Three components are now specified, not two — [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) was
+added 2026-08-04 with [P-14](#p-14--two-distribution-targets-one-source). [§9](#9-revision-log) is
+authoritative where this summary and it disagree.
+
 **Companion document:** `docs/MCP-PRD.md` (MTG MCP Server PRD, foundation established
 2026-07-29, one capability specified and delivered 2026-08-03). This document is its parent.
 
@@ -887,6 +910,44 @@ because [PC-02](#pc-02--bundled-mcp-server)'s true always-on cost is the one num
 cost figures in [§5](#5-components) become unverifiable rather than merely stale. Re-run it at each phase
 boundary and record the result in [§9](#9-revision-log) rather than treating the numbers here as durable.
 
+#### 4.6.1 Addendum, 2026-08-08 — measured on Claude Code 2.1.226
+
+Everything above stands as written on the date it was written; this appends what
+[Slice 10](./slices/TrackC-Slice10.md) measured and does not overwrite it. Full record:
+[`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md). **[verified
+2026-08-08]**
+
+**The grounding measurement reproduces exactly.** `claude plugin details
+dotnet-plugin@dotnet-plugin` on 2.1.226 returns **~1,722 always-on across the same 20 skills** —
+identical to the 2.1.220 figure above. The accounting was stable across six patch versions, so
+the table above is still a usable reference point.
+
+**The `[inferred]` above is confirmed, with a stronger reason than it supposed.** MCP tool schemas
+are not counted — but not merely because the server is not running. They are **deferred**:
+`/context` reports them "loaded on-demand" at `0 tokens` resident, and the inventory row now
+annotates itself `tool schemas resolved at runtime; not counted`. The A/B is in [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports).
+[PC-02](#pc-02--bundled-mcp-server)'s always-on cost — "the one number [§5](#5-components) cannot currently state" — is **0**.
+
+**Three corrections to the instrument picture, all learned by using it.**
+
+- **`/doctor` is not a listing-cost report.** On 2.1.226 it is a health-check workflow
+  (installation diagnostics, unused-extension detection, memory trimming, permission proposals).
+  It neither prices the skill listing against a budget nor names contributors. [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) and
+  [PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) both name it in that role; **`/context` is the instrument that actually does this
+  job**, and a future question should name it instead.
+- **A per-component figure can exceed the plugin total.** Observed: `scryfall-query-craft` ~260
+  against a whole-plugin ~258. The proportional-scaling caveat above is not theoretical, and any
+  acceptance criterion phrased as a threshold on a per-component number inherits the imprecision.
+- **The two instruments disagree by ~9%** on the same plugins (`plugin details` ~1,980 combined,
+  `/context` ~1,810). Each is authoritative for a different question — isolated contribution
+  versus live post-budget residency. Record both; do not average them.
+
+**One thing [§3.1](#31-context-budget) states that this measurement makes consequential.** The listing budget is a
+*fraction* of the context window, so the model moves the **budget** as well as the measurement —
+the same install is at ~42% of budget on a 1M-context model and would exceed it on a 200k one.
+The instruction above to re-run at each phase boundary should therefore record the **model and
+its window**, not only the version.
+
 ---
 
 ## 5. Components
@@ -965,12 +1026,18 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
   good. Harness features: skill auto-invocation by description, skill supporting files, the
   scoped tool naming in [§4.1](#41-harness-features-relied-on). No other PC.
 - **Context cost:**
-  - **Always-on: ~150–250 tokens.** Basis: this needs a richer-than-average description,
+  - **Always-on: ~150–250 tokens estimated; measured 2026-08-08 at ~260 (`claude plugin
+    details`) and ~270 (`/context`).** Basis: this needs a richer-than-average description,
     because it must match requests phrased as plain Magic questions that never say "Scryfall"
     or "search syntax". Against [§4.6](#46-context-cost-accounting)'s measured range of ~30–230 per skill, that puts it at or
     slightly above the top of the observed band. Hard ceiling: 1,536 characters of
     `description` plus `when_to_use` ([§3.1](#31-context-budget)), which is a cap on what the harness will show, not
-    a target.
+    a target; the shipped text uses 763 of it. **The measurement confirms the "at or slightly
+    above the top of the observed band" prediction and lands above the estimate's ceiling** —
+    criterion 2's ≤250 gate is therefore *not demonstrated as met*, with both instruments
+    reporting above it and neither reporting a precise figure. Full record and the
+    ambiguous-because-scaled verdict:
+    [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
   - **On-invoke: target ≤2,000 tokens for `SKILL.md`, plus the reference file only when
     read.** Basis: [§4.6](#46-context-cost-accounting)'s measured on-invoke range is ~560–2,900 tokens for skills of
     comparable scope. The 2,000 target keeps the body well inside [§3.1](#31-context-budget)'s 5,000-token
@@ -1097,16 +1164,23 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
   `args`, and `env`, and the scoped tool naming in [§4.1](#41-harness-features-relied-on). Runtime prerequisite: Node on `PATH`
   ([`docs/MCP-PRD.md` D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript)). No other PC. [PC-01](#pc-01--scryfall-query-craft) depends on this, not the reverse.
 - **Context cost:**
-  - **Always-on: the server's tool schemas — magnitude currently unverified.** Basis: none
-    available. [§4.6](#46-context-cost-accounting) establishes that `plugin details` reports an always-on figure computed from
-    listing text, and does not state whether MCP tool schemas are included; the server is not
-    running when the command executes, which suggests they are not. This is [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports), and it is
-    the one cost figure in [§5](#5-components) that is a genuine unknown rather than an estimate.
-  - **Unlike a skill description, a tool schema cannot be budget-trimmed** — [§3.1](#31-context-budget)'s degradation
-    applies to the skill listing, not to tool definitions. So this cost is fixed and paid in
-    full in every session, which makes tool count and description length a real product concern
-    for `docs/MCP-PRD.md` rather than a formatting one. That connection is worth naming here;
-    the decision about it belongs there.
+  - **Always-on: 0 tokens. Measured 2026-08-08.** Basis: on the Claude Code surface MCP tool
+    schemas are **deferred** — `/context` reports the server's tools as "loaded on-demand" at
+    `0 tokens` resident, and `claude plugin details` annotates the inventory row `tool schemas
+    resolved at runtime; not counted`. The reversible A/B [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) called for confirms it: with
+    `.mcp.json` ~258, without ~258, restored ~258. This was [§5](#5-components)'s one genuine unknown and
+    it now has a value. Record:
+    [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
+  - **On-demand: ~398 tokens for `card_search`**, paid when the schema is actually fetched
+    rather than every session. That is the per-tool figure a future capability budgets against.
+  - **The "cannot be budget-trimmed" concern does not arise, because there is no resident cost
+    to trim.** [§3.1](#31-context-budget)'s degradation applies to the skill listing and not to tool definitions —
+    which would have made a resident schema a fixed, unbudgetable per-session cost, and that is
+    why [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) was raised. Deferral removes the premise. Two limits: deferral is the
+    harness default and a server that opts out pays the ~398 every session, and the behavior is
+    **unmeasured on the Chat tab** ([P-14](#p-14--two-distribution-targets-one-source)), where [P-12](#p-12--plugin-name-and-server-key) has already shown per-surface
+    behavior to differ. So tool count and description length remain ordinary prudence for
+    `docs/MCP-PRD.md`, not a context-budget constraint; that decision still belongs there.
   - **On-invoke: not applicable.** A server does not fire; its tools return data, whose size is
     [`docs/MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be).
 - **Acceptance criteria:**
@@ -1316,6 +1390,26 @@ formatting one.
 comparing the reported always-on total against the same plugin with the server removed. Do
 this during Phase 1 — [PC-02](#pc-02--bundled-mcp-server)'s criterion 10 already produces the first half of the measurement.
 
+**Answered 2026-08-08: they do not count, because on this surface they are not resident at
+all.** The A/B was run as prescribed, on Claude Code 2.1.226: with `.mcp.json` **~258**, without
+**~258** (inventory `MCP servers (0)`, so the change registered), restored **~258** — the control
+`A₂ = A₁` holds and no run was voided. Two other instruments agree for one underlying reason:
+`claude plugin details` annotates the inventory row `tool schemas resolved at runtime; not
+counted`, and `/context` reports the server's tools as "loaded on-demand" at **0 tokens**
+resident, with `card_search`'s schema costing **~398 tokens** only when fetched.
+
+**This retires the concern rather than merely answering the question.** The stake above is that a
+tool schema *cannot* be budget-trimmed, so a resident schema would be a fixed unbudgetable cost
+in every session. Deferral removes the premise: there is no resident cost to trim. Tool count and
+description length in `docs/MCP-PRD.md` stay a formatting concern, and [`OQ-01`](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) does **not**
+gain the cost side it would have gained had the answer gone the other way.
+
+**Two limits, so this is not over-read.** Deferral is the harness default, not a guarantee — a
+server that opts out pays the ~398 every session. And this is the **Claude Code surface only**;
+whether the Chat tab defers an MCPB bundle's schemas is unmeasured, and [P-12](#p-12--plugin-name-and-server-key) has already
+shown per-surface behavior to differ. Record and full conditions:
+[`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
+
 ### PQ-02 — What is this plugin's measured always-on cost, and does it fit alongside what the author already has installed?
 
 [§3.1](#31-context-budget)'s budget is shared, and the author's `dotnet-plugin` already spends ~1,722 always-on
@@ -1325,6 +1419,31 @@ or a theoretical one.
 *Resolves by:* `/doctor`, which estimates the skill listing's cost against the budget and names
 its biggest contributors, plus `/context`, whose Skills row reports the listing size after the
 budget is applied. Both are available now; run them once Phase 1 is installed.
+
+**Answered 2026-08-08: ~270 tokens, and it fits with room to spare — but the risk verdict is
+model-dependent, and that qualifier is load-bearing.** Measured with the author's full load
+enabled (two plugins: `dotnet-plugin@dotnet-plugin` 1.0.38 and `manabase@manabase`
+`be2839453a11`) on Claude Code 2.1.226, model `claude-opus-5[1m]`.
+
+The listing sits at **4.2k tokens across 47 skills against a ~10,000-token budget (~42%), with
+nothing trimmed** — every skill shows its full description, which is the positive signal, not the
+absence of an error. Manabase contributes **~270** of that (~2.7% of budget); its tool schema
+contributes **0**, per [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports). So **[§3.1](#31-context-budget)'s silent degradation is theoretical on this
+machine**, and removing Manabase entirely would not change that.
+
+**The qualifier: `skillListingBudgetFraction` is 1% of the *context window*, and the window is a
+property of the active model.** The same install on a 200k-context model faces a ~2,000-token
+budget against a ~4,200-token listing — trimming would be *certain*. A future session that
+re-runs this on a smaller-window model and finds trimming has not contradicted this answer. Never
+quote the headroom without the model beside it.
+
+**Two findings that change how a later reader should use this number.** First, **~52% of the
+listing (~2,180 tokens across 16 entries) is built-in skills** that no plugin controls and that
+grow with each Claude Code release — the headroom available to installed plugins is smaller than
+the raw budget suggests. Second, **`/doctor` is not the instrument named above**: on 2.1.226 it is
+a health-check workflow that neither prices the listing against a budget nor names contributors.
+`/context` is the instrument that works; see the [§4.6](#46-context-cost-accounting) addendum. Record:
+[`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
 
 ### PQ-03 — What triggers a refresh of the bulk data and the Comprehensive Rules cache, and should it ever be a `SessionStart` hook?
 
@@ -1339,6 +1458,27 @@ discovery or rules lookup in [`docs/MCP-PRD.md` §6](./MCP-PRD.md#6-phases). Thi
 document's [OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced). Whichever way it goes, [§3.4](#34-cross-platform-reach) constrains the mechanism: a hook here must be
 exec form.
 
+**Hook half answered 2026-08-07: never a `SessionStart` hook.** Recorded as a standing constraint
+rather than left to be re-argued by whichever capability first wants a refresh trigger. Three
+reasons converge and nothing was found opposing them: the every-project cost stated above, for
+5–20 people, in projects overwhelmingly unrelated to Magic; Phase 1 ships no hook deliberately
+([§4.1](#41-harness-features-relied-on), [P-07](#p-07--skills-not-commands)); and
+[§3.4](#34-cross-platform-reach) makes the first component to need a hook the owner of the
+exec-form and Windows-shell problem rather than the inheritor of a solution. Deciding it now costs
+nothing and pre-empts nothing.
+
+**State the constraint at its true width, because it is easy to over-read.** It rules out **this
+plugin shipping a `SessionStart` hook** — not hooks in general, and not background refresh in
+general. A capability that needs fresh bulk data may still refresh lazily on first use, on an
+explicit user-invoked action, or on a staleness check inside the tool call, all of which cost
+nothing in a project that has nothing to do with Magic, which is the entire objection. It
+forecloses one mechanism, not the goal that mechanism would have served.
+
+**The rest of the question stays open** — storage layout, and whether first use blocks on a
+download. Nothing was implemented and no [§5](#5-components) criterion changed status.
+*Resolves by:* unchanged — the capability that first needs local persistence, tag discovery or
+rules lookup.
+
 ### PQ-04 — How would the author detect that a friend's skill listing has been budget-trimmed?
 
 [§3.1](#31-context-budget)'s degradation is silent and `/doctor` is local. A friend whose listing overflowed would
@@ -1348,6 +1488,63 @@ report it as a bug at all.
 the README is sufficient, or whether [PC-01](#pc-01--scryfall-query-craft) needs to be robust to having no description — which
 it cannot be, since the description *is* the invocation mechanism. Likely a documentation
 answer, but confirm it rather than assuming.
+
+**Answered 2026-08-07: a README line is sufficient, and it names the by-name fallback.** The
+mitigation is what makes documentation sufficient rather than resigned. [§3.1](#31-context-budget)
+records that trimming drops descriptions and **keeps names**, so a trimmed skill is still
+invocable: the user is un-prompted rather than stuck, which turns an undetectable degradation into
+a recoverable one. The line leads with the symptom, because that is what a friend actually
+notices, then the recovery, then the diagnosis:
+
+> If Claude does not reach for Magic knowledge on its own, invoke
+> `manabase:scryfall-query-craft` by name — it still works when the skill listing has been trimmed.
+> Run `/doctor` to confirm whether trimming is what happened.
+
+Two things it deliberately does not do. It does not claim `/doctor` will name this plugin among the
+contributors — unverified until [Slice 10](./slices/TrackC-Slice10.md) measures it, and the line
+reads correctly either way. And it does not attempt to make
+[PC-01](#pc-01--scryfall-query-craft) robust to having no description, which is impossible for the
+reason this question already gives.
+
+**The line is not written yet.** [`README.md`](../README.md) is unchanged and no
+[PC-01](#pc-01--scryfall-query-craft) criterion changed status.
+*Resolves by:* adding the line to [`README.md`](../README.md) — [Slice 12](./slices/TrackC-Slice12.md)
+already carries that task — and confirming at [Slice 10](./slices/TrackC-Slice10.md) whether
+`/doctor` names this plugin, which sharpens the last sentence but gates neither of the first two.
+
+**Amended 2026-08-08 — [Slice 10](./slices/TrackC-Slice10.md) measured it, and the drafted line's
+third sentence does not survive.** The caution recorded above was justified, and by a wider margin
+than it supposed: `/doctor` on Claude Code 2.1.226 does not merely fail to name this plugin among
+the contributors — **it does not price the skill listing against a budget and does not name
+contributors at all.** It is a health-check workflow (installation diagnostics, unused-extension
+detection, memory trimming, permission proposals). See [§4.6.1](#461-addendum-2026-08-08--measured-on-claude-code-21226).
+
+**The first two sentences stand unchanged.** They never depended on `/doctor`: the symptom is what
+a friend notices, and the by-name recovery rests on [§3.1](#31-context-budget)'s trimming keeping
+names, which [Slice 10](./slices/TrackC-Slice10.md) did not touch. Only the diagnosis clause moves.
+The line to write is now:
+
+> If Claude does not reach for Magic knowledge on its own, invoke
+> `manabase:scryfall-query-craft` by name — it still works when the skill listing has been trimmed.
+> Run `/context` to confirm whether trimming is what happened: its Skills row reports the listing
+> size after the cap is applied, and lists every skill with its cost.
+
+**One limit on that last clause, stated so it is not over-read.**
+[Slice 10](./slices/TrackC-Slice10.md) measured a listing with **nothing trimmed** — 4.2k of a
+~10,000-token budget — so what a *trimmed* entry looks like in `/context` was not observed. That a
+trimmed skill would show as a surviving row with a much smaller cost beside it follows from
+[§3.1](#31-context-budget)'s described behavior and is **[inferred]**, not verified. Whoever writes
+the line should not promise more than that, and a session that ever sees a genuinely trimmed
+listing should record what the row actually looks like.
+
+**[`README.md`](../README.md) is no longer unchanged**, which the block above asserts. Its existing
+troubleshooting bullet already told the reader to run `/doctor` for exactly this, so it was
+carrying the false claim outright rather than merely lacking the new line; it was corrected in place
+on 2026-08-08 to name `/context`. **The by-name recovery clause — this question's actual
+contribution — is still unwritten**, and remains [Slice 12](./slices/TrackC-Slice12.md)'s task.
+No [PC-01](#pc-01--scryfall-query-craft) criterion changed status.
+*Resolves by:* [Slice 12](./slices/TrackC-Slice12.md) adding the recovery clause to the corrected
+bullet. Nothing about this question is now blocked on a measurement.
 
 ### PQ-05 — Should the plugin be submitted to the community marketplace once it is stable?
 
@@ -1396,6 +1593,26 @@ commit in exactly the drift this question describes; nothing yet checks `dist/` 
 The user-facing half is untouched either way: a released bundle still carries its `dist/` until
 someone reinstalls, because there is no update path
 ([§4.2](#42-marketplace-and-install-path)).
+
+**Remedy for the ordinary-commit half decided 2026-08-07: add `ci.yml` on `pull_request` and
+`push: main`, running typecheck → test → build → `git diff --exit-code -- dist/`.** This is the
+remedy the paragraph above already worked out; recording it as decided means
+[Slice 11](./slices/TrackC-Slice11.md) implements it rather than re-arguing it. It closes the half
+that leaves every ordinary commit unchecked and, as a side effect, runs the rebuild-and-diff
+mechanism for the first time on any commit rather than on a tag — the local CRLF false alarm is a
+working-tree artifact of `core.autocrlf=true` and does not reach a Linux runner that checks out LF.
+It needs no harness: a branch and a push.
+
+**The user-facing half stays open and CI cannot close it.** A released `.mcpb` carries whatever
+`dist/` it was packed with until someone reinstalls, because Desktop has no update path
+([§4.2](#42-marketplace-and-install-path)). CI can guarantee that what was packed matched `src/`
+**at pack time** and says nothing about what a user is running today. The `0.0.0-dev+<commit>`
+stamp remains the only mitigation, and it distinguishes a hand-packed artifact from a release
+rather than detecting staleness.
+
+**Nothing was implemented on 2026-08-07** — `.github/workflows/` still holds `release.yml` alone.
+*Resolves by:* [Slice 11](./slices/TrackC-Slice11.md), which is unblocked, adding `ci.yml`, plus
+the release gate actually executing once against a real tag.
 
 ### PQ-07 — Is deck optimization a skill or an agent?
 
@@ -1571,6 +1788,12 @@ and the correct move is to say so and stop.
 | 2026-08-04 | **Four decisions taken in the same session, closing what the row above left open.** **[PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered:** the pack step stamps the MCPB manifest `version` from the commit being packed — nothing hand-synced, no fourth copy of a version string, and no `0.0.0` in an artifact a user installs and cannot update. **[PC-01](#pc-01--scryfall-query-craft) gains criteria 14 and 15**, resolving the loads-versus-fires question the previous row recorded as undecided: 14 requires the skill to appear in the session listing *and* produce a tool call on the surface being claimed; 15 requires that an unreachable tool yields a plain statement of unavailability and no substituted answer. 15 is **[verified 2026-08-04]** — the configuration that produced the original silent web search now stops. **[P-12](#p-12--plugin-name-and-server-key) amended** to say the scoped tool name is constructed per surface and is not a property of the server, with the two traps that follow: never write it into a component that travels between surfaces, and never use it to detect whether the tool is present. **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criteria corrected from four verified to five** — criterion 6 was verified after [§6](#6-roadmap) and the row above were drafted, and both said four. | Three of the four are the same failure seen from different angles: a check that passes without the thing it checks for actually working. [PC-01](#pc-01--scryfall-query-craft)'s static criteria passed twice on skills that did not work, so 14 and 15 exist to make the file-measurable checks insufficient on their own rather than to replace them. [P-12](#p-12--plugin-name-and-server-key) read as a universal fact and was a single-surface one, which is what let a skill body assert a tool name that does not exist where it was sent. [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)'s answer is chosen for the same reason: an installed `.mcpb` never re-pulls, so a version that does not identify its build gives its user no signal at all — the staleness half of [PQ-06](#pq-06--what-keeps-the-committed-dist-honest). The count correction is recorded rather than silently fixed because a criteria tally that drifts between the block and the sections summarizing it is exactly the divergence this document's no-duplicated-decisions rule exists to prevent. |
 | 2026-08-04 | **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) moves from `specified`/unassigned to `in progress`/Slice 11, gains criteria 9, 10 and 11, and criterion 5 is verified.** The build path is committed: `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`), and `.github/workflows/release.yml` — the repo's first `.github/` — which on a `v*` tag typechecks, tests, rebuilds `dist/` and fails on a diff, packs, and attaches `manabase.mcpb` to a Release. **[PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) implemented**, and the piece its answer left open is settled: **a tag versions the bundle, not the plugin**, so [P-08](#p-08--version-scheme) is untouched and Slice 13 still owns the plugin-version question; an untagged pack stamps `0.0.0-dev+<commit>`. **[PQ-06](#pq-06--what-keeps-the-committed-dist-honest) half-answered and deliberately left open** — both halves now have a mechanism, but the CI gate has never run, it cannot be exercised on a machine where `core.autocrlf=true` makes `dist/index.js` report modified with an empty diff, and neither mechanism watches an ordinary commit. [§4.2](#42-marketplace-and-install-path) gains a second dated addendum recording three properties of the Chat-tab install: **the MCPB manifest format has no `skills` field**, verified against the published specification; **double-click is not a reliable install route** and Settings → Extensions → Advanced settings → Install Extension is; and **an installed extension has no update path**. Criterion 3's wording corrected from "double-clicking the `.mcpb`" to "installing the `.mcpb`" — it was written from the documented routes rather than from the run. | The question driving the session was whether a friend can be handed this. The answer for Claude Code is yes and was already; for the Chat tab it is **two installs, permanently** — the format cannot carry a skill, so one-click is not a packaging problem this project can engineer away, and the honest move is to document the pair as one procedure rather than imply a future where it collapses to one. The other two findings are both cases where following the vendor documentation would have produced a broken instruction: double-click is listed first and did not work, and the absence of an update path is stated nowhere, which makes it something a user discovers by silently running a stale server. Recording them in [§4.2](#42-marketplace-and-install-path) rather than only in `README.md` is what keeps a later session from re-deriving them. Criterion 10 is entered **unverified on purpose**: the workflow's value is entirely in a run that has not happened, and marking it verified because the file exists would repeat the [PC-01](#pc-01--scryfall-query-craft) static-criteria failure this document has now recorded twice. |
 | 2026-08-07 | **Moxfield recorded as a second deck platform on this document's side — as pointers only, per [§1](#1-overview)'s boundary rule.** No component was added, no `PC` block was written, no [PC-01](#pc-01--scryfall-query-craft)/[PC-02](#pc-02--bundled-mcp-server)/[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status, and Phase 1 is untouched. What changed: [P-05](#p-05--credentials-collected-through-userconfig) and [P-13](#p-13--no-user-configuration-in-phase-1) gain dated notes recording that Moxfield adds **no** credential to collect; [§4.4](#44-user-configuration) says the same about the mechanism it documents; [PQ-08](#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) is explicitly **not** widened to Moxfield and says why; [§6](#6-roadmap)'s Deck analysis row now names both platforms and records that it waits on the first, not both; [§8](#8-out-of-scope)'s reference to the other document's rejection list is brought current. The substance — [D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second), [D-14](./MCP-PRD.md#d-14--no-npm-moxfield-api-dependency), [D-15](./MCP-PRD.md#d-15--moxfield-writes-are-blocked-upstream-not-merely-last), [§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis), [§4.8](./MCP-PRD.md#48-moxfield), [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms)–[OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) — is all in [`docs/MCP-PRD.md`](./MCP-PRD.md), which owns it. | A data source is server behavior, so the boundary rule puts every Moxfield decision in the other document and leaves this one with the consequences: what the user is prompted for, and what a component may assume exists. Both consequences turned out to be **negative findings**, which is why they are recorded rather than skipped as "nothing changed." The tempting errors here are symmetrical and both silent — declaring a Moxfield `userConfig` field to match Archidekt's shape, which prompts for a credential that cannot be exchanged for a token; and widening [PQ-08](#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) to cover a credential-failure path that does not exist. A future session that finds Moxfield in the MCP PRD and nothing here would reasonably assume this document had not caught up, and would then make one of those two edits. |
+| 2026-08-07 | **[PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)'s hook half answered: never a `SessionStart` hook**, recorded as a standing constraint. The entry states the constraint at its true width — it rules out **this plugin shipping** such a hook, not hooks in general and not background refresh in general, so lazy first-use refresh, an explicit user-invoked action, and an in-tool staleness check all remain available. Storage layout and whether first use blocks on a download stay open and stay with the capability that first needs persistence, which is the other half of [`docs/MCP-PRD.md` OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced). No component was added and no [§5](#5-components) criterion changed status. | The question was recorded in 2026-07-29 as a *disagreement* with the brief rather than a gap, and the three reasons against the hook — the every-project network call for 5–20 users, Phase 1's deliberate absence of any hook, and [§3.4](#34-cross-platform-reach) making the first hook component own the exec-form and Windows-shell problem — converge with nothing found opposing them. Deciding it now costs nothing and pre-empts nothing, and it stops the next capability that wants a refresh trigger from re-arguing it from scratch. The width caveat is in the entry because the failure mode of an over-read constraint is a capability that concludes it may not refresh at all. |
+| 2026-08-07 | **[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) answered: a README line is sufficient, and it names invoking `manabase:scryfall-query-craft` by name before it names `/doctor`.** The drafted wording is recorded in the entry. **The line is not written** — [`README.md`](../README.md) is unchanged and no [PC-01](#pc-01--scryfall-query-craft) criterion changed status; [Slice 12](./slices/TrackC-Slice12.md) already carries the task. | What makes documentation sufficient here rather than resigned is a fact this question was framed without: [§3.1](#31-context-budget) records that trimming drops descriptions and **keeps names**, so a trimmed skill is still invocable and the degradation is recoverable rather than merely detectable. That is a materially different thing to document than "run `/doctor`". The line deliberately does not assert that `/doctor` names this plugin among the contributors — unverified until [Slice 10](./slices/TrackC-Slice10.md) — and deliberately does not try to make [PC-01](#pc-01--scryfall-query-craft) robust to having no description, which is impossible because the description *is* the invocation mechanism. |
+| 2026-08-07 | **[PQ-06](#pq-06--what-keeps-the-committed-dist-honest)'s remaining commit-half remedy decided: a `ci.yml` on `pull_request` and `push: main` running typecheck → test → build → `git diff --exit-code -- dist/`.** [Slice 11](./slices/TrackC-Slice11.md) implements it. **The user-facing half stays open and is not closable by CI** — a released `.mcpb` carries its `dist/` until someone reinstalls, so CI can only guarantee that what was packed matched `src/` at pack time. **Nothing was implemented**: `.github/workflows/` still holds `release.yml` alone, and the question stays open. | The remedy was already worked out inside the question on 2026-08-04 and left unrecorded as a decision, which is the state that invites a slice to re-argue it or to pick a different mechanism. Recording it converts [Slice 11](./slices/TrackC-Slice11.md)'s "recommended" CI check into its assignment. The side effect matters as much as the fix: this is also what runs the rebuild-and-diff mechanism for the first time, since the release gate has never executed and cannot be exercised on a machine where `core.autocrlf=true` makes `dist/index.js` report modified with an empty diff. Splitting the two halves explicitly is what keeps a future session from closing this question the moment CI goes green. |
+| 2026-08-08 | **Context-cost measurement ([Slice 10](./slices/TrackC-Slice10.md)) on Claude Code 2.1.226, model `claude-opus-5[1m]`, under the author's full two-plugin load.** Plugin always-on **~258 tokens** across 1 skill and 1 MCP server; [PC-01](#pc-01--scryfall-query-craft) always-on **~260** by `claude plugin details` and **~270** by `/context`, so **criterion 2 is ambiguous-because-scaled against ≤250 and is *not* recorded as met** — no instrument reports it under the gate, and neither reports a precise figure. [PC-02](#pc-02--bundled-mcp-server) **criterion 10 satisfied**: the complete `claude plugin details` output is recorded in [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md) and pointed to from here by path rather than pasted into this table, following the precedent [Slice 6](./slices/TrackA-Slice6.md) set for [CAP-01](./MCP-PRD.md#cap-01--card-search). **[PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) answered:** MCP tool schemas **do not** count toward the reported always-on total — with `.mcp.json` ~258, without ~258 (inventory `MCP servers (0)`), restored ~258, control `A₂ = A₁` holding — because on this surface they are **deferred** rather than merely unreported: `/context` prices them at **0 resident**, ~398 on demand for `card_search`. **[PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) answered:** the skill listing is **4.2k of a ~10,000-token budget (~42%) across 47 skills with nothing trimmed**, of which Manabase is ~270 (~2.7%), so [§3.1](#31-context-budget)'s silent degradation is **theoretical on this machine on this model** — and would be certain on a 200k-context window, since the budget is 1% of the window rather than a constant. [§4.6](#46-context-cost-accounting) gains a dated addendum (4.6.1) recording that the 2.1.220 grounding measurement **reproduces exactly** at ~1,722 on 2.1.226, that a per-component figure can exceed the plugin total, that the two instruments disagree by ~9%, and that **`/doctor` is a health-check workflow, not the listing-cost report** three places in this document describe. [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server)'s Context cost bullets carry the measured figures. No [§5](#5-components) criterion other than [PC-02](#pc-02--bundled-mcp-server)'s 10 changed status; no `P-` decision was added; §2 and §3 untouched. | [Slice 10](./slices/TrackC-Slice10.md) (`docs/DEV-ROADMAP.md`) — establishes the measured baseline [§3.1](#31-context-budget) and [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) are checked against, and gives [PC-02](#pc-02--bundled-mcp-server)'s one genuinely unknown cost figure a value. **[PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) retires rather than merely answers its own stake.** That question mattered because a tool schema, unlike a skill description, cannot be budget-trimmed, so a resident schema would have been a fixed unbudgetable per-session cost and would have made tool count and description length a context-budget constraint in [`docs/MCP-PRD.md`](./MCP-PRD.md). Deferral removes the premise, so [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) does **not** gain the cost side it would have gained had the answer gone the other way, and nothing in this slice edits that document. Two limits are recorded with the answer so it is not over-read: deferral is the harness default and an opted-out server pays ~398 every session, and the behavior is unmeasured on the Chat tab, where [P-12](#p-12--plugin-name-and-server-key) has already shown per-surface behavior to differ. **The method finding is the durable one.** The installed plugin is a pinned clone in the plugin cache keyed by commit SHA, not the working tree — moving the repo's `.mcp.json` would have changed nothing the instrument reads and returned A = B for a reason unrelated to token accounting, which is the same silent-wrong-answer class as the unparsed frontmatter and the dropped invalid term. The A/B was run against the installed copy and restored byte-exactly. **[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s follow-up is answered negatively and needs no rework:** it asked this slice to confirm whether `/doctor` names this plugin among the listing's contributors, and it does not name contributors at all. That answer had explicitly declined to assume otherwise and wrote its README line to read correctly either way, so the line [Slice 12](./slices/TrackC-Slice12.md) carries is unaffected and only its closing `/doctor` sentence is stale, which is that slice's call. **One existing [`README.md`](../README.md) troubleshooting bullet did assert the false capability outright** — "Run `/doctor` — it estimates the listing cost against the budget and names the biggest contributors" — and was corrected in place to name `/context`, decided with the author rather than deferred, because [Slice 12](./slices/TrackC-Slice12.md) *is* the friend dry-run and is therefore exactly where a friend would have hit it. |
+| 2026-08-08 | **This document's build-status header is superseded; every clause of the 2026-08-04 block was false.** That block said the plugin had never been installed from a marketplace, `SKILL.md` was unwritten, `claude plugin details` had never been run, and therefore every [PC-01](#pc-01--scryfall-query-craft)/[PC-02](#pc-02--bundled-mcp-server) criterion and every `PQ` remained open. [Slice 7](./slices/TrackB-Slice7.md), [Slice 8](./slices/TrackB-Slice8.md) and [Slice 10](./slices/TrackC-Slice10.md) each falsified one of those in turn. The dated block is **left exactly as written** and a **Build status 2026-08-08** block is appended beside it carrying current state: [PC-01](#pc-01--scryfall-query-craft) criteria 1, 3–11, 13 and 15 verified and [PC-02](#pc-02--bundled-mcp-server) criteria 1, 2, 3, 4, 6, 7 and 10; [PC-01](#pc-01--scryfall-query-craft)'s 2, 12 and 14 each unverified for a *different* reason, stated individually; three components specified rather than two, since [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) was added 2026-08-04. No criterion changed status in this row and [§5](#5-components) is unedited. | A status header is the one paragraph every cold reader trusts without checking, which makes a stale one more expensive than no header at all — and this one had been contradicted by its own [§9](#9-revision-log) for four days across five landed slices. It is superseded rather than rewritten because the block is dated and this document does not overwrite dated records, the same handling [CAP-01](./MCP-PRD.md#cap-01--card-search)'s delivery note gets in the companion document. The three unverified [PC-01](#pc-01--scryfall-query-craft) criteria are enumerated with their individual reasons deliberately: 2 is measured and missed, 12 was never measured with the skill, and 14 postdates the run that would have covered it — collapsing those into one count would reproduce exactly the "all twelve" flattening the companion row corrects. |
+| 2026-08-08 | **[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) amended — the line it drafted cannot be written as drafted.** Its 2026-08-07 answer ends "Run `/doctor` to confirm whether trimming is what happened", and [Slice 10](./slices/TrackC-Slice10.md) established that `/doctor` on 2.1.226 neither prices the skill listing against a budget nor names contributors. The dated answer is left as written and an **Amended 2026-08-08** block appended: the **first two sentences stand** — the symptom clause and the by-name recovery, which rest on [§3.1](#31-context-budget)'s trimming keeping names and never depended on `/doctor` — and only the diagnosis clause moves, to `/context`. The last clause carries an explicit **[inferred]** marker: [Slice 10](./slices/TrackC-Slice10.md) measured a listing with **nothing trimmed**, so what a trimmed row looks like in `/context` was reasoned from [§3.1](#31-context-budget), not observed. Also corrected: the block's claim that [`README.md`](../README.md) is unchanged — its troubleshooting bullet already told the reader to run `/doctor` for exactly this and was fixed in place the same day. **The by-name recovery clause is still unwritten and remains [Slice 12](./slices/TrackC-Slice12.md)'s.** No [PC-01](#pc-01--scryfall-query-craft) criterion changed status. | The question was answered and its answer had a dependency nobody had checked — the 2026-08-07 entry was explicit that it declined to claim `/doctor` would name the plugin, but it still assumed `/doctor` reported on the listing at all. Being right about the smaller uncertainty concealed the larger one, which is why the amendment records what actually failed rather than quietly swapping a command name. Splitting the drafted line into the part that survives and the part that does not is the useful output: [Slice 12](./slices/TrackC-Slice12.md) inherits a line it can write today instead of a question reopened, and the recovery clause — the thing that makes documentation a mitigation rather than a shrug — was never what broke. The `[inferred]` marker is there because the alternative is a README sentence promising a diagnostic nobody has watched work, which is the failure mode this document has now recorded three times. |
 
 ---
 

@@ -9,8 +9,10 @@ remembers, like regex and the Tagger tags.
 ([PC-02](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server)) and a Scryfall query-craft skill
 ([PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)).
 
-The server half is done. `card_search` runs against live Scryfall, and all twelve of
-[CAP-01](./docs/MCP-PRD.md#cap-01--card-search)'s acceptance criteria are verified (2026-08-03).
+The server half is done. `card_search` runs against live Scryfall, and all twelve of the
+acceptance criteria [CAP-01](./docs/MCP-PRD.md#cap-01--card-search) carried at the time are
+verified (2026-08-03). A thirteenth was added the following day and is not implemented — it covers
+trimming a search result's legality data, which is the known limitation described below.
 The two commands below are now a verified path, not merely the intended one: the install was
 performed end to end on a machine that had never installed it, and the server was connected and
 answering in the same session (2026-08-04,
@@ -25,13 +27,17 @@ evals against a without-skill baseline, and
 [PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral criteria are measured
 (2026-08-04, [`docs/slices/TrackB-Slice9-results.md`](./docs/slices/TrackB-Slice9-results.md)) —
 it loads, it triggers on Magic questions and not on look-alikes, and it keeps the model off
-operators that do not exist. What is not yet done is cost: nobody has measured what the plugin
-costs a session. [`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
+operators that do not exist. The cost is measured too: installing Manabase adds **about 270
+tokens** to every session on the Claude Code surface — the skill's listing entry, and nothing
+else, because the server's tool schema is fetched on demand rather than kept resident (2026-08-08,
+[`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md)).
+[`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
 
 **One known limitation, open and unfixed:** a `card_search` result for a broad query can exceed
 the harness's tool-result size ceiling before it reaches a full page of matches (issue #25; 111
-cards measured 116,626 characters). Narrow the query. The fix is a specification question —
-[`docs/MCP-PRD.md` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be).
+cards measured 116,626 characters). Narrow the query. The fix is **decided but not built**
+(2026-08-07): legalities trimmed to the format the query names, plus a page cap that reports
+itself — [`docs/MCP-PRD.md` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be).
 
 ## Where it runs
 
@@ -197,8 +203,10 @@ implemented and settled, so the first capability that needs persistence inherits
   just absent. Check `/mcp` first, then run `claude --debug` to read why.
 - **Claude stops reaching for Magic tools on its own.** The skill listing is capped at a
   fraction of the context window and silently drops descriptions when it overflows. Run
-  `/doctor` — it estimates the listing cost against the budget and names the biggest
-  contributors.
+  `/context` — its Skills row reports the listing size after the cap is applied, and lists every
+  skill with its cost. (Not `/doctor`, which is a health check and does not price the listing —
+  measured 2026-08-08,
+  [`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md).)
 - **Claude says the Magic tool is unavailable.** That is the skill working as designed, not a
   bug — it will not fill the gap with a web search. Check which surface you are on: on the Claude
   Desktop **Chat tab** the plugin delivers the skill but no server, which is the **Experimental**
@@ -217,8 +225,11 @@ Prices are Scryfall's TCGplayer-derived market price — one number per printing
 never as $0, and a digital-only printing says so rather than claiming no price data exists.
 
 Some paper printings carry no USD price at all, only EUR — as of 2026-08-03 that includes every
-paper Black Lotus. Those report as missing today. Whether to fall back to EUR is
-[open question OQ-09](./docs/MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists).
+paper Black Lotus, and at most 3.15% of paper printings overall. Those report as missing today.
+**There will be no EUR fallback** — a price that could silently be in either currency is worse than
+none — but the report will get more precise: a distinct "no USD price" reason carrying the EUR
+figure, decided 2026-08-07 and not yet built
+([OQ-09](./docs/MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists)).
 
 **Planned sources**, for capabilities that are queued and unassigned — none of these are
 reached today: [Commander Spellbook](https://commanderspellbook.com) for combo data,
