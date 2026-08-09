@@ -1211,8 +1211,13 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
 
 - **Type:** mcp-server
 - **Status:** in progress
-- **Phase:** Slice 11 — the build and release path landed 2026-08-04; no version is tagged and
-  no bundle is released
+- **Phase:** [Slice 13](./slices/TrackC-Slice13.md) — **reassigned 2026-08-09**, from
+  [Slice 11](./slices/TrackC-Slice11.md). The build and release path landed 2026-08-04; no version
+  is tagged and no bundle is released. [Slice 11](./slices/TrackC-Slice11.md) closed
+  [PQ-06](#pq-06--what-keeps-the-committed-dist-honest)'s commit half without cutting a release —
+  the release cut and the packed-bundle byte-identity assertion were deferred to
+  [Slice 13](./slices/TrackC-Slice13.md) — so this component now follows the criteria it still
+  needs. Criteria status is unchanged by the reassignment: 1–6, 9 and 11 verified
 - **User need:** I use the Claude Desktop Chat tab, not a terminal. I installed the plugin and
   it answered my Magic question from a web search without telling me. I want the same tools my
   friends get in Claude Code, and if I can't have them I want to be told.
@@ -1351,6 +1356,25 @@ mechanism watches an ordinary commit. **That is why the assignment is to Slice 1
 should cut the first release, so a second artifact is never built from a `dist/` nothing checked.
 Shipping one before that doubles the exposure to the failure [P-09](#p-09--server-ships-as-committed-built-javascript) knowingly
 accepted, on the target that has no update path to correct it.
+
+**Superseded 2026-08-09 — the paragraph above is left as written and corrected here.** Two of its
+clauses are now false. The CI gate **has** run and an ordinary commit **is** watched:
+[Slice 11](./slices/TrackC-Slice11.md) landed `.github/workflows/ci.yml` on `pull_request` and
+`push: main`, which rebuilds `dist/` and fails on a non-empty `git status --porcelain -- dist/`,
+and it was observed failing on a deliberately stale bundle and green on the rebuild
+([`docs/slices/TrackC-Slice11-results.md`](./slices/TrackC-Slice11-results.md)).
+[PQ-06](#pq-06--what-keeps-the-committed-dist-honest)'s **commit half is answered**; its
+user-facing half stays open, so the argument's conclusion — never build a second artifact from a
+`dist/` nothing checked — still holds and is now satisfiable rather than aspirational.
+
+**What that changes is the assignment, not the reasoning.** "The slice that owns
+[PQ-06](#pq-06--what-keeps-the-committed-dist-honest) is the slice that should cut the first
+release" was written when one slice was expected to do both.
+[Slice 11](./slices/TrackC-Slice11.md) closed the commit half and deferred the release cut and the
+packed-bundle byte-identity assertion to [Slice 13](./slices/TrackC-Slice13.md), so
+[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) was reassigned there on 2026-08-09 — the same
+principle, now pointing at the slice that can still act on it. No
+[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.
 
 ### Queued and unassigned
 
