@@ -887,6 +887,44 @@ because [PC-02](#pc-02--bundled-mcp-server)'s true always-on cost is the one num
 cost figures in [§5](#5-components) become unverifiable rather than merely stale. Re-run it at each phase
 boundary and record the result in [§9](#9-revision-log) rather than treating the numbers here as durable.
 
+#### 4.6.1 Addendum, 2026-08-08 — measured on Claude Code 2.1.226
+
+Everything above stands as written on the date it was written; this appends what
+[Slice 10](./slices/TrackC-Slice10.md) measured and does not overwrite it. Full record:
+[`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md). **[verified
+2026-08-08]**
+
+**The grounding measurement reproduces exactly.** `claude plugin details
+dotnet-plugin@dotnet-plugin` on 2.1.226 returns **~1,722 always-on across the same 20 skills** —
+identical to the 2.1.220 figure above. The accounting was stable across six patch versions, so
+the table above is still a usable reference point.
+
+**The `[inferred]` above is confirmed, with a stronger reason than it supposed.** MCP tool schemas
+are not counted — but not merely because the server is not running. They are **deferred**:
+`/context` reports them "loaded on-demand" at `0 tokens` resident, and the inventory row now
+annotates itself `tool schemas resolved at runtime; not counted`. The A/B is in [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports).
+[PC-02](#pc-02--bundled-mcp-server)'s always-on cost — "the one number [§5](#5-components) cannot currently state" — is **0**.
+
+**Three corrections to the instrument picture, all learned by using it.**
+
+- **`/doctor` is not a listing-cost report.** On 2.1.226 it is a health-check workflow
+  (installation diagnostics, unused-extension detection, memory trimming, permission proposals).
+  It neither prices the skill listing against a budget nor names contributors. [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) and
+  [PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) both name it in that role; **`/context` is the instrument that actually does this
+  job**, and a future question should name it instead.
+- **A per-component figure can exceed the plugin total.** Observed: `scryfall-query-craft` ~260
+  against a whole-plugin ~258. The proportional-scaling caveat above is not theoretical, and any
+  acceptance criterion phrased as a threshold on a per-component number inherits the imprecision.
+- **The two instruments disagree by ~9%** on the same plugins (`plugin details` ~1,980 combined,
+  `/context` ~1,810). Each is authoritative for a different question — isolated contribution
+  versus live post-budget residency. Record both; do not average them.
+
+**One thing [§3.1](#31-context-budget) states that this measurement makes consequential.** The listing budget is a
+*fraction* of the context window, so the model moves the **budget** as well as the measurement —
+the same install is at ~42% of budget on a 1M-context model and would exceed it on a 200k one.
+The instruction above to re-run at each phase boundary should therefore record the **model and
+its window**, not only the version.
+
 ---
 
 ## 5. Components
@@ -965,12 +1003,18 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
   good. Harness features: skill auto-invocation by description, skill supporting files, the
   scoped tool naming in [§4.1](#41-harness-features-relied-on). No other PC.
 - **Context cost:**
-  - **Always-on: ~150–250 tokens.** Basis: this needs a richer-than-average description,
+  - **Always-on: ~150–250 tokens estimated; measured 2026-08-08 at ~260 (`claude plugin
+    details`) and ~270 (`/context`).** Basis: this needs a richer-than-average description,
     because it must match requests phrased as plain Magic questions that never say "Scryfall"
     or "search syntax". Against [§4.6](#46-context-cost-accounting)'s measured range of ~30–230 per skill, that puts it at or
     slightly above the top of the observed band. Hard ceiling: 1,536 characters of
     `description` plus `when_to_use` ([§3.1](#31-context-budget)), which is a cap on what the harness will show, not
-    a target.
+    a target; the shipped text uses 763 of it. **The measurement confirms the "at or slightly
+    above the top of the observed band" prediction and lands above the estimate's ceiling** —
+    criterion 2's ≤250 gate is therefore *not demonstrated as met*, with both instruments
+    reporting above it and neither reporting a precise figure. Full record and the
+    ambiguous-because-scaled verdict:
+    [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
   - **On-invoke: target ≤2,000 tokens for `SKILL.md`, plus the reference file only when
     read.** Basis: [§4.6](#46-context-cost-accounting)'s measured on-invoke range is ~560–2,900 tokens for skills of
     comparable scope. The 2,000 target keeps the body well inside [§3.1](#31-context-budget)'s 5,000-token
@@ -1097,16 +1141,23 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
   `args`, and `env`, and the scoped tool naming in [§4.1](#41-harness-features-relied-on). Runtime prerequisite: Node on `PATH`
   ([`docs/MCP-PRD.md` D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript)). No other PC. [PC-01](#pc-01--scryfall-query-craft) depends on this, not the reverse.
 - **Context cost:**
-  - **Always-on: the server's tool schemas — magnitude currently unverified.** Basis: none
-    available. [§4.6](#46-context-cost-accounting) establishes that `plugin details` reports an always-on figure computed from
-    listing text, and does not state whether MCP tool schemas are included; the server is not
-    running when the command executes, which suggests they are not. This is [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports), and it is
-    the one cost figure in [§5](#5-components) that is a genuine unknown rather than an estimate.
-  - **Unlike a skill description, a tool schema cannot be budget-trimmed** — [§3.1](#31-context-budget)'s degradation
-    applies to the skill listing, not to tool definitions. So this cost is fixed and paid in
-    full in every session, which makes tool count and description length a real product concern
-    for `docs/MCP-PRD.md` rather than a formatting one. That connection is worth naming here;
-    the decision about it belongs there.
+  - **Always-on: 0 tokens. Measured 2026-08-08.** Basis: on the Claude Code surface MCP tool
+    schemas are **deferred** — `/context` reports the server's tools as "loaded on-demand" at
+    `0 tokens` resident, and `claude plugin details` annotates the inventory row `tool schemas
+    resolved at runtime; not counted`. The reversible A/B [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) called for confirms it: with
+    `.mcp.json` ~258, without ~258, restored ~258. This was [§5](#5-components)'s one genuine unknown and
+    it now has a value. Record:
+    [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
+  - **On-demand: ~398 tokens for `card_search`**, paid when the schema is actually fetched
+    rather than every session. That is the per-tool figure a future capability budgets against.
+  - **The "cannot be budget-trimmed" concern does not arise, because there is no resident cost
+    to trim.** [§3.1](#31-context-budget)'s degradation applies to the skill listing and not to tool definitions —
+    which would have made a resident schema a fixed, unbudgetable per-session cost, and that is
+    why [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) was raised. Deferral removes the premise. Two limits: deferral is the
+    harness default and a server that opts out pays the ~398 every session, and the behavior is
+    **unmeasured on the Chat tab** ([P-14](#p-14--two-distribution-targets-one-source)), where [P-12](#p-12--plugin-name-and-server-key) has already shown per-surface
+    behavior to differ. So tool count and description length remain ordinary prudence for
+    `docs/MCP-PRD.md`, not a context-budget constraint; that decision still belongs there.
   - **On-invoke: not applicable.** A server does not fire; its tools return data, whose size is
     [`docs/MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be).
 - **Acceptance criteria:**
@@ -1316,6 +1367,26 @@ formatting one.
 comparing the reported always-on total against the same plugin with the server removed. Do
 this during Phase 1 — [PC-02](#pc-02--bundled-mcp-server)'s criterion 10 already produces the first half of the measurement.
 
+**Answered 2026-08-08: they do not count, because on this surface they are not resident at
+all.** The A/B was run as prescribed, on Claude Code 2.1.226: with `.mcp.json` **~258**, without
+**~258** (inventory `MCP servers (0)`, so the change registered), restored **~258** — the control
+`A₂ = A₁` holds and no run was voided. Two other instruments agree for one underlying reason:
+`claude plugin details` annotates the inventory row `tool schemas resolved at runtime; not
+counted`, and `/context` reports the server's tools as "loaded on-demand" at **0 tokens**
+resident, with `card_search`'s schema costing **~398 tokens** only when fetched.
+
+**This retires the concern rather than merely answering the question.** The stake above is that a
+tool schema *cannot* be budget-trimmed, so a resident schema would be a fixed unbudgetable cost
+in every session. Deferral removes the premise: there is no resident cost to trim. Tool count and
+description length in `docs/MCP-PRD.md` stay a formatting concern, and [`OQ-01`](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) does **not**
+gain the cost side it would have gained had the answer gone the other way.
+
+**Two limits, so this is not over-read.** Deferral is the harness default, not a guarantee — a
+server that opts out pays the ~398 every session. And this is the **Claude Code surface only**;
+whether the Chat tab defers an MCPB bundle's schemas is unmeasured, and [P-12](#p-12--plugin-name-and-server-key) has already
+shown per-surface behavior to differ. Record and full conditions:
+[`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
+
 ### PQ-02 — What is this plugin's measured always-on cost, and does it fit alongside what the author already has installed?
 
 [§3.1](#31-context-budget)'s budget is shared, and the author's `dotnet-plugin` already spends ~1,722 always-on
@@ -1325,6 +1396,31 @@ or a theoretical one.
 *Resolves by:* `/doctor`, which estimates the skill listing's cost against the budget and names
 its biggest contributors, plus `/context`, whose Skills row reports the listing size after the
 budget is applied. Both are available now; run them once Phase 1 is installed.
+
+**Answered 2026-08-08: ~270 tokens, and it fits with room to spare — but the risk verdict is
+model-dependent, and that qualifier is load-bearing.** Measured with the author's full load
+enabled (two plugins: `dotnet-plugin@dotnet-plugin` 1.0.38 and `manabase@manabase`
+`be2839453a11`) on Claude Code 2.1.226, model `claude-opus-5[1m]`.
+
+The listing sits at **4.2k tokens across 47 skills against a ~10,000-token budget (~42%), with
+nothing trimmed** — every skill shows its full description, which is the positive signal, not the
+absence of an error. Manabase contributes **~270** of that (~2.7% of budget); its tool schema
+contributes **0**, per [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports). So **[§3.1](#31-context-budget)'s silent degradation is theoretical on this
+machine**, and removing Manabase entirely would not change that.
+
+**The qualifier: `skillListingBudgetFraction` is 1% of the *context window*, and the window is a
+property of the active model.** The same install on a 200k-context model faces a ~2,000-token
+budget against a ~4,200-token listing — trimming would be *certain*. A future session that
+re-runs this on a smaller-window model and finds trimming has not contradicted this answer. Never
+quote the headroom without the model beside it.
+
+**Two findings that change how a later reader should use this number.** First, **~52% of the
+listing (~2,180 tokens across 16 entries) is built-in skills** that no plugin controls and that
+grow with each Claude Code release — the headroom available to installed plugins is smaller than
+the raw budget suggests. Second, **`/doctor` is not the instrument named above**: on 2.1.226 it is
+a health-check workflow that neither prices the listing against a budget nor names contributors.
+`/context` is the instrument that works; see the [§4.6](#46-context-cost-accounting) addendum. Record:
+[`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
 
 ### PQ-03 — What triggers a refresh of the bulk data and the Comprehensive Rules cache, and should it ever be a `SessionStart` hook?
 
@@ -1638,6 +1734,7 @@ and the correct move is to say so and stop.
 | 2026-08-07 | **[PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)'s hook half answered: never a `SessionStart` hook**, recorded as a standing constraint. The entry states the constraint at its true width — it rules out **this plugin shipping** such a hook, not hooks in general and not background refresh in general, so lazy first-use refresh, an explicit user-invoked action, and an in-tool staleness check all remain available. Storage layout and whether first use blocks on a download stay open and stay with the capability that first needs persistence, which is the other half of [`docs/MCP-PRD.md` OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced). No component was added and no [§5](#5-components) criterion changed status. | The question was recorded in 2026-07-29 as a *disagreement* with the brief rather than a gap, and the three reasons against the hook — the every-project network call for 5–20 users, Phase 1's deliberate absence of any hook, and [§3.4](#34-cross-platform-reach) making the first hook component own the exec-form and Windows-shell problem — converge with nothing found opposing them. Deciding it now costs nothing and pre-empts nothing, and it stops the next capability that wants a refresh trigger from re-arguing it from scratch. The width caveat is in the entry because the failure mode of an over-read constraint is a capability that concludes it may not refresh at all. |
 | 2026-08-07 | **[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) answered: a README line is sufficient, and it names invoking `manabase:scryfall-query-craft` by name before it names `/doctor`.** The drafted wording is recorded in the entry. **The line is not written** — [`README.md`](../README.md) is unchanged and no [PC-01](#pc-01--scryfall-query-craft) criterion changed status; [Slice 12](./slices/TrackC-Slice12.md) already carries the task. | What makes documentation sufficient here rather than resigned is a fact this question was framed without: [§3.1](#31-context-budget) records that trimming drops descriptions and **keeps names**, so a trimmed skill is still invocable and the degradation is recoverable rather than merely detectable. That is a materially different thing to document than "run `/doctor`". The line deliberately does not assert that `/doctor` names this plugin among the contributors — unverified until [Slice 10](./slices/TrackC-Slice10.md) — and deliberately does not try to make [PC-01](#pc-01--scryfall-query-craft) robust to having no description, which is impossible because the description *is* the invocation mechanism. |
 | 2026-08-07 | **[PQ-06](#pq-06--what-keeps-the-committed-dist-honest)'s remaining commit-half remedy decided: a `ci.yml` on `pull_request` and `push: main` running typecheck → test → build → `git diff --exit-code -- dist/`.** [Slice 11](./slices/TrackC-Slice11.md) implements it. **The user-facing half stays open and is not closable by CI** — a released `.mcpb` carries its `dist/` until someone reinstalls, so CI can only guarantee that what was packed matched `src/` at pack time. **Nothing was implemented**: `.github/workflows/` still holds `release.yml` alone, and the question stays open. | The remedy was already worked out inside the question on 2026-08-04 and left unrecorded as a decision, which is the state that invites a slice to re-argue it or to pick a different mechanism. Recording it converts [Slice 11](./slices/TrackC-Slice11.md)'s "recommended" CI check into its assignment. The side effect matters as much as the fix: this is also what runs the rebuild-and-diff mechanism for the first time, since the release gate has never executed and cannot be exercised on a machine where `core.autocrlf=true` makes `dist/index.js` report modified with an empty diff. Splitting the two halves explicitly is what keeps a future session from closing this question the moment CI goes green. |
+| 2026-08-08 | **Context-cost measurement ([Slice 10](./slices/TrackC-Slice10.md)) on Claude Code 2.1.226, model `claude-opus-5[1m]`, under the author's full two-plugin load.** Plugin always-on **~258 tokens** across 1 skill and 1 MCP server; [PC-01](#pc-01--scryfall-query-craft) always-on **~260** by `claude plugin details` and **~270** by `/context`, so **criterion 2 is ambiguous-because-scaled against ≤250 and is *not* recorded as met** — no instrument reports it under the gate, and neither reports a precise figure. [PC-02](#pc-02--bundled-mcp-server) **criterion 10 satisfied**: the complete `claude plugin details` output is recorded in [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md) and pointed to from here by path rather than pasted into this table, following the precedent [Slice 6](./slices/TrackA-Slice6.md) set for [CAP-01](./MCP-PRD.md#cap-01--card-search). **[PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) answered:** MCP tool schemas **do not** count toward the reported always-on total — with `.mcp.json` ~258, without ~258 (inventory `MCP servers (0)`), restored ~258, control `A₂ = A₁` holding — because on this surface they are **deferred** rather than merely unreported: `/context` prices them at **0 resident**, ~398 on demand for `card_search`. **[PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) answered:** the skill listing is **4.2k of a ~10,000-token budget (~42%) across 47 skills with nothing trimmed**, of which Manabase is ~270 (~2.7%), so [§3.1](#31-context-budget)'s silent degradation is **theoretical on this machine on this model** — and would be certain on a 200k-context window, since the budget is 1% of the window rather than a constant. [§4.6](#46-context-cost-accounting) gains a dated addendum (4.6.1) recording that the 2.1.220 grounding measurement **reproduces exactly** at ~1,722 on 2.1.226, that a per-component figure can exceed the plugin total, that the two instruments disagree by ~9%, and that **`/doctor` is a health-check workflow, not the listing-cost report** three places in this document describe. [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server)'s Context cost bullets carry the measured figures. No [§5](#5-components) criterion other than [PC-02](#pc-02--bundled-mcp-server)'s 10 changed status; no `P-` decision was added; §2 and §3 untouched. | [Slice 10](./slices/TrackC-Slice10.md) (`docs/DEV-ROADMAP.md`) — establishes the measured baseline [§3.1](#31-context-budget) and [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) are checked against, and gives [PC-02](#pc-02--bundled-mcp-server)'s one genuinely unknown cost figure a value. **[PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) retires rather than merely answers its own stake.** That question mattered because a tool schema, unlike a skill description, cannot be budget-trimmed, so a resident schema would have been a fixed unbudgetable per-session cost and would have made tool count and description length a context-budget constraint in [`docs/MCP-PRD.md`](./MCP-PRD.md). Deferral removes the premise, so [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) does **not** gain the cost side it would have gained had the answer gone the other way, and nothing in this slice edits that document. Two limits are recorded with the answer so it is not over-read: deferral is the harness default and an opted-out server pays ~398 every session, and the behavior is unmeasured on the Chat tab, where [P-12](#p-12--plugin-name-and-server-key) has already shown per-surface behavior to differ. **The method finding is the durable one.** The installed plugin is a pinned clone in the plugin cache keyed by commit SHA, not the working tree — moving the repo's `.mcp.json` would have changed nothing the instrument reads and returned A = B for a reason unrelated to token accounting, which is the same silent-wrong-answer class as the unparsed frontmatter and the dropped invalid term. The A/B was run against the installed copy and restored byte-exactly. **[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s follow-up is answered negatively and needs no rework:** it asked this slice to confirm whether `/doctor` names this plugin among the listing's contributors, and it does not name contributors at all. That answer had explicitly declined to assume otherwise and wrote its README line to read correctly either way, so the line [Slice 12](./slices/TrackC-Slice12.md) carries is unaffected and only its closing `/doctor` sentence is stale, which is that slice's call. **One existing [`README.md`](../README.md) troubleshooting bullet did assert the false capability outright** — "Run `/doctor` — it estimates the listing cost against the budget and names the biggest contributors" — and was corrected in place to name `/context`, decided with the author rather than deferred, because [Slice 12](./slices/TrackC-Slice12.md) *is* the friend dry-run and is therefore exactly where a friend would have hit it. |
 
 ---
 

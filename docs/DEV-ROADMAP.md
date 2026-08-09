@@ -100,11 +100,32 @@ spike disproved that** — the root cause was the tool being *absent*, and with 
 model resolves the real one regardless of the stale string. De-hardcoding the name is right and
 was not causal; the no-fallback rule is the fix, and it is what criterion 6 verifies.
 
-What remains: no
-context-cost measurement has been taken, so
-[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2 ([Slice 10](./slices/TrackC-Slice10.md)) is still
-unverified, as are
-[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5, 8 and 10.
+**[Slice 10](./slices/TrackC-Slice10.md) landed 2026-08-08 — the context-cost measurement exists
+now** (verified 2026-08-08). It changed no code: measurement only, on Claude Code 2.1.226 with
+model `claude-opus-5[1m]`, against the installed plugin `be2839453a11` under the author's full
+two-plugin load. Evidence:
+[`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s **criterion 10 is verified**, and its
+always-on cost — [`PLUGIN-PRD.md` §5](./PLUGIN-PRD.md#5-components)'s one genuine unknown — is
+**0**, because MCP tool schemas are *deferred* on this surface (0 resident, ~398 on demand for
+`card_search`). **[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2 is measured
+and not met, and is not a clean fail either:** ~260 and ~270 against a ≤250 gate, verdict
+**ambiguous-because-scaled** — no instrument reports it under the gate, none reports a precise
+figure, and the skill text was deliberately not shortened because
+[Slice 9](./slices/TrackB-Slice9.md) measured 10/10 trigger accuracy on this exact frontmatter.
+Both of the slice's open questions are answered in
+[`PLUGIN-PRD.md` §7](./PLUGIN-PRD.md#7-open-questions):
+[PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)
+(schemas do not count, because they are deferred — which **retires** the question's stake that an
+untrimmable resident schema would constrain every future capability) and
+[PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed)
+(the listing is 4.2k of a ~10,000-token budget across 47 skills, nothing trimmed; Manabase ~270,
+~2.7%). **That headroom is model-dependent and must never be quoted without the model:**
+[`PLUGIN-PRD.md` §3.1](./PLUGIN-PRD.md#31-context-budget)'s budget is 1% of the *context window*,
+so the same install would face certain trimming on a 200k-context model.
+
+What remains of the cost work:
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5 and 8 are still unverified.
 
 **A decision-only session landed 2026-08-07 — no slice, no PR, no code change.** Eight open
 questions were settled at a desk and written into their owning PRDs, and four live measurements
@@ -199,7 +220,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 7 | Plugin install verification | B — plugin | ☑ PRs #13, #14 |
 | 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☑ PR #19 · frontmatter fix `ed82ceb`, PR #22 |
 | 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☑ |
-| 10 | Context-cost measurement | C — release | ☐ |
+| 10 | Context-cost measurement | C — release | ☑ |
 | 11 | `dist/` honesty mechanism | C — release | ☐ |
 | 12 | Docs polish & friend dry-run | C — release | ☐ |
 | 13 | Release gate — the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover | C — release | ☐ |
@@ -341,6 +362,15 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   [D-10](./MCP-PRD.md#d-10--tool-handlers-never-throw) — every *query* failure is still a structured result.
 - **Watch out:** keep tool count and description length lean — [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) has not yet established
   whether tool schemas are an unbudgetable always-on context cost.
+- **That is now answered, 2026-08-08 ([Slice 10](./slices/TrackC-Slice10.md)), and the benign
+  branch is what happened.** Tool schemas are **deferred** on the Claude Code surface — 0 tokens
+  resident, ~398 on demand for `card_search` — so they are **not** an always-on cost and the
+  warning above reverts from a budget constraint to ordinary prudence about the on-demand
+  payload. Two limits: deferral is the harness default rather than a guarantee, and the behavior
+  is unmeasured on the Chat tab. Evidence:
+  [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md);
+  [`MCP-PRD.md` OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+  gains no cost side and is untouched.
 
 #### Slice 6 — Live [CAP-01](./MCP-PRD.md#cap-01--card-search) acceptance pass
 
@@ -550,9 +580,58 @@ gates are open.
     shared skill-listing budget close to overflow?
   - Close or update [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)/[PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) in `PLUGIN-PRD.md` [§7](./PLUGIN-PRD.md#7-open-questions) and log in [§9](./PLUGIN-PRD.md#9-revision-log).
 - **Done when:**
-  - ☐ Baseline recorded; [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 2 checked.
-  - ☐ [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) and [PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) have measured answers in the PRD.
+  - ☑ Baseline recorded; [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 2 checked.
+  - ☑ [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) and [PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) have measured answers in the PRD.
 - **Binding refs:** `PLUGIN-PRD.md` [§3.1](./PLUGIN-PRD.md#31-context-budget), [§4.6](./PLUGIN-PRD.md#46-context-cost-accounting), [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports), [PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed).
+- **Landed:** 2026-08-08, on branch `docs/slice10-context-cost`. Measurement only — no `src/`,
+  `dist/`, `skills/` or `.claude-plugin/` change, and the repo working tree was never modified by
+  the experiment. Conditions and every figure:
+  [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md) (Claude Code
+  2.1.226, model `claude-opus-5[1m]`, installed plugin `be2839453a11`, the author's full
+  two-plugin load). [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) **criterion 10 is
+  verified** — the complete `claude plugin details manabase` output is in the results doc, which
+  [`PLUGIN-PRD.md` §9](./PLUGIN-PRD.md#9-revision-log) points at by path.
+  [PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)
+  and
+  [PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed)
+  are both answered in [`PLUGIN-PRD.md` §7](./PLUGIN-PRD.md#7-open-questions), with a dated
+  addendum at [§4.6.1](./PLUGIN-PRD.md#461-addendum-2026-08-08--measured-on-claude-code-21226) and
+  one [§9](./PLUGIN-PRD.md#9-revision-log) row.
+- **[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 2 is measured and *not* met —
+  and is not a clean fail either.** ~260 by `claude plugin details` and ~270 by `/context`,
+  against a ≤250 gate; the verdict recorded is **ambiguous-because-scaled**, because
+  [§4.6](./PLUGIN-PRD.md#46-context-cost-accounting)'s per-component figures are proportionally
+  scaled rather than measured — this run observed a per-component ~260 exceeding the whole-plugin
+  ~258, which cannot be literal. No instrument reports it under the gate and neither reports a
+  precise figure, so it is not recorded as passed. **The skill text was deliberately not
+  shortened** (decided with the author 2026-08-08):
+  [Slice 9](./slices/TrackB-Slice9.md) measured 10/10 trigger accuracy on this exact frontmatter,
+  and shortening it is [Slice 8](./slices/TrackB-Slice8.md)'s edit and would invalidate that rate.
+  No other [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+  [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.
+- **Two method findings this document's later slices need.** The installed plugin is a **pinned
+  clone in the plugin cache keyed by commit SHA**, not the working tree, so the A/B had to move
+  the cache copy's `.mcp.json` — moving the repo's would have returned A = B for a reason
+  unrelated to token accounting. And `claude plugin details` **re-reads from disk on every
+  invocation**: no `/reload-plugins`, update or reinstall is needed for a change to the installed
+  copy to register, which makes the phase-boundary re-runs
+  [§4.6](./PLUGIN-PRD.md#46-context-cost-accounting) asks for cheap.
+- **The `/doctor` half of the slice's own method did not exist as described.** On 2.1.226
+  `/doctor` is a health-check workflow; it neither prices the skill listing against a budget nor
+  names contributors, so `/context` supplied that half. It was **not run**, deliberately — its
+  cleanup actions edit settings and disable plugins, which would have modified the harness
+  mid-slice. That answers
+  [PQ-04](./PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s
+  follow-up **negatively**; that question's answer had declined to assume otherwise, so the README
+  line [Slice 12](./slices/TrackC-Slice12.md) owns is unaffected and only its closing `/doctor`
+  sentence is stale — that slice's call, not reopened here.
+- **Two stale figures found and left as found**, both reported rather than patched:
+  [`docs/slices/TrackC-Slice10.md`](./slices/TrackC-Slice10.md)'s Testing requirements say
+  "67 tests, 19 suites" where the tree runs **73 / 21**, and
+  [`PLUGIN-PRD.md`](./PLUGIN-PRD.md)'s document-status header still reads as though nothing on
+  that document's side is verified and `SKILL.md` is unwritten, which its own
+  [§9](./PLUGIN-PRD.md#9-revision-log) rows have contradicted since 2026-08-04.
 
 #### Slice 11 — `dist/` honesty mechanism
 
@@ -674,6 +753,21 @@ urgent than when it was scheduled, because `dist/index.js` is real committed bui
 silently drift from `src/`; [Slice 7](./slices/TrackB-Slice7.md) hit the CRLF false-alarm form of exactly that).
 [Slice 10](./slices/TrackC-Slice10.md) is therefore the only remaining gate on the critical path.
 
+**Superseded 2026-08-08: [Slice 10](./slices/TrackC-Slice10.md) has landed, so
+[Slice 12](./slices/TrackC-Slice12.md) is unblocked.** It waited on
+[6](./slices/TrackA-Slice6.md), [9](./slices/TrackB-Slice9.md) and
+[10](./slices/TrackC-Slice10.md); all three are done, and nothing else in the graph gates it.
+**The unblocked set is now [11](./slices/TrackC-Slice11.md) and [12](./slices/TrackC-Slice12.md)**
+— [11](./slices/TrackC-Slice11.md) unchanged and still unstarted, needing only
+[Slice 1](./slices/TrackA-Slice1.md), and [12](./slices/TrackC-Slice12.md) now next on the
+critical path. [Slice 13](./slices/TrackC-Slice13.md) still waits on both of them. The precondition
+the paragraph below states was met **by a positive signal, not by a file check**:
+`manabase:scryfall-query-craft` appeared in the session skill listing and `/context` priced it at
+~270 tokens under source `Plugin (manabase)`, which is the harness itself reporting the skill
+loaded. That distinction is the whole point of the precondition — the installed copy's `SKILL.md`
+was *also* verified present at a named blob, and that is precisely the check `ed82ceb` passed while
+the skill loaded in no harness at all.
+
 **The [Slice 8](./slices/TrackB-Slice8.md) frontmatter fix (`ed82ceb`) was a prerequisite in
 fact for both of the slices that measure the skill.** [Slice 9](./slices/TrackB-Slice9.md)
 confirmed the skill loads before recording any number — invoked by name in 11 fresh subagents —
@@ -682,7 +776,9 @@ always-on cost of a skill that is not in the listing.
 
 **The unblocked set is unchanged by the MCPB / Chat-tab work: still [10](./slices/TrackC-Slice10.md)
 and [11](./slices/TrackC-Slice11.md), and [12](./slices/TrackC-Slice12.md) still gates on
-[10](./slices/TrackC-Slice10.md).** [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) sits
+[10](./slices/TrackC-Slice10.md).** (True on 2026-08-04, when it was written, and about the MCPB
+work specifically; the set itself moved on 2026-08-08 when
+[10](./slices/TrackC-Slice10.md) landed — see the note above.) [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) sits
 outside the graph above because it is not a Phase 1 dependency
 ([`PLUGIN-PRD.md` §6](./PLUGIN-PRD.md#6-roadmap)) — assigning it to
 [Slice 11](./slices/TrackC-Slice11.md) gives it a place in the schedule without making it block

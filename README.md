@@ -25,8 +25,11 @@ evals against a without-skill baseline, and
 [PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s behavioral criteria are measured
 (2026-08-04, [`docs/slices/TrackB-Slice9-results.md`](./docs/slices/TrackB-Slice9-results.md)) —
 it loads, it triggers on Magic questions and not on look-alikes, and it keeps the model off
-operators that do not exist. What is not yet done is cost: nobody has measured what the plugin
-costs a session. [`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
+operators that do not exist. The cost is measured too: installing Manabase adds **about 270
+tokens** to every session on the Claude Code surface — the skill's listing entry, and nothing
+else, because the server's tool schema is fetched on demand rather than kept resident (2026-08-08,
+[`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md)).
+[`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
 
 **One known limitation, open and unfixed:** a `card_search` result for a broad query can exceed
 the harness's tool-result size ceiling before it reaches a full page of matches (issue #25; 111
@@ -198,8 +201,10 @@ implemented and settled, so the first capability that needs persistence inherits
   just absent. Check `/mcp` first, then run `claude --debug` to read why.
 - **Claude stops reaching for Magic tools on its own.** The skill listing is capped at a
   fraction of the context window and silently drops descriptions when it overflows. Run
-  `/doctor` — it estimates the listing cost against the budget and names the biggest
-  contributors.
+  `/context` — its Skills row reports the listing size after the cap is applied, and lists every
+  skill with its cost. (Not `/doctor`, which is a health check and does not price the listing —
+  measured 2026-08-08,
+  [`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md).)
 - **Claude says the Magic tool is unavailable.** That is the skill working as designed, not a
   bug — it will not fill the gap with a web search. Check which surface you are on: on the Claude
   Desktop **Chat tab** the plugin delivers the skill but no server, which is the **Experimental**

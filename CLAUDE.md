@@ -333,15 +333,49 @@ separately records the CR page turning over to `MagicCompRules 20260807.txt`.
 note reading "All twelve acceptance criteria are verified" while the block carries thirteen, and
 `OQ-02`'s answer now adds a page cap on top of criterion 13's trim.
 
-Track C has not started, and `PC-03` does not change that — it serves a surface, not a capability,
-and Phase 1 is still `PC-01` plus `PC-02`. Assigning it to Slice 11 gives it a schedule slot, not
-a place in the Phase 1 dependency graph. No context-cost measurement exists, so `PC-01`'s criterion 2 (Slice 10)
-and `PC-02`'s criteria 5, 8 and 10 are still unverified.
+Track C has started. `PC-03` does not change what Phase 1 is — it serves a surface, not a
+capability, and Phase 1 is still `PC-01` plus `PC-02`; assigning it to Slice 11 gives it a
+schedule slot, not a place in the dependency graph.
 
-Slice 12 is next on the critical path but is **not** unblocked: it waits on Slice 10 as well as on
-6 and 9. Two slices are unblocked: 10 and 11. Slice 10 is the only remaining gate on the critical
-path, and it no longer has a reason to wait, since `SKILL.md` now exists and a baseline measured
-today is not one Slice 8 invalidates. `docs/DEV-ROADMAP.md` §5 has the graph.
+**Slice 10 (context-cost measurement) landed 2026-08-08 — measurement only, no code.** Claude
+Code 2.1.226, model `claude-opus-5[1m]`, installed plugin `be2839453a11`, the author's full
+two-plugin load. Evidence: `docs/slices/TrackC-Slice10-results.md`. `PC-02` criterion 10 is
+**verified** and its always-on cost — the one genuine unknown in PLUGIN-PRD §5 — is **0**.
+`PC-02`'s criteria 5 and 8 stay unverified. **`PC-01` criterion 2 is measured and NOT met, and is
+not a clean fail either:** ~260 by `claude plugin details`, ~270 by `/context`, against a ≤250
+gate — verdict **ambiguous-because-scaled**, because per-component figures are proportionally
+scaled, not measured (this run saw a per-component ~260 exceed the whole-plugin ~258, which cannot
+be literal). No instrument reports it under the gate and none reports a precise figure, so never
+record it as passed and never as a clean fail. **The skill text was deliberately not shortened**
+(decided with the author): Slice 9 measured 10/10 trigger accuracy on this exact frontmatter, and
+shortening it is Slice 8's edit and would invalidate that rate.
+
+**`PQ-01` is answered and its stake is retired.** MCP tool schemas do not count toward the
+always-on total — A/B with `.mcp.json` ~258, without ~258, restored ~258, control holding — and
+the reason is stronger than "unreported": on the Claude Code surface schemas are **deferred**,
+0 tokens resident and ~398 on demand for `card_search`. The question mattered because a resident
+schema *cannot* be budget-trimmed; deferral removes the premise, so tool count and description
+length are ordinary prudence rather than a context-budget constraint, and `OQ-01` gains no cost
+side — `MCP-PRD.md` is untouched by that slice. Two limits: deferral is the harness default, not a
+guarantee (a server that opts out pays ~398 every session), and it is **unmeasured on the Chat
+tab**. **`PQ-02` is answered:** the skill listing is 4.2k of a ~10,000-token budget across 47
+skills with nothing trimmed; Manabase is ~270 of it (~2.7%). **Never quote that headroom without
+the model** — the budget is 1% of the *context window*, so the same install on a 200k-context
+model would face certain trimming. Over half the listing (~52%) is built-in skills no plugin
+controls. `/doctor` on 2.1.226 is a health-check workflow: it neither prices the listing against a
+budget nor names contributors, so `/context` is the instrument; three places in `PLUGIN-PRD.md`
+still describe `/doctor` in that role and its §4.6.1 addendum records the correction. That answers
+`PQ-04`'s follow-up negatively, and `PQ-04` itself stays answered — the README line Slice 12 owns
+is unaffected; only its closing `/doctor` sentence is stale, which is Slice 12's call.
+
+Two method findings bind anything that measures or perturbs "the installed plugin": it is a
+**pinned clone in the plugin cache keyed by commit SHA**, not the working tree — acting on the
+repo instead returns a plausible number that means nothing — and `claude plugin details` **re-reads
+from disk every invocation**, so no reload, update or reinstall is needed for a change to register.
+
+Slice 12 is now **unblocked** and next on the critical path: it waited on 6, 9 and 10, and all
+three have landed. The unblocked set is 11 and 12; 13 waits on both. `docs/DEV-ROADMAP.md` §5 has
+the graph.
 
 ## Price handling — the three traps
 
@@ -395,8 +429,10 @@ directions:
 - **`CLAUDE.md` stays bare on purpose.** This file is loaded whole into every session, so every
   character is always-on context cost — and a link costs roughly `73` characters against a `6`
   character ID. Linking its references would grow it by about a fifth to serve a reader that
-  greps rather than clicks. Context budget is a live question here (`PQ-01`, `PQ-02`, Slice 10),
-  so this is a measured trade, not an oversight. Cite by ID and let the reader search.
+  greps rather than clicks. Context budget is measured here, not guessed (`PQ-01` and `PQ-02`,
+  answered by Slice 10), so this is a measured trade, not an oversight — and this file is the
+  single largest resident item on the author's machine at 11.9k tokens, against ~270 for the
+  whole shipped plugin. Cite by ID and let the reader search.
 
 A few `§` references are deliberately left unlinked where the sentence means "the owning PRD" or
 "both PRDs" — linking them would assert a specific document and be wrong. Leave them bare. That
