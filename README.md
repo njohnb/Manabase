@@ -59,7 +59,43 @@ unavailable. Serving that surface properly needs a second artifact, an MCPB bund
 [P-14](./docs/PLUGIN-PRD.md#p-14--two-distribution-targets-one-source). A Chat-tab user needs
 **both** the plugin and the bundle; either alone is a degraded state.
 
-### Chat tab — experimental
+## Requirements
+
+- **Claude Code 2.1.207 or later** — `claude --version` in a terminal. This is a hard floor, not a
+  recommendation: below it the plugin is unsupported rather than degraded
+  ([`docs/PLUGIN-PRD.md` P-10](./docs/PLUGIN-PRD.md#p-10--minimum-supported-claude-code-version)).
+- **Node on `PATH`** — `node --version`. That is the only runtime prerequisite, and it applies to
+  the **plugin**: no build toolchain, no `npm install`, no Python, no shell. It is the first thing
+  to check if the tools do not appear
+  ([`docs/PLUGIN-PRD.md` §3.4](./docs/PLUGIN-PRD.md#34-cross-platform-reach)).
+- **The MCPB bundle needs nothing.** Claude Desktop ships its own Node on macOS and Windows, so a
+  Chat-tab install has no runtime prerequisite at all. Building the bundle yourself does need
+  Node, but only until there is a release to download.
+
+## Install
+
+Two commands, both typed **at the Claude Code prompt** — not in a shell:
+
+```
+/plugin marketplace add njohnb/Manabase
+/plugin install manabase@manabase
+```
+
+No config file to edit, no credential prompt, no restart.
+
+> **Add the marketplace as `owner/repo`, not as a URL to `marketplace.json`.** Adding it by
+> direct URL downloads only that one file, and the plugin's relative source path will not
+> resolve. This is a partial, confusing failure rather than a clean one.
+> ([`docs/PLUGIN-PRD.md` P-11](./docs/PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace).)
+
+### Check that it worked
+
+Run `/mcp`. You want `manabase` listed and **connected**. Then ask for cards in your own words —
+*"cheap green ramp that's legal in commander"* — and you should see a `card_search` tool call before
+the answer. No tool call, or no `manabase` in `/mcp`, means something is wrong; start at
+[If something is wrong](#if-something-is-wrong), which is written for exactly that.
+
+## Chat tab — experimental (Claude Desktop)
 
 **The Chat tab needs two installs, and neither one alone is the product.** The MCPB manifest
 format has no way to carry a skill, so the bundle ships the server and the plugin ships the skill.
@@ -68,7 +104,7 @@ add the bundle below for the tools.
 
 **There is no release to download yet.** The build pipeline exists
 ([`.github/workflows/release.yml`](./.github/workflows/release.yml)) but no version has been tagged,
-so for now you build the bundle from a checkout:
+so for now you build the bundle from a checkout — these are shell commands, unlike the two above:
 
 ```
 git clone https://github.com/njohnb/Manabase && cd Manabase
@@ -95,31 +131,6 @@ re-pulls, so a stale build is invisible
 ([PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)). And the Chat tab has no
 shell, so an oversized result cannot be recovered there the way it can in Claude Code (see the
 limitation above).
-
-## Requirements
-
-- **Claude Code 2.1.207 or later.** This is a hard floor, not a recommendation — see
-  [`docs/PLUGIN-PRD.md` P-10](./docs/PLUGIN-PRD.md#p-10--minimum-supported-claude-code-version).
-- **Node on `PATH`.** That is the only runtime prerequisite, and it applies to the **plugin**:
-  no build toolchain, no `npm install`, no Python, no shell. It is the first thing to check if the
-  tools do not appear ([`docs/PLUGIN-PRD.md` §3.4](./docs/PLUGIN-PRD.md#34-cross-platform-reach)).
-- **The MCPB bundle needs nothing.** Claude Desktop ships its own Node on macOS and Windows, so a
-  Chat-tab install has no runtime prerequisite at all. Building the bundle yourself does need
-  Node, but only until there is a release to download.
-
-## Install
-
-```
-/plugin marketplace add njohnb/Manabase
-/plugin install manabase@manabase
-```
-
-Two commands. No config file to edit, no credential prompt, no restart.
-
-> **Add the marketplace as `owner/repo`, not as a URL to `marketplace.json`.** Adding it by
-> direct URL downloads only that one file, and the plugin's relative source path will not
-> resolve. This is a partial, confusing failure rather than a clean one.
-> ([`docs/PLUGIN-PRD.md` P-11](./docs/PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace).)
 
 ## Repository layout
 
@@ -171,7 +182,7 @@ npm install
 npm run build       # esbuild bundle -> dist/index.js, self-contained
 npm run typecheck   # tsc --noEmit
 npm test            # node --test, with TypeScript stripped at runtime
-npm run acceptance  # 13 live checks against real Scryfall — slow on purpose
+npm run acceptance  # 13 live harness checks against real Scryfall — slow on purpose
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -205,22 +216,97 @@ implemented and settled, so the first capability that needs persistence inherits
 
 ## If something is wrong
 
-- **The tools are missing.** A server that fails to start is nearly invisible — the tools are
-  just absent. Check `/mcp` first, then run `claude --debug` to read why.
-- **Claude stops reaching for Magic tools on its own.** The skill listing is capped at a
-  fraction of the context window and silently drops descriptions when it overflows. Run
-  `/context` — its Skills row reports the listing size after the cap is applied, and lists every
-  skill with its cost. (Not `/doctor`, which is a health check and does not price the listing —
-  measured 2026-08-08,
-  [`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md).)
-- **Claude says the Magic tool is unavailable.** That is the skill working as designed, not a
-  bug — it will not fill the gap with a web search. Check which surface you are on: on the Claude
-  Desktop **Chat tab** the plugin delivers the skill but no server, which is the **Experimental**
-  row above — you need the bundle as well.
-- **A search errors out on size.** The result exceeded the harness's tool-result ceiling — add
-  constraints to the query rather than paging (issue #25).
-- **Scryfall is down.** That is a total outage for card search; there is no second source for
-  Scryfall query syntax. You should get a clear structured failure, not a stack trace.
+Each entry gives the symptom you actually see, the check that tells it apart from the others, and
+what to do next. The first two entries look identical from the outside — no tool calls, no error —
+and only the checks separate them.
+
+### Claude never looks anything up
+
+**Symptom.** You ask a Magic question and Claude answers from memory, or says it cannot look
+anything up. No tool call ever appears.
+
+**Check `/mcp`.** Three different problems hide behind that one symptom, and `/mcp` tells them
+apart:
+
+- **`manabase` is not in the list at all** — the plugin is not installed, or not enabled. Open
+  `/plugin` and check there.
+- **It is listed but not connected** — the server failed to start. Run `claude --debug` and read
+  the startup output; that is where the reason appears.
+- **It is listed and switched off** — you can toggle a plugin's server off in `/mcp` without
+  uninstalling the plugin, so this is an ordinary state rather than a broken install. Toggle it
+  back on. Do **not** reinstall.
+
+### The plugin is installed but the tools are missing
+
+**A server that fails to start produces no error message you will ever see — the tools are simply
+absent.** Claude behaves as though Manabase were never installed. If you do not know that, you will
+spend your time hunting for an error that does not exist. Manabase cannot improve on this today; the
+harness owns what happens here, so the most this README can do is tell you plainly
+([`docs/PLUGIN-PRD.md` PC-02](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server)).
+
+Check in this order, cheapest first:
+
+1. **`node --version` in a terminal.** Node on `PATH` is the plugin's only runtime prerequisite, and
+   its absence produces exactly this symptom on an otherwise healthy machine. On a fresh install it
+   is the most likely cause by a wide margin.
+2. **`/mcp`** — listed and connected, or not, per the entry above.
+3. **`claude --debug`** — the startup output, for the reason.
+
+### Claude stops reaching for Magic on its own
+
+**Symptom.** *"Sometimes it doesn't seem to know about Magic."* The tools still work when you tell
+Claude to search for cards, but it no longer reaches for them by itself the way it did before.
+
+**What is happening.** Claude Code caps the skill listing at a fraction of the context window. When
+the listing overflows it drops the *descriptions* of the least-used skills and keeps their
+**names**. The skill is still installed and still invocable, and nothing errors — but Claude can no
+longer see what it is for, so automatic invocation stops
+([`docs/PLUGIN-PRD.md` §3.1](./docs/PLUGIN-PRD.md#31-context-budget)).
+
+**What to do.** Invoke it by name — `/manabase:scryfall-query-craft`. That still works when the
+listing has been trimmed, precisely because trimming keeps names. To confirm trimming is what
+happened, run `/context`: its Skills row reports the listing size after the cap is applied, and
+lists every skill with its cost. (Not `/doctor`, which is a health check and does not price the
+listing — measured 2026-08-08,
+[`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md).)
+
+The only other remedy is to install less. **Manabase cannot raise that budget on your behalf** — a
+plugin's root `settings.json` supports only the `agent` and `subagentStatusLine` keys — so there is
+no Manabase setting to go looking for.
+
+### A fix that shipped is not there
+
+**Symptom.** Something you were told is fixed is not, or the behavior changed halfway through a
+session.
+
+**Check the installed version.** `/plugin` lists your installed plugins and their versions;
+`claude plugin list` prints the same thing in a terminal. Manabase is pre-release and deliberately
+carries no `version`, so it resolves to the commit SHA of its source — which means **every commit is
+an update** ([`docs/PLUGIN-PRD.md` P-08](./docs/PLUGIN-PRD.md#p-08--version-scheme)). Compare that
+SHA against this repository; `/plugin update` pulls a newer one.
+
+**The trap.** A mid-session update leaves the *running* server on the old plugin directory until you
+run `/reload-plugins`. An update can therefore be installed and not yet in effect, which looks
+exactly like "the update did nothing"
+([`docs/PLUGIN-PRD.md` §4.1](./docs/PLUGIN-PRD.md#41-harness-features-relied-on)).
+
+### Claude says the Magic tool is unavailable
+
+That is the skill working as designed, not a bug — it will not quietly fill the gap with a web
+search. Check which surface you are on: on the Claude Desktop **Chat tab** the plugin delivers the
+skill but no server, which is the **Experimental** row above — you need the bundle as well.
+
+### A search errors out on size
+
+The result exceeded the harness's tool-result ceiling. Add constraints to the query rather than
+paging — see the known limitation at the top of this file (issue #25).
+
+### Scryfall is down
+
+That is a total outage for card search; there is no second source for Scryfall query syntax. You
+should get a clear structured failure that names what went wrong — not a stack trace, and not a
+server that appears to have died
+([`docs/MCP-PRD.md` D-10](./docs/MCP-PRD.md#d-10--tool-handlers-never-throw)).
 
 ## Attribution
 
