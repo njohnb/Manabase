@@ -170,6 +170,24 @@ EUR fallback; a distinct `no-usd-price` reason instead) on pricing; and
 (**one tool, `deck_read`**, over one thin shape) on the Archidekt deck-reading pack, which still
 owns the CAP block and the missing `deckFormat` table.
 
+**[Slice 11](./slices/TrackC-Slice11.md) landed 2026-08-09 — PR #32, plus the doc commit that
+follows it.** `.github/workflows/ci.yml` runs `npm ci` → typecheck → test → rebuild-and-compare on
+every pull request and every push to `main`, with `.nvmrc` pinning the toolchain Node for both
+workflows and a `.gitattributes` carrying the single `dist/index.js text eol=lf` rule. **The
+comparison shipped is `git status --porcelain -- dist/`, not the `git diff --exit-code` the
+2026-08-07 bullet above named** — an absent `dist/index.js` is recreated by the rebuild as an
+untracked file `git diff` never reports; `release.yml`'s gate was upgraded to match. The check was
+observed failing on a deliberately stale `dist/` and green on the rebuild, same branch and same
+workflow. [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s **commit half is
+answered; its user-facing half stays open** and CI cannot close it. **No
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) acceptance criterion changed status**,
+and [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) keeps its
+[Slice 11](./slices/TrackC-Slice11.md) assignment. The slice's scope was narrowed with the author
+and four items deferred rather than dropped — see its entry in [§4](#4-phase-1-slices). Evidence:
+[`docs/slices/TrackC-Slice11-results.md`](./slices/TrackC-Slice11-results.md).
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -181,9 +199,10 @@ owns the CAP block and the missing `deckFormat` table.
 | Server source | `config.ts`, `index.ts`, `result.ts`, `scryfall/{client,prices,types}.ts`, `tools/{card-search,register}.ts` |
 | Tests | 21 suites, **73 tests, 73 passing**; `tsc --noEmit` clean — re-run 2026-08-04. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
+| CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` remains untriggered — no `v*` tag exists — and still pins `actions/checkout`/`setup-node` at `@v4` where `ci.yml` uses `@v7` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
-| MCPB bundle | **Build path committed, no bundle released.** `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented) and refuses a `dist/` older than `src/`. **No version is tagged, so the release workflow has never run and there is nothing to download**; the Chat-tab install still means building it yourself. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `in progress`, assigned to [Slice 11](./slices/TrackC-Slice11.md), criteria 1–6 and 9 and 11 verified |
+| MCPB bundle | **Build path committed, no bundle released.** `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented) and refuses a `dist/` older than `src/`. **No version is tagged, so the release workflow has never run and there is nothing to download**; the Chat-tab install still means building it yourself. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `in progress`, **reassigned 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md)** — Slice 11 closed [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s commit half and deferred the release cut and the packed-bundle byte-identity assertion, so the component follows the criteria it still needs; criteria 1–6 and 9 and 11 verified, unchanged by the reassignment |
 | Known open defect | Issue #25 (open, unfixed): a `card_search` payload exceeds the harness tool-result ceiling below one page. First measurement — 111 cards, 116,626 characters, `legalities` 54.5% of bytes — recorded against [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be). That question is **answered in full as of 2026-08-07** — the queried-format `legalities` default *and* a server-enforced page cap near 120 cards — but **nothing is implemented**, so the defect is unchanged and issue #25 stays open |
 
 Two properties of the existing scaffold worth preserving on purpose:
@@ -203,8 +222,12 @@ Two properties of the existing scaffold worth preserving on purpose:
 3. Handlers are plain functions; config is read once at the entry point and passed down; no
    `process.env` below the entry point ([D-03](./MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions), `MCP-PRD.md` [§3.2](./MCP-PRD.md#32-testability)).
 4. Skills carry instructions, never card facts (`PLUGIN-PRD.md` [§3.6](./PLUGIN-PRD.md#36-skills-carry-instructions-never-facts)).
-5. `dist/` is committed and must be rebuilt with every `src/` change until [Slice 11](./slices/TrackC-Slice11.md) automates
-   the check ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)).
+5. `dist/` is committed and must be rebuilt with every `src/` change
+   ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)). Since [Slice 11](./slices/TrackC-Slice11.md) this is
+   enforced rather than remembered: `.github/workflows/ci.yml` reinstalls from the lockfile,
+   rebuilds, and fails on a non-empty `git status --porcelain -- dist/` on every pull request and
+   every push to `main`. The rule stands — CI reports the omission, it does not repair it, and a
+   forgotten rebuild is a red run rather than a silent one.
 6. The verbatim Fan Content disclaimer stays on every user-facing surface (`PLUGIN-PRD.md`
    [§3.5](./PLUGIN-PRD.md#35-what-the-user-must-see-and-must-not)).
 7. Run `claude plugin validate . --strict` before any push a friend might install from.
@@ -225,7 +248,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 8 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) `SKILL.md` authoring | B — plugin | ☑ PR #19 · frontmatter fix `ed82ceb`, PR #22 |
 | 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☑ |
 | 10 | Context-cost measurement | C — release | ☑ |
-| 11 | `dist/` honesty mechanism | C — release | ☐ |
+| 11 | `dist/` honesty mechanism | C — release | ☑ PR #32 · scope narrowed, see the block |
 | 12 | Docs polish & friend dry-run | C — release | ☐ |
 | 13 | Release gate — the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover | C — release | ☐ |
 
@@ -683,13 +706,40 @@ gates are open.
     plugin — [P-08](./PLUGIN-PRD.md#p-08--version-scheme) stays untouched and
     [Slice 13](./slices/TrackC-Slice13.md) keeps the plugin-version switchover.
 - **Done when:**
-  - ☐ A push with stale `dist/` fails the check, demonstrated once deliberately.
-  - ☐ A packed `.mcpb` whose `dist/` does not match its commit fails the check.
-  - ☐ [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in the PRD.
-  - ☐ An ordinary commit — not only a tag — is covered by the check.
+  - ☑ A push with stale `dist/` fails the check, demonstrated once deliberately.
+  - ☐ A packed `.mcpb` whose `dist/` does not match its commit fails the check. **Deferred to
+    [Slice 13](./slices/TrackC-Slice13.md)** — see the scope note below.
+  - ◐ [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in the PRD —
+    its **commit half** is answered 2026-08-09; the user-facing half stays open by its own terms
+    and CI cannot close it.
+  - ☑ An ordinary commit — not only a tag — is covered by the check.
   - ☐ A `v*` tag produces a Release with `manabase.mcpb` attached
-    ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 10).
+    ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 10). **Deferred to
+    [Slice 13](./slices/TrackC-Slice13.md).**
   - ☐ `README.md`'s Chat-tab instructions point at that download instead of a local build.
+    **Deferred to [Slice 12](./slices/TrackC-Slice12.md)**, which owns the README.
+- **Landed 2026-08-09 — PR #32.** `.github/workflows/ci.yml` on `pull_request` and `push: main`:
+  `npm ci` → `npm run typecheck` → `npm test` → rebuild-and-diff, gate last. With it, `.nvmrc`
+  (the toolchain Node pinned once, read by both workflows) and a `.gitattributes` scoped to the
+  single `dist/index.js text eol=lf` rule. `release.yml` picked up two one-line fixes: it reads
+  `.nvmrc`, and its own `dist/` gate now uses the same comparison. Evidence:
+  [`docs/slices/TrackC-Slice11-results.md`](./slices/TrackC-Slice11-results.md).
+- **Scope narrowed 2026-08-09, with the author.** This block was written before
+  [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s 2026-08-07 entry narrowed
+  the slice to "add `ci.yml`", and before [`TrackC-Slice11.md`](./slices/TrackC-Slice11.md) put
+  release automation, `README.md` and a doc-link checker in its out-of-scope list. Four items
+  above are therefore deferred rather than dropped: the doc-link checker
+  (`scripts/check-doc-links.mjs` / `npm run lint:docs`) is **unscheduled** and is its own
+  decision; the packed-bundle byte-identity assertion and the first release cut go to
+  [Slice 13](./slices/TrackC-Slice13.md), which owns the release gate; the README line goes to
+  [Slice 12](./slices/TrackC-Slice12.md), which owns the friend dry-run. Where this block and
+  [the slice spec](./slices/TrackC-Slice11.md) disagreed, the spec was followed.
+- **The comparison shipped is not the one this block and
+  [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) named.** Both said "rebuilds
+  and diffs"; the check uses `git status --porcelain -- dist/`, because an *absent* `dist/index.js`
+  is recreated by the rebuild as an untracked file that `git diff` does not report at all — and
+  absent-`dist/` is precisely the failure
+  [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) fears.
 - **Binding refs:** [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest), [P-14](./PLUGIN-PRD.md#p-14--two-distribution-targets-one-source), [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08), [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab).
 
 #### Slice 12 — Docs polish & friend dry-run
@@ -780,6 +830,13 @@ loaded. That distinction is the whole point of the precondition — the installe
 was *also* verified present at a named blob, and that is precisely the check `ed82ceb` passed while
 the skill loaded in no harness at all.
 
+**Superseded 2026-08-09: [Slice 11](./slices/TrackC-Slice11.md) has landed (PR #32), so
+[12](./slices/TrackC-Slice12.md) is the only unblocked slice and is next on the critical path.**
+[13](./slices/TrackC-Slice13.md) now waits on [12](./slices/TrackC-Slice12.md) alone, and it
+inherits two items deferred out of [11](./slices/TrackC-Slice11.md) — the packed-bundle
+byte-identity assertion and the first release cut. `S1 --> S11 --> S13` in the graph above is
+unchanged; only the status is.
+
 **The [Slice 8](./slices/TrackB-Slice8.md) frontmatter fix (`ed82ceb`) was a prerequisite in
 fact for both of the slices that measure the skill.** [Slice 9](./slices/TrackB-Slice9.md)
 confirmed the skill loads before recording any number — invoked by name in 11 fresh subagents —
@@ -794,7 +851,12 @@ work specifically; the set itself moved on 2026-08-08 when
 outside the graph above because it is not a Phase 1 dependency
 ([`PLUGIN-PRD.md` §6](./PLUGIN-PRD.md#6-roadmap)) — assigning it to
 [Slice 11](./slices/TrackC-Slice11.md) gives it a place in the schedule without making it block
-the release, and drawing it into a Phase 1 dependency graph would misstate what does. Two
+the release, and drawing it into a Phase 1 dependency graph would misstate what does. **That
+schedule slot moved to [Slice 13](./slices/TrackC-Slice13.md) on 2026-08-09**, for the same
+reason it was a slot rather than a dependency: [Slice 11](./slices/TrackC-Slice11.md) closed
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s commit half and deferred
+the release cut, so the component follows the criteria it still needs. It is still outside the
+graph and still not a Phase 1 dependency. Two
 sequencing consequences are real anyway, and both attach to work already in the graph:
 
 - **[Slice 11](./slices/TrackC-Slice11.md)'s scope grew without its status changing.**
