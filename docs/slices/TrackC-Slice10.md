@@ -392,9 +392,9 @@ it is checkable:
   evidence about the instrument's stability and [§4.6](../PLUGIN-PRD.md#46-context-cost-accounting) already warns these numbers are only as
   durable as the accounting behind them.
 - **Confirm the tree that was measured is a working tree.** Run `npm test` and `npm run typecheck`
-  once (67 tests, 19 suites — seconds) and record the result in the conditions block. Measuring
-  the context cost of a broken build is measuring nothing, and the installed SHA is the only thing
-  tying the numbers to a state of the repo.
+  once (73 tests, 21 suites as of 2026-08-08 — seconds) and record the result in the conditions
+  block. Measuring the context cost of a broken build is measuring nothing, and the installed SHA
+  is the only thing tying the numbers to a state of the repo.
 
 ## Verification steps
 

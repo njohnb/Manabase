@@ -159,8 +159,10 @@ importing JSON, so they behave identically under type stripping and under the bu
 
 ## Current state (2026-08-04)
 
-Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered**,
-with all twelve acceptance criteria verified — nine live against real Scryfall.
+Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered
+against criteria 1–12**, all twelve verified — nine live against real Scryfall. **Criterion 13 was
+added 2026-08-04, after delivery, and is not implemented**, so Track A being complete does not mean
+the block is fully satisfied; the slice that implements `OQ-02`'s trim and page cap owns it.
 
 Track B has started. Slice 7 (install verification) landed 2026-08-04 as PRs #13 and #14: the
 plugin **has** now been installed from a marketplace on a cold profile, and six of `PC-02`'s ten
@@ -329,9 +331,13 @@ dropped-invalid-term behavior and the `\A` zero-match trap, and trusting it woul
 96% of paper printings lack a USD price. And **Scryfall returns 23 legality keys, not 21.** §4.6
 separately records the CR page turning over to `MagicCompRules 20260807.txt`.
 
-**One conflict is open and is the session's call, not `doc-sync`'s:** `CAP-01` is delivered under a
-note reading "All twelve acceptance criteria are verified" while the block carries thirteen, and
-`OQ-02`'s answer now adds a page cap on top of criterion 13's trim.
+**That conflict was settled 2026-08-08 and the stale copies are corrected.** `CAP-01`'s delivery
+note reads "All twelve acceptance criteria are verified" while the block carries thirteen; the
+block's own 2026-08-07 addendum already resolved it — delivered against 1–12, criterion 13 not
+implemented — but four summaries still said "all twelve" flatly. `MCP-PRD.md`'s header,
+`DEV-ROADMAP.md` §2, `README.md` and this file now all say 1–12 and name 13 as outstanding. The
+dated notes themselves are untouched. Whether criterion 13 is widened for `OQ-02`'s page cap, or a
+fourteenth added, still belongs to the slice that implements the trim.
 
 Track C has started. `PC-03` does not change what Phase 1 is — it serves a surface, not a
 capability, and Phase 1 is still `PC-01` plus `PC-02`; assigning it to Slice 11 gives it a

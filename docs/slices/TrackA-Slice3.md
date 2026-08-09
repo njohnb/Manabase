@@ -244,7 +244,7 @@ git add -A && git status   # clean after commit, dist/index.js current
 
 ## References
 
-- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices), [Slice 3](../DEV-ROADMAP.md#slice-3--cardsearch-handler).
+- [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) [§4](../DEV-ROADMAP.md#4-phase-1-slices), [Slice 3](../DEV-ROADMAP.md#slice-3--card_search-handler).
 - [`docs/MCP-PRD.md`](../MCP-PRD.md) [§5](../MCP-PRD.md#5-capabilities) [CAP-01](../MCP-PRD.md#cap-01--card-search) (behavior bullets — field list, pagination, defaults), [§4.1.1](../MCP-PRD.md#411-search-endpoint)
   (search endpoint facts), [D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions) (direct-call testability), [D-07](../MCP-PRD.md#d-07--three-way-cache-split) (server-side query engine),
   [D-10](../MCP-PRD.md#d-10--tool-handlers-never-throw) (never throw), [D-11](../MCP-PRD.md#d-11--tool-naming-convention) (tool naming, relevant in Slice 5).

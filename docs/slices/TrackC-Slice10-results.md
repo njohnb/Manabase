@@ -16,8 +16,8 @@ byte-identical to the same path at `be2839453a11`
 **Enabled plugins at the time:** exactly two, both user scope — `dotnet-plugin@dotnet-plugin`
 (1.0.38) and `manabase@manabase` (`be2839453a11`)
 **Tree health:** `npm test` 73 tests / 21 suites, all pass; `npm run typecheck` clean. (The spec's
-[Testing requirements](./TrackC-Slice10.md) say "67 tests, 19 suites" — stale spec text, recorded
-here as what actually ran and not patched from this slice.)
+[Testing requirements](./TrackC-Slice10.md) said "67 tests, 19 suites"; recorded here as what
+actually ran, and the spec was corrected to 73 / 21 later the same day.)
 **Scryfall traffic:** none. This slice never starts the server or exercises a tool.
 
 **Result:** [`PQ-01`](../PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) **answered — MCP tool schemas do not count** toward the always-on total

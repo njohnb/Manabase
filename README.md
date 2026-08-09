@@ -9,8 +9,10 @@ remembers, like regex and the Tagger tags.
 ([PC-02](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server)) and a Scryfall query-craft skill
 ([PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)).
 
-The server half is done. `card_search` runs against live Scryfall, and all twelve of
-[CAP-01](./docs/MCP-PRD.md#cap-01--card-search)'s acceptance criteria are verified (2026-08-03).
+The server half is done. `card_search` runs against live Scryfall, and all twelve of the
+acceptance criteria [CAP-01](./docs/MCP-PRD.md#cap-01--card-search) carried at the time are
+verified (2026-08-03). A thirteenth was added the following day and is not implemented — it covers
+trimming a search result's legality data, which is the known limitation described below.
 The two commands below are now a verified path, not merely the intended one: the install was
 performed end to end on a machine that had never installed it, and the server was connected and
 answering in the same session (2026-08-04,

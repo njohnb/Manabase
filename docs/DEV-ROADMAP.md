@@ -29,8 +29,12 @@ place as work lands.
 ## 2. Current state (verified 2026-08-04)
 
 **Track A is complete.** Slices [1](./slices/TrackA-Slice1.md)–[6](./slices/TrackA-Slice6.md) landed as PRs #2–#7, delivering
-[CAP-01](./MCP-PRD.md#cap-01--card-search) end to end: all twelve acceptance criteria are
+[CAP-01](./MCP-PRD.md#cap-01--card-search) end to end against **criteria 1–12**: all twelve are
 verified, nine of them live against real Scryfall ([`docs/slices/TrackA-Slice6-results.md`](./slices/TrackA-Slice6-results.md)).
+**[CAP-01](./MCP-PRD.md#cap-01--card-search) criterion 13 was added 2026-08-04, after that
+delivery, and is not implemented** — Track A being complete does not mean the block is fully
+satisfied, and the slice that implements
+[OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)'s trim and page cap owns it.
 
 **Track B has started.** [Slice 7](./slices/TrackB-Slice7.md) landed 2026-08-04: the plugin **has** now been installed from a
 marketplace, on a cold profile, and six of
@@ -626,12 +630,20 @@ gates are open.
   follow-up **negatively**; that question's answer had declined to assume otherwise, so the README
   line [Slice 12](./slices/TrackC-Slice12.md) owns is unaffected and only its closing `/doctor`
   sentence is stale — that slice's call, not reopened here.
-- **Two stale figures found and left as found**, both reported rather than patched:
-  [`docs/slices/TrackC-Slice10.md`](./slices/TrackC-Slice10.md)'s Testing requirements say
-  "67 tests, 19 suites" where the tree runs **73 / 21**, and
-  [`PLUGIN-PRD.md`](./PLUGIN-PRD.md)'s document-status header still reads as though nothing on
-  that document's side is verified and `SKILL.md` is unwritten, which its own
-  [§9](./PLUGIN-PRD.md#9-revision-log) rows have contradicted since 2026-08-04.
+- **Four stale records found and, on the author's call, corrected the same day** rather than left
+  as found. [`docs/slices/TrackC-Slice10.md`](./slices/TrackC-Slice10.md)'s Testing requirements
+  said "67 tests, 19 suites" where the tree runs **73 / 21**.
+  [`PLUGIN-PRD.md`](./PLUGIN-PRD.md)'s document-status header read as though nothing on that
+  document's side was verified and `SKILL.md` unwritten — every clause false since 2026-08-04 —
+  and now carries a superseding dated block. Four summaries said
+  [CAP-01](./MCP-PRD.md#cap-01--card-search) had "all twelve" criteria verified while the block
+  carries thirteen; the block's own 2026-08-07 addendum had already resolved that, so the
+  summaries were brought into line rather than the substance re-decided. And
+  [`docs/slices/TrackA-Slice3.md`](./slices/TrackA-Slice3.md) carried a broken anchor into this
+  document — `#slice-3--cardsearch-handler` for a heading that slugs with the underscore intact.
+  **That last one is the case for [Slice 11](./slices/TrackC-Slice11.md)'s doc-link checker made
+  concretely:** it was found by a throwaway script written to validate this slice's own links, and
+  nothing in the repo would otherwise have caught it.
 
 #### Slice 11 — `dist/` honesty mechanism
 
