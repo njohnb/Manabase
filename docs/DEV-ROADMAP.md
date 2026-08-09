@@ -170,6 +170,24 @@ EUR fallback; a distinct `no-usd-price` reason instead) on pricing; and
 (**one tool, `deck_read`**, over one thin shape) on the Archidekt deck-reading pack, which still
 owns the CAP block and the missing `deckFormat` table.
 
+**[Slice 11](./slices/TrackC-Slice11.md) landed 2026-08-09 — PR #32, plus the doc commit that
+follows it.** `.github/workflows/ci.yml` runs `npm ci` → typecheck → test → rebuild-and-compare on
+every pull request and every push to `main`, with `.nvmrc` pinning the toolchain Node for both
+workflows and a `.gitattributes` carrying the single `dist/index.js text eol=lf` rule. **The
+comparison shipped is `git status --porcelain -- dist/`, not the `git diff --exit-code` the
+2026-08-07 bullet above named** — an absent `dist/index.js` is recreated by the rebuild as an
+untracked file `git diff` never reports; `release.yml`'s gate was upgraded to match. The check was
+observed failing on a deliberately stale `dist/` and green on the rebuild, same branch and same
+workflow. [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s **commit half is
+answered; its user-facing half stays open** and CI cannot close it. **No
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) acceptance criterion changed status**,
+and [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) keeps its
+[Slice 11](./slices/TrackC-Slice11.md) assignment. The slice's scope was narrowed with the author
+and four items deferred rather than dropped — see its entry in [§4](#4-phase-1-slices). Evidence:
+[`docs/slices/TrackC-Slice11-results.md`](./slices/TrackC-Slice11-results.md).
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -181,6 +199,7 @@ owns the CAP block and the missing `deckFormat` table.
 | Server source | `config.ts`, `index.ts`, `result.ts`, `scryfall/{client,prices,types}.ts`, `tools/{card-search,register}.ts` |
 | Tests | 21 suites, **73 tests, 73 passing**; `tsc --noEmit` clean — re-run 2026-08-04. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
+| CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` remains untriggered — no `v*` tag exists — and still pins `actions/checkout`/`setup-node` at `@v4` where `ci.yml` uses `@v7` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
 | MCPB bundle | **Build path committed, no bundle released.** `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented) and refuses a `dist/` older than `src/`. **No version is tagged, so the release workflow has never run and there is nothing to download**; the Chat-tab install still means building it yourself. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `in progress`, assigned to [Slice 11](./slices/TrackC-Slice11.md), criteria 1–6 and 9 and 11 verified |

@@ -101,8 +101,13 @@ layer built to achieve this (`D-04` — the SDK's transport object is already th
 
 **`dist/` is committed on purpose and must be rebuilt with every `src/` change** (`P-09`). It is
 what `.mcp.json` starts. Shipping a stale or absent `dist/` produces a plugin whose tools are
-simply *absent* with no error — the least debuggable failure this project has. Keeping it honest
-is open question `PQ-06` (Slice 11).
+simply *absent* with no error — the least debuggable failure this project has. Since Slice 11
+(2026-08-09) `.github/workflows/ci.yml` enforces it on every pull request and every push to
+`main` — `npm ci` → typecheck → test → rebuild → fail on a non-empty
+`git status --porcelain -- dist/`. CI reports the omission, it does not repair it, so the rule
+still binds; a forgotten rebuild is now a red run rather than a silent one. That closes `PQ-06`'s
+commit half only — its user-facing half stays open, because an installed `.mcpb` carries its
+`dist/` until someone reinstalls.
 
 **Keep the MCP SDK a devDependency.** The build bundles it; that is what makes the server start
 with no network and no `node_modules`.
@@ -157,7 +162,7 @@ present — that test reports "absent" on a surface where the tool works.
 Tests use `node:test` + `node:assert/strict`, and load fixtures with `readFileSync` rather than
 importing JSON, so they behave identically under type stripping and under the bundle.
 
-## Current state (2026-08-04)
+## Current state (2026-08-09)
 
 Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered
 against criteria 1–12**, all twelve verified — nine live against real Scryfall. **Criterion 13 was
@@ -260,10 +265,11 @@ Node**, so the bundle has no runtime prerequisite at all where the plugin needs 
 that asymmetry is easy to state backwards.
 
 `PQ-09` is answered *and* implemented, and **a tag versions the bundle, not the plugin** — `P-08`
-is untouched and Slice 13 still owns the plugin version. `PQ-06` is only **half-answered and stays
-open**: both halves have a mechanism now, but the CI gate has never run, it cannot be exercised on
-this machine (`core.autocrlf=true` makes `dist/index.js` report modified with an empty diff after
-every build), and neither mechanism watches an ordinary commit.
+is untouched and Slice 13 still owns the plugin version. `PQ-06` was **half-answered** that day:
+both halves had a mechanism, but the CI gate had never run, it could not be exercised on this
+machine (`dist/index.js` reports modified with an empty diff after every build), and neither
+mechanism watched an ordinary commit. **Slice 11 closed the commit half on 2026-08-09 — see
+below**; the user-facing half is still open.
 
 Three things that bind every session follow. **`P-12`'s scoped tool name governs the Claude Code
 surface only.** The scoped form is constructed per surface and is not a property of the server: the
@@ -320,8 +326,9 @@ a `SessionStart` hook**, scoped to this plugin shipping one rather than to backg
 generally. `PQ-04`: a README line is sufficient, and it names invoking
 `manabase:scryfall-query-craft` by name before `/doctor`, because trimming keeps names. `PQ-06`'s
 commit half gets a `ci.yml` on `pull_request` and `push: main` running typecheck → test → build →
-`git diff --exit-code -- dist/` (Slice 11 implements), while its **user-facing half stays open and
-CI cannot close it**.
+a `dist/` comparison (Slice 11 implemented it 2026-08-09, with `git status --porcelain` rather than
+the `git diff --exit-code` this decision named — see below), while its **user-facing half stays
+open and CI cannot close it**.
 
 Two live findings from that session bind future queries, both in `MCP-PRD.md` §4.1.1. **A negated
 numeric comparison is unusable and fails silently two ways** — a bare `-usd>=0.01` is dropped for an
@@ -379,9 +386,30 @@ Two method findings bind anything that measures or perturbs "the installed plugi
 repo instead returns a plausible number that means nothing — and `claude plugin details` **re-reads
 from disk every invocation**, so no reload, update or reinstall is needed for a change to register.
 
-Slice 12 is now **unblocked** and next on the critical path: it waited on 6, 9 and 10, and all
-three have landed. The unblocked set is 11 and 12; 13 waits on both. `docs/DEV-ROADMAP.md` §5 has
-the graph.
+**Slice 11 (the `dist/` honesty mechanism) landed 2026-08-09 as PR #32.**
+`.github/workflows/ci.yml` runs on `pull_request` and `push: main`: `npm ci` → `npm run typecheck`
+→ `npm test` → rebuild `dist/` and fail if the tree moved, gate last. With it came `.nvmrc` (Node
+`22`, the toolchain pinned once and read by both workflows) and a `.gitattributes` holding exactly
+one rule, `dist/index.js text eol=lf`. Evidence: `docs/slices/TrackC-Slice11-results.md`. **The
+gate is `git status --porcelain -- dist/`, not `git diff`** — an absent `dist/index.js` is
+recreated by the rebuild as an *untracked* file that `git diff` does not report at all, and
+absent-`dist/` is exactly the failure `P-09` fears; `release.yml`'s gate was upgraded to the same
+form. The check was observed **failing** on a deliberately stale `dist/` and then green on the
+rebuild, same branch and same workflow (PR #33, closed unmerged), which is what makes it known to
+work. `PQ-06`'s commit half is answered; **never say `PQ-06` is closed flatly** — its user-facing
+half stays open, a released `.mcpb` carries its `dist/` until reinstall, and the release gate has
+still never run against a tag. **No `PC-01`, `PC-02` or `PC-03` criterion changed status**, and
+`PC-03` keeps its Slice 11 assignment. Scope was narrowed with the author and four items are
+**deferred, not dropped**: the doc-link checker (`scripts/check-doc-links.mjs`, `npm run
+lint:docs`) is unscheduled, packed-bundle byte-identity and the first `v*` release go to Slice 13,
+and the README Chat-tab download line to Slice 12. Two traps follow. **A `src/` edit meant to
+demonstrate the gate must be in a module no test covers** — `src/index.ts` works; `src/config.ts`
+trips `tests/config.test.ts`, so `npm test` fails first and the gate step never runs. And
+**`.github/` now holds two workflows**: `release.yml` is still pinned to `actions/checkout@v4` /
+`setup-node@v4` where `ci.yml` uses `@v7`, it has never run, and Slice 13 should bump it.
+
+Slice 12 is now the **only unblocked slice** and next on the critical path: it waited on 6, 9 and
+10, and all three have landed. 13 waits on 12 alone. `docs/DEV-ROADMAP.md` §5 has the graph.
 
 ## Price handling — the three traps
 
@@ -467,9 +495,22 @@ A subagent under a root `agents/` would install into every user's harness (`P-07
 
 ## Environment
 
-Windows dev machine with `core.autocrlf=true` and no `.gitattributes`: the working tree is CRLF
-while git blobs are LF. Scripted edits to the markdown files must preserve CRLF, or the diff shows
-the whole file as changed.
+Windows dev machine with `core.autocrlf=true`: the working tree is CRLF while git blobs are LF.
+Since Slice 11 there is a `.gitattributes`, but it carries **one** rule — `dist/index.js text
+eol=lf` — so every markdown and source file is still governed by `autocrlf` alone. Scripted edits
+to the markdown files must preserve CRLF, or the diff shows the whole file as changed.
+
+**Never run `sed -i` — or any stream editor — against a tracked file here.** It rewrites the whole
+file to LF, which shows up as a modified file with no content diff: the same silent, hard-to-read
+corruption class as the `String.replace` hazard below. Use targeted edits.
+
+**`dist/index.js` reporting ` M` right after a clean build is a stale stat cache, not CRLF.**
+Measured: the rebuilt working-tree file hashes *identically* to the index blob and `git diff`
+reports clean, while `git status` still says ` M`; it survives `.gitattributes` and
+`git update-index --really-refresh`, and `git add --renormalize dist/index.js` clears it. Earlier
+notes blamed `core.autocrlf` for this — the observation was right and the cause was wrong. The
+conclusion drawn from it held anyway: three green Linux CI runs show the runner does not reproduce
+it.
 
 **Scripting an edit in JavaScript: pass a replacement *function*, never a replacement string.**
 `String.replace`/`replaceAll` interpret `$` sequences in the replacement argument — `` $` `` splices

@@ -130,6 +130,7 @@ Two commands. No config file to edit, no credential prompt, no restart.
 .claude/
   agents/doc-sync.md   dev-only doc reconciler — NOT a plugin component
 .github/
+  workflows/ci.yml       typecheck, test, and rebuild dist/ on every PR and push to main
   workflows/release.yml  builds and publishes the MCPB bundle on a `v*` tag
 .mcp.json              bundled stdio MCP server, key `mtg` (P-09, P-12)
 mcpb/
@@ -175,13 +176,18 @@ npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
 The tests run `.ts` files directly, so **development needs Node 22.6 or newer** — that is where
-`--experimental-strip-types` landed. The published server has no such floor: it ships as the
+`--experimental-strip-types` landed. `.nvmrc` pins the toolchain version both workflows use. The
+published server has no such floor: it ships as the
 plain-JavaScript `dist/` bundle, which is why `engines` stays at `>=18.0.0`.
 
 `dist/` is committed and is what the plugin actually starts, so **rebuild it with every `src/`
-change**. A stale bundle does not error; the tools are simply absent. Keeping it honest
-automatically is open question
-[PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest).
+change**. A stale bundle does not error; the tools are simply absent. Since 2026-08-09 CI enforces
+it: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) typechecks, tests, rebuilds `dist/`
+and fails the run if the rebuild changes anything, on every pull request and every push to `main`
+([`docs/slices/TrackC-Slice11-results.md`](./docs/slices/TrackC-Slice11-results.md)). It reports a
+forgotten rebuild, it does not repair it. That covers commits only — a bundle already installed
+from a release still has no staleness signal, which is the half of
+[PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) that stays open.
 
 `npm run acceptance` talks to live Scryfall. It waits at least 600 ms between calls and never
 retries a failed check — Scryfall's rate limits are a hard constraint, and a sustained overage
