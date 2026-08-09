@@ -1,0 +1,67 @@
+name: CI
+
+# What this exists to prevent, because it is worth the minutes:
+#
+# dist/index.js is committed on purpose (PLUGIN-PRD P-09) and is what .mcp.json actually
+# starts — `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js`, with no install step and no build on
+# the user's machine. If the committed bundle is stale or absent, the plugin's tools are
+# simply *absent*: no error in /mcp, no stack trace, nothing in the transcript. The first
+# symptom is a user saying the plugin "doesn't do anything," and there is nothing to read.
+# That is the least debuggable failure this project can ship.
+#
+# So: reinstall from the lockfile, rebuild, and fail if the result differs from what is
+# committed. Every pull request and every push to main. This is PQ-06's answer.
+#
+# Do NOT add `npm run acceptance` here, under any trigger. It calls live Scryfall, and
+# MCP-PRD §3.4 makes rate limits a hard constraint — a 429 locks access for ~30 seconds and
+# sustained overage risks Scryfall banning the application for every user of it. The
+# acceptance harness is deliberately slow and is run by a human, once, deliberately.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # npm ci, never npm install. --bundle inlines the dependency tree into dist/index.js,
+      # so the installed tree is a direct input to the bytes. package.json declares caret
+      # ranges; npm install may resolve them upward and rewrite the lockfile, producing a
+      # bundle that differs from the author's for reasons unrelated to src/.
+      - run: npm ci
+
+      # Typecheck and tests before the gate, deliberately. A broken src/ should report as a
+      # type error or a failing test, not as "dist is stale" — which it would also be.
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - name: Rebuild dist/ and verify it matches src/
+        run: |
+          npm run build
+          # git status --porcelain, not git diff. If dist/index.js were *absent* from the
+          # commit, the rebuild recreates it as an untracked file and git diff reports
+          # nothing at all — and absent-dist is exactly the failure P-09 fears. Porcelain
+          # catches modified, deleted and untracked in one invocation.
+          if [ -n "$(git status --porcelain -- dist/)" ]; then
+            echo "::error title=dist/ is stale::dist/ does not match src/ — run 'npm run build' and commit dist/index.js"
+            git --no-pager diff --stat -- dist/
+            git status --porcelain -- dist/
+            exit 1
+          fi

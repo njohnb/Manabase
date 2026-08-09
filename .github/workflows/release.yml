@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version-file: .nvmrc
           cache: npm
 
       - run: npm ci
@@ -37,10 +37,15 @@ jobs:
       - name: Rebuild and prove dist/ is not stale
         run: |
           npm run build
-          git diff --exit-code -- dist/ || {
-            echo "::error::dist/ is stale — rebuild and commit it (P-09, PQ-06)."
+          # Porcelain, not `git diff --exit-code`: an *absent* dist/index.js is recreated by
+          # the rebuild as an untracked file, which git diff does not report at all. Same
+          # comparison ci.yml uses — see docs/slices/TrackC-Slice11.md, requirement 8.
+          if [ -n "$(git status --porcelain -- dist/)" ]; then
+            echo "::error title=dist/ is stale::dist/ is stale — run 'npm run build' and commit dist/index.js (P-09, PQ-06)."
+            git --no-pager diff --stat -- dist/
+            git status --porcelain -- dist/
             exit 1
-          }
+          fi
 
       - name: Pack the bundle
         env:
