@@ -9,7 +9,7 @@ import { registerTools } from "./tools/register.ts";
 const config = resolveConfig(process.env, process.platform);
 
 const server = new Server(
-  { name: "manabase-mtg", version: APP_VERSION },
+  { name: "manabase-mtg-SLICE11-DEMO", version: APP_VERSION },
   { capabilities: { tools: {} } },
 );
 
