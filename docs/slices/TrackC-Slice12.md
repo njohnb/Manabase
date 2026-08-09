@@ -3,6 +3,55 @@
 > Self-contained implementation spec. You do not need to read the PRDs to build this slice;
 > everything binding is inlined. PRD references are pointers for deeper context only.
 
+> **Amended 2026-08-09 — read this before acting on the requirements below.** This spec was written
+> 2026-08-04 and five slices landed between then and the session that opened it. Its original text is
+> left exactly as written; five things about it are no longer true, and none of them is a change of
+> intent. Checking a spec's premises before building on them is [Slice 11](./TrackC-Slice11.md)'s
+> precedent.
+>
+> 1. **Requirement 1 was already done.** `unwritten`, `nobody has yet` and `placeholder` return zero
+>    matches in [`README.md`](../../README.md); the status text and the repository-layout line were
+>    corrected by earlier reconciliation commits, which also cite Slices 7–10 by results path.
+>    **Acceptance criterion 5 was satisfied before this slice opened.** So were criterion 3 (the
+>    disclaimer script reports `OK` on all four comparisons; the two JSON `description` fields are
+>    byte-identical) and criterion 4 (the raw-URL blockquote already states the rule without showing
+>    a URL). Requirement 6's review still applies to whatever this slice *adds*.
+> 2. **`/doctor` is superseded by `/context` throughout — requirement 2.3, requirement 4, and
+>    acceptance criterion 2.** [Slice 10](./TrackC-Slice10.md) measured `/doctor` on Claude Code
+>    2.1.226 as a health-check workflow that **neither prices the skill listing against a budget nor
+>    names contributors**; [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) [§4.6.1](../PLUGIN-PRD.md#461-addendum-2026-08-08--measured-on-claude-code-21226)
+>    records it and [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s
+>    *Amended 2026-08-08* block moves the diagnosis clause to `/context`, leaving its first two
+>    sentences standing. [`README.md`](../../README.md)'s bullet was corrected in place on
+>    2026-08-08. **The friend runs `/context`, and criterion 2 reads `/context`.** What
+>    [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)
+>    still owed this slice is the **by-name recovery clause** — invoke
+>    `/manabase:scryfall-query-craft`, which survives trimming because trimming keeps names — and
+>    that is the part this slice actually writes.
+> 3. **Acceptance criterion 10's `claude plugin validate . --strict` clause cannot pass here.** It
+>    fails on exactly one warning: [P-08](../PLUGIN-PRD.md#p-08--version-scheme)'s deliberately unset
+>    `version`. That is the same reason [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion
+>    9 is deliberately open, and it closes at [Slice 13](./TrackC-Slice13.md). Non-strict validation
+>    passing, plus that single known warning, is the achievable form. The link half of criterion 10
+>    is met and must be re-checked after every edit.
+> 4. **The Chat-tab download line inherited from [Slice 11](./TrackC-Slice11.md) re-defers to
+>    [Slice 13](./TrackC-Slice13.md).** `docs/DEV-ROADMAP.md` [§4](../DEV-ROADMAP.md#4-phase-1-slices)
+>    deferred "`README.md`'s Chat-tab instructions point at that download instead of a local build"
+>    to this slice as the owner of the README. No `v*` tag exists, `release.yml` has never run, and
+>    cutting the first release is [Slice 13](./TrackC-Slice13.md)'s. Pointing a cold reader at a
+>    download that does not exist is the class of false claim this project keeps correcting, so the
+>    build-it-yourself text stays — it is currently true.
+> 5. **The troubleshooting section had already grown past the three bullets requirement 2 describes.**
+>    It carried five when this slice opened, including the `/context` correction and a Chat-tab
+>    surface entry. Requirement 2's four failure modes are written as full symptom / check / next
+>    action entries and the three surviving bullets are kept, so the section gains structure rather
+>    than replacing what was there.
+>
+> **What was genuinely left, and is what this slice does:** requirement 2's four-mode
+> troubleshooting section, [PQ-04](../PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed)'s
+> unwritten by-name recovery clause, whatever the cold read exposes — and the dry run itself, which
+> is the acceptance gate and cannot be performed by the author.
+
 **Goal.** Make `README.md` sufficient for a non-author, and prove it with one real install
 performed by someone who is not the author and who receives no help. Everything else in this
 slice — the troubleshooting section, the `/doctor` line, the three-place disclaimer check — is
