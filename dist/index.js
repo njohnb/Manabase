@@ -15789,7 +15789,7 @@ function registerTools(server2, client2) {
 // src/index.ts
 var config2 = resolveConfig(process.env, process.platform);
 var server = new Server(
-  { name: "manabase-mtg", version: APP_VERSION },
+  { name: "manabase-mtg-SLICE11-DEMO", version: APP_VERSION },
   { capabilities: { tools: {} } }
 );
 var client = createScryfallClient(config2);
