@@ -1,0 +1,4 @@
+# The committed bundle is compared byte-for-byte by CI (docs/slices/TrackC-Slice11.md).
+# Pin it to LF so a CRLF working tree on Windows can never disagree with a Linux runner.
+# Deliberately scoped to dist/ — see that document, requirement 5, before widening this.
+dist/index.js text eol=lf
