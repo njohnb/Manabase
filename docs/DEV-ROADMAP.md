@@ -35,6 +35,7 @@ verified, nine of them live against real Scryfall ([`docs/slices/TrackA-Slice6-r
 delivery, and is not implemented** — Track A being complete does not mean the block is fully
 satisfied, and the slice that implements
 [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)'s trim and page cap owns it.
+That slice is [Slice 14](./slices/TrackA-Slice14.md), scoped 2026-08-10 and not yet started.
 
 **Track B has started.** [Slice 7](./slices/TrackB-Slice7.md) landed 2026-08-04: the plugin **has** now been installed from a
 marketplace, on a cold profile, and six of
@@ -305,6 +306,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 11 | `dist/` honesty mechanism | C — release | ☑ PR #32 · scope narrowed, see the block |
 | 12 | Docs polish & friend dry-run | C — release | ☐ |
 | 13 | Release gate — the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover | C — release | ◐ **partially executed** — the [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) bundle release ran 2026-08-10 (PR #37, tag `v0.1.0`); the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover has not, and still waits on [12](./slices/TrackC-Slice12.md) |
+| 14 | Result trim & page cap — [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)'s two levers | A — server | ☐ scoped 2026-08-10; blocks [12](./slices/TrackC-Slice12.md) |
 
 ---
 
@@ -479,6 +481,43 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 **Track A is closed.** The server delivers [CAP-01](./MCP-PRD.md#cap-01--card-search) and nothing
 downstream is blocked on it: Slices [7](./slices/TrackB-Slice7.md) and [8](./slices/TrackB-Slice8.md) were waiting on Slices [5](./slices/TrackA-Slice5.md) and [3](./slices/TrackA-Slice3.md) respectively, and both
 gates are open.
+
+**Reopened for one repair slice, 2026-08-10.** That closure is about the *dependency graph* and
+stays true — nothing downstream waits on Track A. It was never a claim that
+[CAP-01](./MCP-PRD.md#cap-01--card-search) is finished, and
+[criterion 13](./MCP-PRD.md#cap-01--card-search) has been unimplemented since the day after Slice 6
+landed. Slice 14 implements it.
+
+#### Slice 14 — Result trim & page cap
+
+- **Goal:** a `card_search` result that fits a tool-result budget without discarding a card anyone
+  asked for. Implements both levers
+  [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be) settled on 2026-08-07 and
+  fixes issue #25, where 111 cards — **fewer than one page** — produced 116,626 characters and
+  exceeded the harness ceiling, `legalities` being 54.5% of the bytes.
+- **Work:**
+  - `legalities: "queried" | "default" | "all"` on `card_search`, defaulting to `"queried"`;
+    the seven-paper-format default set; the queried-format scan, which never parses or rewrites
+    `q` and degrades to the default set on any miss.
+  - A page cap of **88 cards — exactly half Scryfall's 175** — so both halves of every upstream
+    page stay addressable at one upstream request per call. `has_more` becomes ours to compute.
+  - Two top-level scope fields, so an absent legality key is never misread as "not legal"
+    (`MCP-PRD.md` [§3.6](./MCP-PRD.md#36-error-surface)).
+- **Done when:**
+  - ☐ [CAP-01](./MCP-PRD.md#cap-01--card-search) criteria 13 and 14 are verified against a
+    multi-card response.
+  - ☐ Issue #25's exact query, run live, comes back under the ceiling it breached — recorded
+    beside 116,626.
+  - ☐ [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be) carries a dated answer in
+    `MCP-PRD.md` [§7](./MCP-PRD.md#7-open-questions) and one [§9](./MCP-PRD.md#9-revision-log) row.
+- **Binding refs:** [`docs/slices/TrackA-Slice14.md`](./slices/TrackA-Slice14.md) (the spec — it is
+  self-contained); [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be);
+  [CAP-01](./MCP-PRD.md#cap-01--card-search); `MCP-PRD.md`
+  [§4.1.1](./MCP-PRD.md#411-search-endpoint) (the full-page measurement and the 23 legality keys),
+  [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance).
+- **Why it blocks [12](./slices/TrackC-Slice12.md):** a friend dry-run against a plugin with a
+  known unrecoverable failure on a reasonable query tests the wrong thing — and the Chat tab,
+  where the `v0.1.0` bundle already installs, has no shell to recover with.
 
 ---
 
@@ -918,6 +957,7 @@ graph LR
   S8 --> S9
   S7 --> S10[10 cost measure]
   S1 --> S11[11 dist honesty]
+  S3 --> S14[14 trim and cap] --> S12
   S6 --> S12
   S9 --> S12[12 docs and dry run]
   S10 --> S12 --> S13[13 release gate]
@@ -959,6 +999,23 @@ the skill loaded in no harness at all.
 inherits two items deferred out of [11](./slices/TrackC-Slice11.md) — the packed-bundle
 byte-identity assertion and the first release cut. `S1 --> S11 --> S13` in the graph above is
 unchanged; only the status is.
+
+**Superseded 2026-08-10: [Slice 14](./slices/TrackA-Slice14.md) is scoped and inserted ahead of
+[12](./slices/TrackC-Slice12.md), so it — not [12](./slices/TrackC-Slice12.md) — is the only
+unblocked slice and next on the critical path.** The path is now
+1 → 2 → 3 → 4 → 5 → 7 → 9 → **14** → 12 → 13. [14](./slices/TrackA-Slice14.md) needs only
+[Slice 3](./slices/TrackA-Slice3.md), whose handler it edits, so it was buildable from the day
+Track A closed; what schedules it here is the *other* edge. **That edge is a judgment call, not a
+technical dependency** — [12](./slices/TrackC-Slice12.md) would run perfectly well against today's
+`card_search`. It is drawn because [12](./slices/TrackC-Slice12.md)'s deliverable is a **friend dry
+run**, and a dry run against a plugin carrying a known unrecoverable failure on a reasonable query
+measures the wrong thing: issue #25's payload is unrecoverable on the Chat tab specifically,
+because the `head`/`jq` path that saved the Claude Code session does not exist there and the
+`v0.1.0` [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) bundle installs there today.
+Cutting the edge and running the two in parallel costs only that; nothing in
+[12](./slices/TrackC-Slice12.md) reads a result shape.
+[13](./slices/TrackC-Slice13.md)'s remaining [P-08](./PLUGIN-PRD.md#p-08--version-scheme) half
+still waits on [12](./slices/TrackC-Slice12.md) alone, one slice further out than it was.
 
 **The [Slice 8](./slices/TrackB-Slice8.md) frontmatter fix (`ed82ceb`) was a prerequisite in
 fact for both of the slices that measure the skill.** [Slice 9](./slices/TrackB-Slice9.md)
