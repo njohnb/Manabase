@@ -46,6 +46,12 @@ jobs:
       # bundle that differs from the author's for reasons unrelated to src/.
       - run: npm ci
 
+      # Documentation links first: the cheapest check here (Node builtins, no build, no network),
+      # and it catches a class of defect nothing else in this repo can see. GitHub does not error
+      # on a dead #anchor — it silently lands the reader at the top of the page, so a renamed
+      # heading breaks every link pointing at it and no one finds out.
+      - run: npm run lint:docs
+
       # Typecheck and tests before the gate, deliberately. A broken src/ should report as a
       # type error or a failing test, not as "dist is stale" — which it would also be.
       - run: npm run typecheck
