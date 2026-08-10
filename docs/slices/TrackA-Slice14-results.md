@@ -144,11 +144,10 @@ serve page 1's cards under a nonsense label. `0`, `-5`, `1.7` and `NaN` are all 
 
 ## 7. What this slice deliberately did not do
 
-- **No `.mcpb` release and no tag.** `v0.1.0` is spent and `claude plugin tag` writes into the same
-  `v*` namespace `release.yml` watches, so an accidental tag cuts a second bundle release — and a
-  released bundle cannot be withdrawn. **Anyone on the `v0.1.0` bundle still has the old payload
-  until a new bundle is cut and reinstalled**; shipping this fix to the Chat tab is a separate,
-  deliberate act.
+- **No `.mcpb` release and no tag *in the slice itself*.** `v0.1.0` is spent and `claude plugin tag`
+  writes into the same `v*` namespace `release.yml` watches, so an accidental tag cuts a second
+  bundle release — and a released bundle cannot be withdrawn. Shipping this fix to the Chat tab was
+  a separate, deliberate act; see the addendum below, which is what happened.
 - **No `oracle_text` trim** (17.3% of a page, and the field the model reasons from), **no EUR
   fallback** ([OQ-09](../MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists)
   is a different unimplemented decision in the same file), no `fields` parameter, no `verbose`
@@ -161,3 +160,40 @@ serve page 1's cards under a nonsense label. `0`, `-5`, `1.7` and `NaN` are all 
 "`order` decides *which* 175 cards you see first", both of which the cap makes false. Only the
 numbers changed. The frontmatter is byte-identical, so
 [Slice 9](./TrackB-Slice9.md)'s 10/10 trigger-accuracy measurement stands.
+
+---
+
+## Addendum — released as `v0.1.1`, 2026-08-10
+
+The slice shipped no tag; the release was cut immediately afterwards as a separate deliberate act,
+on the author's instruction. PR #41 merged to `main` (CI green on the head commit), then tag
+`v0.1.1` on the merge commit ran
+[`release.yml`](../../.github/workflows/release.yml) and published `manabase.mcpb`, **113,631
+bytes**. Verified against the *downloaded* asset rather than the local pack: manifest `version`
+`0.1.1`, `display_name` `Manabase`, `PAGE_SIZE = 88` present, `legalities_included` present, no
+stale "175 cards per page" string, and the released `server/index.js` **sha256-matches the committed
+`dist/index.js`** — which is [PC-03](../PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion
+7 holding on a second release.
+
+**`v0.1.0` was not moved or deleted.** A released bundle cannot be withdrawn, so a defect ships as a
+new version and a new tag; that is exactly what this was.
+
+**No [PC-03](../PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.**
+Criterion 8 — installing asks for no configuration — remains the only unverified one, because
+`v0.1.1` has not been installed on Claude Desktop. The tag versions the **bundle**, not the plugin
+([PQ-09](../PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)):
+[P-08](../PLUGIN-PRD.md#p-08--version-scheme) is untouched, `plugin.json` still carries no
+`version`, and [PC-02](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 stays open.
+
+**One trap worth carrying.** The version first requested was `0.1.01`, which is **not valid
+semver** — semver forbids a leading zero in a numeric identifier — and
+[`scripts/pack-mcpb.mjs`](../../scripts/pack-mcpb.mjs)'s guard is
+`^\d+\.\d+\.\d+(?:[-+].+)?$`, which **accepts it**, because `\d+` matches `01`. It would have been
+stamped into a manifest that cannot be recalled. Check a candidate version against real semver
+(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$`), not against that regex. Widening the guard is a
+reasonable follow-up and is **not** done here.
+
+**And shipping the fix did not deliver it.** A bundle never self-updates, so every `v0.1.0` install
+still carries the issue-#25 payload until someone reinstalls — which sharpens
+[PQ-06](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s user-facing half rather than
+easing it: there is now a released bundle that is known stale, and nothing tells its users so.

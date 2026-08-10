@@ -43,9 +43,10 @@ than truncating silently. That same query now measures 53,043 characters, and al
 still reachable — 88 on page 1 and 23 on page 2
 ([`docs/MCP-PRD.md` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be), closed).
 
-**The Chat-tab bundle does not carry the fix yet.** `v0.1.0` was released before it and an
-installed bundle never updates itself, so a Chat-tab user stays on the old payload until a newer
-bundle is released and reinstalled.
+**The fix shipped to the Chat tab as `v0.1.1`, released 2026-08-10.** An installed bundle never
+updates itself, so **if you installed `v0.1.0` you still carry the old payload** — download
+`manabase.mcpb` from the [latest release](https://github.com/njohnb/Manabase/releases/latest) and
+reinstall through Settings → Extensions to pick it up.
 
 ## Where it runs
 
@@ -151,9 +152,9 @@ Known rough edges, all tracked. **An installed extension has no update path** �
 not tell you a newer bundle exists and will not fetch one, so every upgrade means downloading the
 new release and reinstalling through the same Settings route. An installed bundle never
 re-pulls, so a stale build is invisible
-([PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)). That is why the
-result-size fix above has not reached this surface: `v0.1.0` predates it, and the Chat tab has no
-shell to recover an oversized result with.
+([PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)). That is what makes the
+result-size fix worth acting on here: it shipped in `v0.1.1`, but a `v0.1.0` install keeps the old
+payload until you reinstall — and the Chat tab has no shell to recover an oversized result with.
 
 ## Repository layout
 
@@ -332,8 +333,8 @@ skill but no server, which is the **Experimental** row above — you need the bu
 **Fixed 2026-08-10** (issue #25). A page now carries at most 88 cards and only the legalities the
 query asked about, so a result should no longer breach the harness's tool-result ceiling; if one
 still does, add constraints to the query rather than paging. On the Claude Desktop **Chat tab** the
-released `v0.1.0` bundle predates the fix and does not update itself — see the limitation note at
-the top of this file.
+fix arrived in the `v0.1.1` bundle, and a bundle does not update itself — if you installed `v0.1.0`,
+reinstall from the latest release first. See the note at the top of this file.
 
 ### Scryfall is down
 
