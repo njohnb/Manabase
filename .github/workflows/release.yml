@@ -19,9 +19,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -47,12 +47,18 @@ jobs:
             exit 1
           fi
 
+      # pack:mcpb unpacks what it just wrote and fails if server/index.js is not the committed
+      # dist/index.js (PC-03 criterion 7). It lives in the pack script rather than in a step
+      # here so the assertion is identical locally and on the runner — no second implementation
+      # to drift, and nothing to add here.
       - name: Pack the bundle
         env:
           MANABASE_BUNDLE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: npm run pack:mcpb
 
-      - uses: actions/upload-artifact@v4
+      # v7, not v5: upload-artifact v4 *and* v5 both declare `using: node20`, so bumping to v5
+      # left the deprecation warning exactly where it was. v6 is the first major on node24.
+      - uses: actions/upload-artifact@v7
         with:
           name: manabase-mcpb
           path: build/manabase.mcpb
