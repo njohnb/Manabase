@@ -457,7 +457,7 @@ as a new tag and `v0.1.0` is never moved or deleted; and **`upload-artifact@v5` 
 it.
 
 **Slice 14 (the result trim and page cap) landed 2026-08-10 as commit `031a501` on
-`feat/slice14-trim-and-page-cap` — no PR number yet.** It implements both of `OQ-02`'s levers in
+`feat/slice14-trim-and-page-cap`, PR #41.** It implements both of `OQ-02`'s levers in
 `src/tools/card-search.ts` and `src/tools/register.ts`, **closes `OQ-02`** (a dated §7 answer and
 one §9 row in `MCP-PRD.md`), and **fixes issue #25**: the same query measures 53,043 characters
 against 116,626, 88 cards with `has_more: true`, page 2 returning the remaining 23, all 111

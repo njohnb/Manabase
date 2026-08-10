@@ -519,7 +519,7 @@ landed. Slice 14 implements it.
 - **Why it blocks [12](./slices/TrackC-Slice12.md):** a friend dry-run against a plugin with a
   known unrecoverable failure on a reasonable query tests the wrong thing — and the Chat tab,
   where the `v0.1.0` bundle already installs, has no shell to recover with.
-- **Landed:** 2026-08-10, commit `031a501` on `feat/slice14-trim-and-page-cap` (no PR number yet).
+- **Landed:** 2026-08-10 as PR #41, commit `031a501` on `feat/slice14-trim-and-page-cap`.
   Both levers are in [`src/tools/card-search.ts`](../src/tools/card-search.ts) and
   [`src/tools/register.ts`](../src/tools/register.ts):
   [CAP-01](./MCP-PRD.md#cap-01--card-search) criterion 13 is verified and a criterion 14 was added
