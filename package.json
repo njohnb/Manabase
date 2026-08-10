@@ -17,6 +17,7 @@
     "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test \"tests/**/*.test.ts\"",
+    "lint:docs": "node scripts/check-doc-links.mjs",
     "acceptance": "node scripts/cap01-live.mjs",
     "pack:mcpb": "node scripts/pack-mcpb.mjs"
   },

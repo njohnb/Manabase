@@ -41,6 +41,7 @@ holds the planning prompts that generated the PRDs.
 ```
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
+npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
 npm test            # node --experimental-strip-types --test  (73 tests, 21 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
@@ -103,7 +104,7 @@ layer built to achieve this (`D-04` — the SDK's transport object is already th
 what `.mcp.json` starts. Shipping a stale or absent `dist/` produces a plugin whose tools are
 simply *absent* with no error — the least debuggable failure this project has. Since Slice 11
 (2026-08-09) `.github/workflows/ci.yml` enforces it on every pull request and every push to
-`main` — `npm ci` → typecheck → test → rebuild → fail on a non-empty
+`main` — `npm ci` → `lint:docs` → typecheck → test → rebuild → fail on a non-empty
 `git status --porcelain -- dist/`. CI reports the omission, it does not repair it, so the rule
 still binds; a forgotten rebuild is now a red run rather than a silent one. That closes `PQ-06`'s
 commit half only — its user-facing half stays open, because an installed `.mcpb` carries its
@@ -399,14 +400,32 @@ rebuild, same branch and same workflow (PR #33, closed unmerged), which is what 
 work. `PQ-06`'s commit half is answered; **never say `PQ-06` is closed flatly** — its user-facing
 half stays open, a released `.mcpb` carries its `dist/` until reinstall, and the release gate has
 still never run against a tag. **No `PC-01`, `PC-02` or `PC-03` criterion changed status**, and
-`PC-03` keeps its Slice 11 assignment. Scope was narrowed with the author and four items are
+`PC-03` was reassigned from Slice 11 to Slice 13 later the same day (`86769ca`), moving no
+criterion. Scope was narrowed with the author and four items are
 **deferred, not dropped**: the doc-link checker (`scripts/check-doc-links.mjs`, `npm run
-lint:docs`) is unscheduled, packed-bundle byte-identity and the first `v*` release go to Slice 13,
-and the README Chat-tab download line to Slice 12. Two traps follow. **A `src/` edit meant to
+lint:docs`) was unscheduled and **landed 2026-08-10 as PR #36** — see below; packed-bundle
+byte-identity and the first `v*` release go to Slice 13, and the README Chat-tab download line to
+Slice 12. Two traps follow. **A `src/` edit meant to
 demonstrate the gate must be in a module no test covers** — `src/index.ts` works; `src/config.ts`
 trips `tests/config.test.ts`, so `npm test` fails first and the gate step never runs. And
 **`.github/` now holds two workflows**: `release.yml` is still pinned to `actions/checkout@v4` /
 `setup-node@v4` where `ci.yml` uses `@v7`, it has never run, and Slice 13 should bump it.
+
+**Unscheduled work landed 2026-08-10 — the doc-link checker, PR #36 (`e6b2279`).** It is Slice
+11's deferred item and **is not a slice**; the branch it landed on,
+`docs/slice12-link-and-disclaimer-recheck`, was opened for unrelated Slice 12 re-checks and reused,
+so the name misattributes it. `scripts/check-doc-links.mjs` (`npm run lint:docs`) resolves every
+relative link and heading anchor in `README.md` and `docs/**` minus `docs/prompts/**`, with the
+fenced-code carve-out, and fails any file under `skills/` that links outside its own skill
+directory — the one link defect this repo could not otherwise see. Node builtins, no network, by
+design. `ci.yml` runs it between `npm ci` and the typecheck, so CI is now `npm ci` → `lint:docs` →
+typecheck → test → rebuild-and-gate. Green on Linux in 14 s — 23 files, 2,666 links, 0 broken —
+byte-identical to the local Windows run. **Nothing else moved:** no `CAP-01`, `PC-01`, `PC-02` or
+`PC-03` criterion changed status, no open question was resolved, `PQ-06` is untouched in both
+halves, Slice 11 stays closed and Slice 12 is unmoved. One trap, learned in its own making:
+**model the slug rule, never hand-roll a punctuation list.** The first version stripped the em dash
+but not the arrow in `Criterion 12 — structured failure → revised retry` and raised a false alarm
+on a working link; a checker whose failures cannot be trusted gets deleted.
 
 Slice 12 is now the **only unblocked slice** and next on the critical path: it waited on 6, 9 and
 10, and all three have landed. 13 waits on 12 alone. `docs/DEV-ROADMAP.md` §5 has the graph.
