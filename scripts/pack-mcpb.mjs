@@ -5,16 +5,19 @@
 // released bundle ends up carrying a stale server. This script is the only supported path, and
 // the release workflow is the only thing expected to run it.
 //
-// It does three things and nothing else:
+// It does four things and nothing else:
 //   1. refuses to pack a dist/ that is older than src/ (the PQ-06 staleness class)
 //   2. stages mcpb/manifest.json + dist/index.js into build/mcpb/ with the version stamped
 //   3. invokes the official mcpb CLI so the bundle is validated, not just zipped
+//   4. unpacks what it just wrote and proves server/index.js is byte-identical to the
+//      committed dist/index.js (PC-03 criterion 7)
 //
 // Version, per the bundle-only tagging decision: the plugin stays version-less (P-08), so the
 // stamp names the *bundle*. A tag build gets the tag; anything else gets a commit-stamped
 // prerelease so an ad-hoc bundle can never be mistaken for a release.
 
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -110,6 +113,38 @@ execFileSync(process.execPath, [cliPath, 'pack', stageDir, outFile], {
   stdio: 'inherit',
 });
 
+// --- 5. prove the archive matches committed dist/ (PC-03 criterion 7) ----------------------
+// Compare the *archive*, never the staging tree: build/mcpb/server/index.js is cpSync'd from
+// dist/index.js a few lines above, so checking it would assert that a copy equals its source.
+// The archive is what a user installs and what CI attaches to a Release, so the archive is
+// what gets hashed. mcpb's own CLI does the extraction — no zip reader needed, and it behaves
+// the same on Windows as on the runner.
+const verifyDir = join(outDir, 'verify');
+rmSync(verifyDir, { recursive: true, force: true });
+execFileSync(process.execPath, [cliPath, 'unpack', outFile, verifyDir], {
+  cwd: repoRoot,
+  stdio: ['ignore', 'ignore', 'inherit'],
+});
+
+const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
+const packedSha = sha256(join(verifyDir, 'server', 'index.js'));
+const committedSha = sha256(bundlePath);
+rmSync(verifyDir, { recursive: true, force: true });
+
+if (packedSha !== committedSha) {
+  // Delete the archive rather than leave a plausible-looking .mcpb behind. An installed
+  // bundle has no update path, so a bad one that survives on disk is a bad one somebody
+  // installs.
+  rmSync(outFile, { force: true });
+  fail(
+    'the packed server/index.js is not the committed dist/index.js (PC-03 criterion 7).\n' +
+      `  packed:    ${packedSha}\n` +
+      `  committed: ${committedSha}\n` +
+      '  the bundle has been deleted.',
+  );
+}
+
+console.log(`pack-mcpb: server/index.js matches committed dist/index.js (sha256 ${committedSha})`);
 console.log(`pack-mcpb: wrote ${outFile} (version ${version})`);
 if (!raw) {
   console.log('pack-mcpb: no tag — this is a dev bundle, not a release artifact.');
