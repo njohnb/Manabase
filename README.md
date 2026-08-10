@@ -141,7 +141,7 @@ limitation above).
 .claude/
   agents/doc-sync.md   dev-only doc reconciler — NOT a plugin component
 .github/
-  workflows/ci.yml       typecheck, test, and rebuild dist/ on every PR and push to main
+  workflows/ci.yml       doc links, typecheck, test, rebuild dist/ — every PR, every push to main
   workflows/release.yml  builds and publishes the MCPB bundle on a `v*` tag
 .mcp.json              bundled stdio MCP server, key `mtg` (P-09, P-12)
 mcpb/
@@ -151,7 +151,8 @@ skills/
 src/                   MCP server source (TypeScript)
 dist/                  committed build output — NOT gitignored (P-09)
 tests/                 handlers called as plain functions, no server (MCP-PRD D-03)
-scripts/               cap01-live.mjs (live CAP-01 harness), pack-mcpb.mjs (bundle packer)
+scripts/               cap01-live.mjs (live CAP-01 harness), pack-mcpb.mjs (bundle packer),
+                       check-doc-links.mjs (documentation link checker)
 evals/                 PC-01 behavioral and trigger eval cases (Slice 9)
 docs/
   MCP-PRD.md           what the server does — tools, data sources, capabilities
@@ -181,6 +182,7 @@ registered `card_search` appears under a different prefix elsewhere, and
 npm install
 npm run build       # esbuild bundle -> dist/index.js, self-contained
 npm run typecheck   # tsc --noEmit
+npm run lint:docs   # every doc link and heading anchor resolves — no network
 npm test            # node --test, with TypeScript stripped at runtime
 npm run acceptance  # 13 live harness checks against real Scryfall — slow on purpose
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
@@ -193,12 +195,18 @@ plain-JavaScript `dist/` bundle, which is why `engines` stays at `>=18.0.0`.
 
 `dist/` is committed and is what the plugin actually starts, so **rebuild it with every `src/`
 change**. A stale bundle does not error; the tools are simply absent. Since 2026-08-09 CI enforces
-it: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) typechecks, tests, rebuilds `dist/`
-and fails the run if the rebuild changes anything, on every pull request and every push to `main`
+it: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) checks the documentation links,
+typechecks, tests, rebuilds `dist/` and fails the run if the rebuild changes anything, on every
+pull request and every push to `main`
 ([`docs/slices/TrackC-Slice11-results.md`](./docs/slices/TrackC-Slice11-results.md)). It reports a
 forgotten rebuild, it does not repair it. That covers commits only — a bundle already installed
 from a release still has no staleness signal, which is the half of
 [PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) that stays open.
+
+`npm run lint:docs` is that first step and runs anywhere: it resolves every relative link and
+heading anchor in this file and under [`docs/`](./docs), and rejects any link under
+[`skills/`](./skills) that escapes its own skill directory — such a link works in this repo and is
+dead in every installed copy. Node builtins only, no network (added 2026-08-10).
 
 `npm run acceptance` talks to live Scryfall. It waits at least 600 ms between calls and never
 retries a failed check — Scryfall's rate limits are a hard constraint, and a sustained overage

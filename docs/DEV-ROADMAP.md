@@ -188,6 +188,32 @@ and [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) keeps its
 and four items deferred rather than dropped — see its entry in [§4](#4-phase-1-slices). Evidence:
 [`docs/slices/TrackC-Slice11-results.md`](./slices/TrackC-Slice11-results.md).
 
+**Unscheduled work landed 2026-08-10 that this document did not sequence: the doc-link checker.**
+It is the item [Slice 11](./slices/TrackC-Slice11.md) deferred as *unscheduled*, and **no slice
+number is assigned by this entry**. Attribute it to that deferral rather than to the branch it
+landed on — `docs/slice12-link-and-disclaimer-recheck` was opened for unrelated
+[Slice 12](./slices/TrackC-Slice12.md) re-checks and reused, so its name misstates the work. PR #36
+(`e6b2279`) adds [`scripts/check-doc-links.mjs`](../scripts/check-doc-links.mjs), an
+`npm run lint:docs` script, and one step in
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) between `npm ci` and the typecheck; the
+`dist/` gate still runs last. It resolves every relative link in [`README.md`](../README.md) and in
+every markdown file under this directory except [`prompts/`](./prompts), which carry zero links by
+design, and every heading anchor those links target; it also fails any file under
+[`skills/`](../skills) that links outside its own skill directory — the one link defect this repo
+could never observe on its own, because such a path works for the author forever and is dead in
+every installed copy. Node builtins, no network. CI run 31400938254 was green on Linux in 14 s —
+23 navigable files, 2,666 relative links, 0 broken — byte-identical to the local Windows run, which
+rules out a case-sensitivity split between the two platforms. Three failure classes were each
+observed failing with the right file and line and then reverted to green, and the script exits
+non-zero if it extracts zero links, so it cannot go green by breaking its own parser. **Nothing
+else moved:** no acceptance criterion of [CAP-01](./MCP-PRD.md#cap-01--card-search),
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) changed status; no open question was
+resolved and [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in
+both halves; [Slice 11](./slices/TrackC-Slice11.md) stays landed and closed and
+[Slice 12](./slices/TrackC-Slice12.md) is unmoved.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -199,7 +225,7 @@ and four items deferred rather than dropped — see its entry in [§4](#4-phase-
 | Server source | `config.ts`, `index.ts`, `result.ts`, `scryfall/{client,prices,types}.ts`, `tools/{card-search,register}.ts` |
 | Tests | 21 suites, **73 tests, 73 passing**; `tsc --noEmit` clean — re-run 2026-08-04. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
-| CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` remains untriggered — no `v*` tag exists — and still pins `actions/checkout`/`setup-node` at `@v4` where `ci.yml` uses `@v7` |
+| CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` remains untriggered — no `v*` tag exists — and still pins `actions/checkout`/`setup-node` at `@v4` where `ci.yml` uses `@v7` |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
 | MCPB bundle | **Build path committed, no bundle released.** `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented) and refuses a `dist/` older than `src/`. **No version is tagged, so the release workflow has never run and there is nothing to download**; the Chat-tab install still means building it yourself. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `in progress`, **reassigned 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md)** — Slice 11 closed [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s commit half and deferred the release cut and the packed-bundle byte-identity assertion, so the component follows the criteria it still needs; criteria 1–6 and 9 and 11 verified, unchanged by the reassignment |
@@ -734,6 +760,21 @@ gates are open.
   [Slice 13](./slices/TrackC-Slice13.md), which owns the release gate; the README line goes to
   [Slice 12](./slices/TrackC-Slice12.md), which owns the friend dry-run. Where this block and
   [the slice spec](./slices/TrackC-Slice11.md) disagreed, the spec was followed.
+- **One of those four landed 2026-08-10 — the doc-link checker is no longer unscheduled.** PR #36
+  (`e6b2279`) added [`scripts/check-doc-links.mjs`](../scripts/check-doc-links.mjs) and
+  `npm run lint:docs`, and wired it into
+  [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) between `npm ci` and the typecheck,
+  with the `dist/` gate still last — the Work sub-bullet above, satisfied outside a slice rather
+  than inside one. **It reopens nothing here and takes no slice number of its own**; the branch
+  name it landed on names [Slice 12](./slices/TrackC-Slice12.md) and is not its attribution. The
+  sub-bullet's warning was borne out exactly: a hand-rolled punctuation list was written first and
+  raised a false alarm on a live anchor,
+  [`#criterion-12--structured-failure--revised-retry`](./slices/TrackB-Slice9-results.md#criterion-12--structured-failure--revised-retry),
+  because it stripped the em dash but not the arrow in the same heading. The shipped version
+  expresses github-slugger's rule instead — keep letters, numbers, marks, connector punctuation,
+  the ASCII hyphen and spaces, strip everything else — because the direction of error that gets a
+  checker deleted is a false alarm on a link that works. CI run 31400938254: green in 14 s, 23
+  navigable files, 2,666 links, 0 broken. The other three deferrals stand.
 - **The comparison shipped is not the one this block and
   [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) named.** Both said "rebuilds
   and diffs"; the check uses `git status --porcelain -- dist/`, because an *absent* `dist/index.js`
