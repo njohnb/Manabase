@@ -9,10 +9,12 @@ remembers, like regex and the Tagger tags.
 ([PC-02](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server)) and a Scryfall query-craft skill
 ([PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)).
 
-The server half is done. `card_search` runs against live Scryfall, and all twelve of the
-acceptance criteria [CAP-01](./docs/MCP-PRD.md#cap-01--card-search) carried at the time are
-verified (2026-08-03). A thirteenth was added the following day and is not implemented — it covers
-trimming a search result's legality data, which is the known limitation described below.
+The server half is done. `card_search` runs against live Scryfall, and
+[CAP-01](./docs/MCP-PRD.md#cap-01--card-search) is delivered against **criteria 1–14**: the twelve
+it carried on 2026-08-03, plus criterion 13 (trimming a search result's legality data) and a new
+criterion 14 (a page cap), both verified 2026-08-10 by
+[Slice 14](./docs/slices/TrackA-Slice14.md), which fixed the size limitation described below
+([`docs/slices/TrackA-Slice14-results.md`](./docs/slices/TrackA-Slice14-results.md)).
 The two commands below are now a verified path, not merely the intended one: the install was
 performed end to end on a machine that had never installed it, and the server was connected and
 answering in the same session (2026-08-04,
@@ -33,11 +35,17 @@ else, because the server's tool schema is fetched on demand rather than kept res
 [`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md)).
 [`docs/DEV-ROADMAP.md`](./docs/DEV-ROADMAP.md) tracks what remains.
 
-**One known limitation, open and unfixed:** a `card_search` result for a broad query can exceed
-the harness's tool-result size ceiling before it reaches a full page of matches (issue #25; 111
-cards measured 116,626 characters). Narrow the query. The fix is **decided but not built**
-(2026-08-07): legalities trimmed to the format the query names, plus a page cap that reports
-itself — [`docs/MCP-PRD.md` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be).
+**The one known limitation is fixed, 2026-08-10.** A `card_search` result for a broad query used
+to exceed the harness's tool-result size ceiling before it reached a full page of matches (issue
+#25; 111 cards measured 116,626 characters). Both levers are now built: legalities are trimmed to
+the format the query names, and a page carries at most **88 cards** and says when more exist rather
+than truncating silently. That same query now measures 53,043 characters, and all 111 cards are
+still reachable — 88 on page 1 and 23 on page 2
+([`docs/MCP-PRD.md` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be), closed).
+
+**The Chat-tab bundle does not carry the fix yet.** `v0.1.0` was released before it and an
+installed bundle never updates itself, so a Chat-tab user stays on the old payload until a newer
+bundle is released and reinstalled.
 
 ## Where it runs
 
@@ -143,9 +151,9 @@ Known rough edges, all tracked. **An installed extension has no update path** �
 not tell you a newer bundle exists and will not fetch one, so every upgrade means downloading the
 new release and reinstalling through the same Settings route. An installed bundle never
 re-pulls, so a stale build is invisible
-([PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)). And the Chat tab has no
-shell, so an oversized result cannot be recovered there the way it can in Claude Code (see the
-limitation above).
+([PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)). That is why the
+result-size fix above has not reached this surface: `v0.1.0` predates it, and the Chat tab has no
+shell to recover an oversized result with.
 
 ## Repository layout
 
@@ -172,7 +180,7 @@ evals/                 PC-01 behavioral and trigger eval cases (Slice 9)
 docs/
   MCP-PRD.md           what the server does — tools, data sources, capabilities
   PLUGIN-PRD.md        what the user installs — packaging, install, skills
-  DEV-ROADMAP.md       sequencing only — the 13 Phase 1 slices and their status
+  DEV-ROADMAP.md       sequencing only — the 14 Phase 1 slices and their status
   slices/              per-slice specs, and the live acceptance results
   prompts/             planning prompts for Claude Code sessions
 CLAUDE.md              working agreements for Claude Code sessions in this repo
@@ -321,8 +329,11 @@ skill but no server, which is the **Experimental** row above — you need the bu
 
 ### A search errors out on size
 
-The result exceeded the harness's tool-result ceiling. Add constraints to the query rather than
-paging — see the known limitation at the top of this file (issue #25).
+**Fixed 2026-08-10** (issue #25). A page now carries at most 88 cards and only the legalities the
+query asked about, so a result should no longer breach the harness's tool-result ceiling; if one
+still does, add constraints to the query rather than paging. On the Claude Desktop **Chat tab** the
+released `v0.1.0` bundle predates the fix and does not update itself — see the limitation note at
+the top of this file.
 
 ### Scryfall is down
 

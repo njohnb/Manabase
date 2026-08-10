@@ -37,8 +37,10 @@ const EXPECTED_DESCRIPTION =
   "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall " +
   "itself — supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, " +
   "`art:`, and regex (`o:/…/`). Returns per-card gameplay fields, format legalities, and a " +
-  "USD price with finish. 175 cards per page; the response reports `total_cards` and " +
-  "`has_more`.";
+  "USD price with finish. 88 cards per page; the response reports `total_cards` and " +
+  "`has_more`. Legalities are trimmed to the format the query names (`legalities` to widen); " +
+  "formats absent from `legalities_included` were not returned and are not claims about " +
+  "legality.";
 
 const parseBody = (result: { content: Array<{ type: "text"; text: string }> }): unknown =>
   JSON.parse(result.content[0]!.text);
@@ -60,13 +62,16 @@ describe("toolDefinitions", () => {
 
     assert.equal(schema.type, "object");
     assert.deepEqual(schema.required, ["q"]);
-    assert.deepEqual(Object.keys(schema.properties), ["q", "unique", "order", "dir", "page"]);
+    assert.deepEqual(Object.keys(schema.properties), [
+      "q", "unique", "order", "dir", "page", "legalities",
+    ]);
     assert.equal(schema.properties.q!.type, "string");
     assert.deepEqual(schema.properties.unique!.enum, ["cards", "prints", "art"]);
     assert.equal(schema.properties.order!.type, "string");
     assert.deepEqual(schema.properties.dir!.enum, ["auto", "asc", "desc"]);
     assert.equal(schema.properties.page!.type, "integer");
     assert.equal(schema.properties.page!.minimum, 1);
+    assert.deepEqual(schema.properties.legalities!.enum, ["queried", "default", "all"]);
   });
 });
 
@@ -112,8 +117,30 @@ describe("dispatchToolCall — success", () => {
       unique: "prints",
       order: "cmc",
       dir: "desc",
-      page: "3",
+      // Our pages are half an upstream page, so page 3 is the first half of upstream page 2.
+      page: "2",
     });
+  });
+
+  test("legalities: a valid enum reaches the handler; anything else falls back to queried", async () => {
+    for (const [sent, expected] of [
+      ["all", "all"],
+      ["default", "default"],
+      // Wrong-typed and unknown values are dropped rather than rejected, so the handler's
+      // "queried" default takes over (MCP-PRD D-10 — no throwing, no error for a bad optional).
+      [42, "queried"],
+      ["verbose", "queried"],
+      [undefined, "queried"],
+    ] as const) {
+      const { client } = makeFakeClient({ ok: true, value: searchPage1 });
+      const result = await dispatchToolCall(client, "card_search", {
+        q: "t:dragon f:commander",
+        ...(sent !== undefined ? { legalities: sent } : {}),
+      });
+      assert.ok(!("isError" in result) || result.isError !== true);
+      const body = parseBody(result) as { legalities_mode: string };
+      assert.equal(body.legalities_mode, expected, `legalities: ${JSON.stringify(sent)}`);
+    }
   });
 
   test("wrong-typed optionals and unknown keys are dropped, not rejected", async () => {

@@ -20,8 +20,10 @@ const CARD_SEARCH_DESCRIPTION =
   "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall " +
   "itself — supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, " +
   "`art:`, and regex (`o:/…/`). Returns per-card gameplay fields, format legalities, and a " +
-  "USD price with finish. 175 cards per page; the response reports `total_cards` and " +
-  "`has_more`.";
+  "USD price with finish. 88 cards per page; the response reports `total_cards` and " +
+  "`has_more`. Legalities are trimmed to the format the query names (`legalities` to widen); " +
+  "formats absent from `legalities_included` were not returned and are not claims about " +
+  "legality.";
 
 // Hand-written JSON Schema: the low-level SDK server takes plain JSON Schema in `tools/list`,
 // so no schema library (and no new dependency) is needed.
@@ -32,7 +34,8 @@ const CARD_SEARCH_INPUT_SCHEMA = {
     unique: { type: "string", enum: ["cards", "prints", "art"], description: "Result rollup. Default: cards (one row per card)." },
     order: { type: "string", description: "Sort field, e.g. name, cmc, usd, edhrec, released." },
     dir: { type: "string", enum: ["auto", "asc", "desc"], description: "Sort direction." },
-    page: { type: "integer", minimum: 1, description: "1-based page; 175 cards per page." },
+    page: { type: "integer", minimum: 1, description: "1-based page; 88 cards per page." },
+    legalities: { type: "string", enum: ["queried", "default", "all"], description: "Legality scope. Default: queried (the format `q` names, else seven paper formats)." },
   },
   required: ["q"],
 } as const;
@@ -52,6 +55,7 @@ export const toolDefinitions: Array<{ name: string; description: string; inputSc
 
 const UNIQUE_VALUES = ["cards", "prints", "art"] as const;
 const DIR_VALUES = ["auto", "asc", "desc"] as const;
+const LEGALITIES_VALUES = ["queried", "default", "all"] as const;
 
 function asEnum<T extends string>(allowed: readonly T[], value: unknown): T | undefined {
   return typeof value === "string" && (allowed as readonly string[]).includes(value)
@@ -106,6 +110,9 @@ export async function dispatchToolCall(
 
   const unique = asEnum(UNIQUE_VALUES, raw.unique);
   const dir = asEnum(DIR_VALUES, raw.dir);
+  // A wrong-typed or unknown value is dropped rather than rejected, so the handler's `"queried"`
+  // default takes over — validation stays minimal and handlers never throw (MCP-PRD D-10).
+  const legalities = asEnum(LEGALITIES_VALUES, raw.legalities);
 
   // (exactOptionalPropertyTypes) optional keys must be *absent*, not set to `undefined`.
   const params: CardSearchParams = {
@@ -114,6 +121,7 @@ export async function dispatchToolCall(
     ...(typeof raw.order === "string" ? { order: raw.order } : {}),
     ...(dir !== undefined ? { dir } : {}),
     ...(typeof raw.page === "number" && Number.isInteger(raw.page) ? { page: raw.page } : {}),
+    ...(legalities !== undefined ? { legalities } : {}),
   };
 
   const result = await cardSearch(client, params);

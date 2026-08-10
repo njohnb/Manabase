@@ -125,7 +125,9 @@ let lastCallAt = 0;
 
 /**
  * One `tools/call` for `card_search`, spaced >= POLITE_GAP_MS after the previous one.
- * Returns `{ isError, data }` where `data` is the parsed `content[0].text` payload.
+ * Returns `{ isError, data, chars }`, where `data` is the parsed `content[0].text` payload and
+ * `chars` is that payload's character count — the figure issue #25 was measured in. It is free
+ * here (the text is already in hand) and adds no calls.
  */
 async function callCardSearch(client, args) {
   const waitFor = POLITE_GAP_MS - (Date.now() - lastCallAt);
@@ -148,7 +150,11 @@ async function callCardSearch(client, args) {
   if (first.type !== "text" || typeof first.text !== "string") {
     throw new Error(`expected text content, got: ${JSON.stringify(first)}`);
   }
-  return { isError: result.isError === true, data: JSON.parse(first.text) };
+  return {
+    isError: result.isError === true,
+    data: JSON.parse(first.text),
+    chars: first.text.length,
+  };
 }
 
 class CheckFailure extends Error {}
@@ -243,16 +249,16 @@ const checks = [
     criterion: "9",
     baseline: "total_cards 1,197",
     async run(client) {
-      const { isError, data } = await callCardSearch(client, { q: "f:commander t:creature cmc=1" });
+      const { isError, data, chars } = await callCardSearch(client, { q: "f:commander t:creature cmc=1" });
       assert(!isError, `expected success, got isError with ${JSON.stringify(data)}`);
       assert(data.total_cards > 175, `expected total_cards > 175, got ${data.total_cards}`);
       assert(data.has_more === true, `expected has_more true, got ${data.has_more}`);
       assert(typeof data.note === "string" && data.note.length > 0, "expected a non-empty note");
       assert(
-        data.cards.length <= 175,
-        `expected at most one page (<=175 cards), got ${data.cards.length}`,
+        data.cards.length <= 88,
+        `expected at most one page (<=88 cards), got ${data.cards.length}`,
       );
-      return `total_cards=${data.total_cards} has_more=${data.has_more} cards=${data.cards.length} note="${data.note}"`;
+      return `total_cards=${data.total_cards} has_more=${data.has_more} cards=${data.cards.length} chars=${chars} note="${data.note}"`;
     },
   },
   {
@@ -261,16 +267,16 @@ const checks = [
     criterion: "9",
     baseline: "total_cards 803",
     async run(client) {
-      const { isError, data } = await callCardSearch(client, { q: "usd<1 t:land" });
+      const { isError, data, chars } = await callCardSearch(client, { q: "usd<1 t:land" });
       assert(!isError, `expected success, got isError with ${JSON.stringify(data)}`);
       assert(data.total_cards > 175, `expected total_cards > 175, got ${data.total_cards}`);
       assert(data.has_more === true, `expected has_more true, got ${data.has_more}`);
       assert(typeof data.note === "string" && data.note.length > 0, "expected a non-empty note");
       assert(
-        data.cards.length <= 175,
-        `expected at most one page (<=175 cards), got ${data.cards.length}`,
+        data.cards.length <= 88,
+        `expected at most one page (<=88 cards), got ${data.cards.length}`,
       );
-      return `total_cards=${data.total_cards} has_more=${data.has_more} cards=${data.cards.length}`;
+      return `total_cards=${data.total_cards} has_more=${data.has_more} cards=${data.cards.length} chars=${chars}`;
     },
   },
   {
