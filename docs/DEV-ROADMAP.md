@@ -217,6 +217,31 @@ resolved and [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest
 both halves; [Slice 11](./slices/TrackC-Slice11.md) stays landed and closed and
 [Slice 12](./slices/TrackC-Slice12.md) is unmoved.
 
+**[Slice 13](./slices/TrackC-Slice13.md)'s
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) half was executed 2026-08-10, ahead of
+[Slice 12](./slices/TrackC-Slice12.md): a release exists.** Tag `v0.1.0` on `2c7196c` (PR #37) ran
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) for the first time it has ever
+executed, and published a Release carrying `manabase.mcpb` at 111,760 bytes — the first artifact
+this project has produced that a user downloads rather than builds, installed on Claude Desktop
+from that artifact and observed calling the tool.
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criteria **7 and 10 are verified**,
+which leaves criterion 8 as its only unverified one. The slice bundles two items **by schedule,
+not by dependency**, and only the half that does not need [Slice 12](./slices/TrackC-Slice12.md)
+was run; attribution was decided with the author as
+[Slice 13](./slices/TrackC-Slice13.md) *partially executed* — not unscheduled work, and **no new
+slice number**. **[Slice 13](./slices/TrackC-Slice13.md) is not closed and Phase 1 is not closed:**
+the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover did not happen,
+`.claude-plugin/plugin.json` still carries no `version`, `claude plugin validate . --strict` still
+fails on that one warning ([PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9), and
+[PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable)
+has no disposition. The tag names the **bundle**, not the plugin
+([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)). **Nothing else
+moved:** no [CAP-01](./MCP-PRD.md#cap-01--card-search),
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) or
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion changed status, and
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in both halves.
+Evidence: [`docs/slices/TrackC-Slice13-results.md`](./slices/TrackC-Slice13-results.md).
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -228,10 +253,10 @@ both halves; [Slice 11](./slices/TrackC-Slice11.md) stays landed and closed and
 | Server source | `config.ts`, `index.ts`, `result.ts`, `scryfall/{client,prices,types}.ts`, `tools/{card-search,register}.ts` |
 | Tests | 21 suites, **73 tests, 73 passing**; `tsc --noEmit` clean — re-run 2026-08-04. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
-| CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` remains untriggered — no `v*` tag exists — and still pins `actions/checkout`/`setup-node` at `@v4` where `ci.yml` uses `@v7` |
+| CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` **ran for the first time 2026-08-10** on tag `v0.1.0` (run `31421682409`), after its `actions/checkout`, `setup-node` and `upload-artifact` pins were bumped to `@v7` — `upload-artifact@v6` is the first major on `node24`, so `@v5` still carried the Node-20 deprecation annotation that prompted the bump |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
-| MCPB bundle | **Build path committed, no bundle released.** `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented) and refuses a `dist/` older than `src/`. **No version is tagged, so the release workflow has never run and there is nothing to download**; the Chat-tab install still means building it yourself. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) is `in progress`, **reassigned 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md)** — Slice 11 closed [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s commit half and deferred the release cut and the packed-bundle byte-identity assertion, so the component follows the criteria it still needs; criteria 1–6 and 9 and 11 verified, unchanged by the reassignment |
+| MCPB bundle | **Released 2026-08-10 as `v0.1.0`** — `manabase.mcpb`, 111,760 bytes, downloadable from a GitHub Release. `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented), refuses a `dist/` older than `src/`, and since 2026-08-10 unpacks the archive it just wrote to assert its `server/index.js` is the committed `dist/index.js` ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7). The Chat-tab install is now a download rather than a local build; a bundle still has **no update path** once installed. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) stays `in progress` — **criteria 1–7 and 9–11 verified, criterion 8 the only one left** — and was **reassigned 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md)**, which executed this half on 2026-08-10 without closing the slice: [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is untouched and `plugin.json` still carries no `version` |
 | Known open defect | Issue #25 (open, unfixed): a `card_search` payload exceeds the harness tool-result ceiling below one page. First measurement — 111 cards, 116,626 characters, `legalities` 54.5% of bytes — recorded against [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be). That question is **answered in full as of 2026-08-07** — the queried-format `legalities` default *and* a server-enforced page cap near 120 cards — but **nothing is implemented**, so the defect is unchanged and issue #25 stays open |
 
 Two properties of the existing scaffold worth preserving on purpose:
@@ -279,7 +304,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 10 | Context-cost measurement | C — release | ☑ |
 | 11 | `dist/` honesty mechanism | C — release | ☑ PR #32 · scope narrowed, see the block |
 | 12 | Docs polish & friend dry-run | C — release | ☐ |
-| 13 | Release gate — the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover | C — release | ☐ |
+| 13 | Release gate — the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover | C — release | ◐ **partially executed** — the [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) bundle release ran 2026-08-10 (PR #37, tag `v0.1.0`); the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover has not, and still waits on [12](./slices/TrackC-Slice12.md) |
 
 ---
 
@@ -736,17 +761,28 @@ gates are open.
     [Slice 13](./slices/TrackC-Slice13.md) keeps the plugin-version switchover.
 - **Done when:**
   - ☑ A push with stale `dist/` fails the check, demonstrated once deliberately.
-  - ☐ A packed `.mcpb` whose `dist/` does not match its commit fails the check. **Deferred to
-    [Slice 13](./slices/TrackC-Slice13.md)** — see the scope note below.
+  - ☑ A packed `.mcpb` whose `dist/` does not match its commit fails the check. **Deferred to
+    [Slice 13](./slices/TrackC-Slice13.md)** — see the scope note below — and **done there
+    2026-08-10**, inside [`scripts/pack-mcpb.mjs`](../scripts/pack-mcpb.mjs) rather than as a
+    workflow step, so [`release.yml`](../.github/workflows/release.yml) inherits it through
+    `npm run pack:mcpb` ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab)
+    criterion 7).
   - ◐ [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in the PRD —
     its **commit half** is answered 2026-08-09; the user-facing half stays open by its own terms
     and CI cannot close it.
   - ☑ An ordinary commit — not only a tag — is covered by the check.
-  - ☐ A `v*` tag produces a Release with `manabase.mcpb` attached
+  - ☑ A `v*` tag produces a Release with `manabase.mcpb` attached
     ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 10). **Deferred to
-    [Slice 13](./slices/TrackC-Slice13.md).**
-  - ☐ `README.md`'s Chat-tab instructions point at that download instead of a local build.
-    **Deferred to [Slice 12](./slices/TrackC-Slice12.md)**, which owns the README.
+    [Slice 13](./slices/TrackC-Slice13.md)**, and **done there 2026-08-10** — tag `v0.1.0` on
+    `2c7196c`, run `31421682409`, the first execution
+    [`.github/workflows/release.yml`](../.github/workflows/release.yml) has ever had.
+  - ☑ `README.md`'s Chat-tab instructions point at that download instead of a local build.
+    **Deferred to [Slice 12](./slices/TrackC-Slice12.md)**, which owns the README, and written
+    2026-08-10 (`710f569`) once the download existed. The deferral's own reason is what inverted:
+    it waited because pointing a cold reader at a release that did not exist is the false claim
+    this repo keeps correcting, and cutting the release removed that objection.
+    [`README.md`](../README.md)'s build-from-a-checkout block survives as an explicitly
+    unsupported route for running an unreleased commit.
 - **Landed 2026-08-09 — PR #32.** `.github/workflows/ci.yml` on `pull_request` and `push: main`:
   `npm ci` → `npm run typecheck` → `npm test` → rebuild-and-diff, gate last. With it, `.nvmrc`
   (the toolchain Node pinned once, read by both workflows) and a `.gitattributes` scoped to the
@@ -777,7 +813,18 @@ gates are open.
   expresses github-slugger's rule instead — keep letters, numbers, marks, connector punctuation,
   the ASCII hyphen and spaces, strip everything else — because the direction of error that gets a
   checker deleted is a false alarm on a link that works. CI run 31400938254: green in 14 s, 23
-  navigable files, 2,666 links, 0 broken. The other three deferrals stand.
+  navigable files, 2,666 links, 0 broken.
+- **The other three landed later the same day, 2026-08-10, and all four deferrals are now
+  closed.** The packed-bundle byte-identity assertion and the first release cut were executed as
+  [Slice 13](./slices/TrackC-Slice13.md)'s
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) half (PR #37, merge `2c7196c`, tag
+  `v0.1.0`), and [Slice 12](./slices/TrackC-Slice12.md)'s README line was written in `710f569`
+  because the release it points at now exists. **None of that closes either slice**: this block's
+  three boxes above are ticked, [Slice 12](./slices/TrackC-Slice12.md)'s friend dry-run — its
+  acceptance gate — is still outstanding, and
+  [Slice 13](./slices/TrackC-Slice13.md) is partially executed with its
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) half untouched. Evidence:
+  [`docs/slices/TrackC-Slice13-results.md`](./slices/TrackC-Slice13-results.md).
 - **The comparison shipped is not the one this block and
   [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) named.** Both said "rebuilds
   and diffs"; the check uses `git status --porcelain -- dist/`, because an *absent* `dist/index.js`
@@ -826,7 +873,39 @@ gates are open.
   - ☐ `claude plugin validate . --strict` passes cleanly, closing out
     [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 (left unticked by [Slice 7](./slices/TrackB-Slice7.md)).
   - ☐ `PLUGIN-PRD.md` [§9](./PLUGIN-PRD.md#9-revision-log) records the switchover; [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) has an explicit disposition.
-- **Binding refs:** [P-08](./PLUGIN-PRD.md#p-08--version-scheme), `PLUGIN-PRD.md` [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates), [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable); `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript).
+- **Partially executed 2026-08-10 — the
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) half only, and this slice is *not*
+  closed.** Every done-when box above is still ☐, because every one of them belongs to the
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover. What ran instead: PR #37 (merge
+  `2c7196c`) added [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab)'s criterion 7
+  assertion to [`scripts/pack-mcpb.mjs`](../scripts/pack-mcpb.mjs) and bumped
+  [`release.yml`](../.github/workflows/release.yml)'s action pins to `@v7`; tag `v0.1.0` on that
+  commit ran the workflow for the first time (run `31421682409`) and published a Release carrying
+  `manabase.mcpb`. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criteria **7 and
+  10 are verified**, leaving criterion 8 as its only unverified one; the pre-flight in requirement
+  1 was run against the released commit, including 13/13 live acceptance and an offline
+  `initialize` against the downloaded public asset. **Nothing else moved** — no
+  [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+  [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+  [CAP-01](./MCP-PRD.md#cap-01--card-search) criterion changed status,
+  [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) did not move in either
+  half, and [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable)
+  has no disposition, so Phase 1 is **not** closed. Evidence:
+  [`docs/slices/TrackC-Slice13-results.md`](./slices/TrackC-Slice13-results.md).
+- **Why the halves separate, and the one thing to check before resuming.** This slice bundles two
+  items **by schedule, not by dependency**: the bundle release is not gated on
+  [Slice 12](./slices/TrackC-Slice12.md) because the tag names the **bundle**
+  ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)) and
+  `plugin.json` is untouched, while the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover is
+  gated on it, since [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s remaining evidence *is*
+  the friend dry-run. **`v0.1.0` is spent**, and requirement 10's `claude plugin tag` writes into
+  the same `v*` namespace [`release.yml`](../.github/workflows/release.yml) watches — if it emits
+  `v<semver>` it will fire the release workflow and cut a second bundle release. Discover its tag
+  format with `--dry-run` before pushing, as this block's Work list already requires, and pick a
+  version string that has not been used. Note also that
+  [the slice spec](./slices/TrackC-Slice13.md) instructs its closer to mark this slice ☑ and is
+  written for the whole slice; that instruction does not apply to a half.
+- **Binding refs:** [P-08](./PLUGIN-PRD.md#p-08--version-scheme), `PLUGIN-PRD.md` [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates), [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable); `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript). Also [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) and [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08), which the executed half serves.
 
 ## 5. Order and parallelism
 
