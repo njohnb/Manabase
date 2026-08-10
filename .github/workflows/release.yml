@@ -56,7 +56,9 @@ jobs:
           MANABASE_BUNDLE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: npm run pack:mcpb
 
-      - uses: actions/upload-artifact@v5
+      # v7, not v5: upload-artifact v4 *and* v5 both declare `using: node20`, so bumping to v5
+      # left the deprecation warning exactly where it was. v6 is the first major on node24.
+      - uses: actions/upload-artifact@v7
         with:
           name: manabase-mcpb
           path: build/manabase.mcpb
