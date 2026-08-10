@@ -15647,6 +15647,120 @@ function resolvePrice(card) {
 }
 
 // src/tools/card-search.ts
+var PAGE_SIZE = 88;
+var UPSTREAM_PAGE_SIZE = 175;
+var ALL_LEGALITY_KEYS = [
+  "standard",
+  "future",
+  "historic",
+  "timeless",
+  "gladiator",
+  "pioneer",
+  "modern",
+  "legacy",
+  "pauper",
+  "vintage",
+  "penny",
+  "commander",
+  "oathbreaker",
+  "standardbrawl",
+  "brawl",
+  "competitivebrawl",
+  "alchemy",
+  "paupercommander",
+  "duel",
+  "oldschool",
+  "premodern",
+  "predh",
+  "tlr"
+];
+var LEGALITY_KEY_SET = new Set(ALL_LEGALITY_KEYS);
+var DEFAULT_LEGALITY_FORMATS = [
+  "standard",
+  "pioneer",
+  "modern",
+  "legacy",
+  "vintage",
+  "commander",
+  "pauper"
+];
+var FORMAT_TERM = /\b(?:f|format|legal|banned|restricted)[:=]([A-Za-z0-9_]+)/gi;
+function scanQueriedFormats(q) {
+  const found = /* @__PURE__ */ new Set();
+  for (const match of q.matchAll(FORMAT_TERM)) {
+    const token = match[1]?.toLowerCase();
+    if (token !== void 0 && LEGALITY_KEY_SET.has(token)) found.add(token);
+  }
+  return [...found];
+}
+function resolveLegalityScope(requested, q) {
+  if (requested === "all") return { mode: "all", keys: null };
+  if (requested === "default") return { mode: "default", keys: DEFAULT_LEGALITY_FORMATS };
+  const queried = scanQueriedFormats(q);
+  return queried.length > 0 ? { mode: "queried", keys: queried } : { mode: "default", keys: DEFAULT_LEGALITY_FORMATS };
+}
+function pickLegalities(legalities, keys) {
+  if (keys === null) return legalities;
+  const picked = {};
+  for (const key of keys) {
+    const value = legalities[key];
+    if (value !== void 0) picked[key] = value;
+  }
+  return picked;
+}
+function includedLegalities(cards, scope) {
+  const first = cards[0];
+  if (first === void 0) return scope.keys === null ? [...ALL_LEGALITY_KEYS] : [...scope.keys];
+  const candidates = scope.keys ?? Object.keys(first.legalities);
+  return candidates.filter((key) => cards.every((card) => key in card.legalities));
+}
+function ourPageCount(totalCards) {
+  if (totalCards <= 0) return 0;
+  const upstreamPages = Math.ceil(totalCards / UPSTREAM_PAGE_SIZE);
+  const lastLen = totalCards - (upstreamPages - 1) * UPSTREAM_PAGE_SIZE;
+  return (upstreamPages - 1) * 2 + (lastLen > PAGE_SIZE ? 2 : 1);
+}
+function normalizePage(raw) {
+  if (raw === void 0 || !Number.isFinite(raw)) return 1;
+  const truncated = Math.trunc(raw);
+  return truncated >= 1 ? truncated : 1;
+}
+function pageSlot(page) {
+  return {
+    page,
+    upstreamPage: Math.floor((page - 1) / 2) + 1,
+    offset: (page - 1) % 2 * PAGE_SIZE
+  };
+}
+function firstCardIndex(slot) {
+  return (slot.upstreamPage - 1) * UPSTREAM_PAGE_SIZE + slot.offset + 1;
+}
+function outOfRangeFailure(slot, totalCards) {
+  const pages = ourPageCount(totalCards);
+  return {
+    ok: false,
+    error: {
+      // No `status`: this is our determination from a 200 body, not an HTTP outcome.
+      code: "bad_request",
+      message: `Page ${slot.page} is past the end of this result: ${totalCards} cards match, which is ${pages} page${pages === 1 ? "" : "s"} of ${PAGE_SIZE} (valid pages 1-${pages}). This is an out-of-range page, not a query that matched nothing.`
+    }
+  };
+}
+function upstreamOutOfRangeFailure(slot, error2) {
+  const failed = {
+    code: "bad_request",
+    message: `Page ${slot.page} is past the end of this result \u2014 Scryfall has no page ${slot.upstreamPage} for this query (our pages are ${PAGE_SIZE} cards, half an upstream page). Request a lower page number.`,
+    status: 422,
+    // (exactOptionalPropertyTypes) absent, never `undefined`.
+    ...error2.details !== void 0 ? { details: error2.details } : {}
+  };
+  return { ok: false, error: failed };
+}
+function rangeNote(slot, shown, totalCards) {
+  const from = firstCardIndex(slot);
+  const to = from + shown - 1;
+  return `${totalCards} cards match; showing cards ${from}-${to} (page ${slot.page} of ${ourPageCount(totalCards)}). Narrow the query or request a specific page.`;
+}
 function joinFaces(faces, field) {
   const parts = [];
   for (const face of faces) {
@@ -15660,7 +15774,7 @@ function textField(card, field) {
   if (top !== void 0) return top;
   return card.card_faces !== void 0 ? joinFaces(card.card_faces, field) : void 0;
 }
-function toCardSummary(card) {
+function toCardSummary(card, keepLegalities) {
   const manaCost = textField(card, "mana_cost");
   const oracleText = textField(card, "oracle_text");
   return {
@@ -15677,44 +15791,68 @@ function toCardSummary(card) {
     rarity: card.rarity,
     set: card.set,
     set_name: card.set_name,
-    // (MCP-PRD OQ-02) result verbosity is an open question — pass legalities through untrimmed.
-    legalities: card.legalities,
+    // (MCP-PRD OQ-02, closed) trimmed to the scope the caller asked for; the keys kept are
+    // reported once per response as `legalities_included`. Untrimmed passthrough measured 54.5%
+    // of a real response's bytes — see CAP-01 criterion 13.
+    legalities: pickLegalities(card.legalities, keepLegalities),
     price: resolvePrice(card)
   };
 }
 async function cardSearch(client2, params) {
   const unique = params.unique ?? "cards";
-  const page = params.page ?? 1;
+  const page = normalizePage(params.page);
+  const slot = pageSlot(page);
+  const scope = resolveLegalityScope(params.legalities ?? "queried", params.q);
   const result = await client2.get("/cards/search", {
     q: params.q,
     unique,
     order: params.order,
     dir: params.dir,
-    page: String(page)
+    // Our page is half of Scryfall's, so the upstream page number is not the requested one.
+    page: String(slot.upstreamPage)
   });
   if (!result.ok) {
     if (result.error.code === "not_found") {
       const note = result.error.details ?? result.error.message;
-      return { ok: true, value: { cards: [], total_cards: 0, page, has_more: false, note } };
+      return {
+        ok: true,
+        value: {
+          cards: [],
+          total_cards: 0,
+          // the value that distinguishes this from an out-of-range page
+          page,
+          has_more: false,
+          legalities_mode: scope.mode,
+          legalities_included: includedLegalities([], scope),
+          note
+        }
+      };
     }
+    if (result.error.status === 422) return upstreamOutOfRangeFailure(slot, result.error);
     return result;
   }
   const list = result.value;
-  const cards = list.data.map(toCardSummary);
+  const cards = list.data.slice(slot.offset, slot.offset + PAGE_SIZE).map((card) => toCardSummary(card, scope.keys));
+  if (cards.length === 0 && list.total_cards > 0) return outOfRangeFailure(slot, list.total_cards);
   const data = {
     cards,
     total_cards: list.total_cards,
+    // Scryfall's true total; capping a page does not change it
     page,
-    has_more: list.has_more
+    // Ours, not upstream's: cards may remain in the page we already fetched. This is the case
+    // issue #25 hit — 111 cards with upstream `has_more: false`, 23 of them past our page 1.
+    has_more: slot.offset + PAGE_SIZE < list.data.length || list.has_more,
+    legalities_mode: scope.mode,
+    legalities_included: includedLegalities(cards, scope)
   };
-  if (list.has_more) {
-    data.note = `${list.total_cards} cards match; showing page ${page}. Narrow the query or request a specific page for more.`;
+  if (data.has_more || ourPageCount(list.total_cards) > 1) {
+    data.note = rangeNote(slot, cards.length, list.total_cards);
   }
   return { ok: true, value: data };
 }
 
 // src/tools/register.ts
-var CARD_SEARCH_DESCRIPTION = "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall itself \u2014 supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, `art:`, and regex (`o:/\u2026/`). Returns per-card gameplay fields, format legalities, and a USD price with finish. 175 cards per page; the response reports `total_cards` and `has_more`.";
+var CARD_SEARCH_DESCRIPTION = "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall itself \u2014 supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, `art:`, and regex (`o:/\u2026/`). Returns per-card gameplay fields, format legalities, and a USD price with finish. 88 cards per page; the response reports `total_cards` and `has_more`. Legalities are trimmed to the format the query names (`legalities` to widen); formats absent from `legalities_included` were not returned and are not claims about legality.";
 var CARD_SEARCH_INPUT_SCHEMA = {
   type: "object",
   properties: {
@@ -15722,7 +15860,8 @@ var CARD_SEARCH_INPUT_SCHEMA = {
     unique: { type: "string", enum: ["cards", "prints", "art"], description: "Result rollup. Default: cards (one row per card)." },
     order: { type: "string", description: "Sort field, e.g. name, cmc, usd, edhrec, released." },
     dir: { type: "string", enum: ["auto", "asc", "desc"], description: "Sort direction." },
-    page: { type: "integer", minimum: 1, description: "1-based page; 175 cards per page." }
+    page: { type: "integer", minimum: 1, description: "1-based page; 88 cards per page." },
+    legalities: { type: "string", enum: ["queried", "default", "all"], description: "Legality scope. Default: queried (the format `q` names, else seven paper formats)." }
   },
   required: ["q"]
 };
@@ -15736,6 +15875,7 @@ var toolDefinitions = [
 ];
 var UNIQUE_VALUES = ["cards", "prints", "art"];
 var DIR_VALUES = ["auto", "asc", "desc"];
+var LEGALITIES_VALUES = ["queried", "default", "all"];
 function asEnum(allowed, value) {
   return typeof value === "string" && allowed.includes(value) ? value : void 0;
 }
@@ -15765,12 +15905,14 @@ async function dispatchToolCall(client2, name, args) {
   }
   const unique = asEnum(UNIQUE_VALUES, raw.unique);
   const dir = asEnum(DIR_VALUES, raw.dir);
+  const legalities = asEnum(LEGALITIES_VALUES, raw.legalities);
   const params = {
     q: raw.q,
     ...unique !== void 0 ? { unique } : {},
     ...typeof raw.order === "string" ? { order: raw.order } : {},
     ...dir !== void 0 ? { dir } : {},
-    ...typeof raw.page === "number" && Number.isInteger(raw.page) ? { page: raw.page } : {}
+    ...typeof raw.page === "number" && Number.isInteger(raw.page) ? { page: raw.page } : {},
+    ...legalities !== void 0 ? { legalities } : {}
   };
   const result = await cardSearch(client2, params);
   if (!result.ok) {

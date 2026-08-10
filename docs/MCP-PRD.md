@@ -6,10 +6,10 @@
 > sections 6, 7, and 9. Nothing else.
 
 **Document status:** foundation established 2026-07-29. One capability specified
-([CAP-01](#cap-01--card-search)) and **delivered 2026-08-03 against criteria 1–12**, all twelve
-verified ([§9](#9-revision-log)). **Criterion 13 was added 2026-08-04, after delivery, and is not
-implemented** — so "delivered" here means the criteria as written on that date, not the block as it
-stands now; see the block's dated delivery note and its 2026-08-07 addendum. Ten capabilities
+([CAP-01](#cap-01--card-search)) and **delivered against criteria 1–14** ([§9](#9-revision-log)):
+1–12 on 2026-08-03, then criterion 13 (the `legalities` trim) and a new criterion 14 (the page cap)
+on 2026-08-10, when [Slice 14](./slices/TrackA-Slice14.md) implemented both of
+[OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s levers and closed that question. Ten capabilities
 queued and unassigned — two of them added 2026-08-07 when Moxfield joined Archidekt as a deck
 platform ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second), [§4.8](#48-moxfield)).
 
@@ -604,6 +604,27 @@ set as returned on a card object: `standard`, `future`, `historic`, `timeless`, 
 default set is chosen from this list; the "roughly 21" it was framed against was an estimate rather
 than an observation.
 
+**Addendum — five operators name a format, not three; and paginating past the end is a 422, not a
+404. [verified 2026-08-10]** Measured while implementing
+[OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s trim, with single spaced calls
+([§3.4](#34-rate-limits-are-hard-constraints-not-guidance)).
+
+- **`format:` and `legal:` are real, and are synonyms for `f:`.** Against a two-card baseline of
+  modern-illegal cards, both `legal:modern` and `format:modern` returned **0**, so each filtered
+  rather than being silently dropped the way an unknown term is. The full list a format scan must
+  match is therefore `f:`, `format:`, `legal:`, `banned:`, `restricted:` — the skill's
+  `reference/operators.md` had recorded only three.
+- **A format alias is accepted as a value but is not a legality key.** `f:edh` returns
+  commander-legal cards, yet `edh` appears in no card's `legalities` map. A scanner that treats a
+  scanned token as a key would produce an **empty** legalities map from a perfectly good query —
+  a normal-looking 200 carrying a wrong answer, the same class as the `\A` trap above. This is why
+  the trim falls back to the default set on a miss rather than trimming to nothing.
+- **A page past the end returns HTTP 422**, with `details` reading "You have paginated beyond the
+  end of these results…". It is *not* the 404 that zero matches returns, so it does not reach the
+  404-as-empty mapping — but it does fall through the client's status table to `unexpected`, a code
+  that reads as a server fault and discourages the retry that would fix it.
+  [CAP-01](#cap-01--card-search) re-codes it as `bad_request` at the handler.
+
 **Critical architectural fact.** These operators are evaluated **server-side**. They are not
 fields on the card object and cannot be reproduced from bulk data without reimplementing
 Scryfall's query engine. This is the fact behind [D-07](#d-07--three-way-cache-split). **[verified]**
@@ -1103,18 +1124,28 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
     collecting — `unique=cards` so one row per card rather than per printing.
   - Returns per card: name, mana cost, converted mana cost, type line, oracle text, colors
     and color identity, power/toughness/loyalty where applicable, rarity, set, format
-    legalities, and price.
+    legalities, and price. Per response it also returns `total_cards`, `page`, `has_more`,
+    `legalities_mode`, `legalities_included`, and a `note` when the model should act.
   - **`legalities` is trimmed to the format the query names** (amended 2026-08-04, resolving
     [OQ-02](#oq-02--how-verbose-should-a-search-result-be)). When `q` carries `f:`, `banned:`, or
     `restricted:`, only that format's legality is returned; when it names no format, a small
     default set is. The full map is available behind an opt-in. Untrimmed passthrough measured
     **54.5%** of a real response's bytes — a majority of the payload spent on formats the user
     did not ask about, and enough to exceed a harness tool-result ceiling at well under one page.
+  - **The trimmed scope is reported once per response** (implemented 2026-08-10), because an
+    absent legality key must never read as "not legal"
+    ([§3.6](#36-error-surface)). `legalities_mode` is `queried` | `default` | `all` and describes
+    the scope actually applied — a `queried` request whose scan found no format reports `default`,
+    because that is what the payload carries. `legalities_included` lists the keys present on
+    every card. Formats outside it were **not returned** and that is not a claim about legality.
   - **Price correctness is part of this capability, not deferred.** Results constrain to
     paper printings for price purposes, and surface `usd_foil` / `usd_etched` when `usd` is
     null rather than reporting no price ([§4.1.3](#413-price-fields--three-verified-traps)). A card with genuinely no paper price says
     so, and says why (digital-only).
-  - **Paginates explicitly.** Page size is 175. When more results exist, the response says
+  - **Paginates explicitly.** Page size is 88 — exactly half Scryfall's 175, so both halves of
+    every upstream page are addressable at one upstream request per call
+    ([OQ-02](#oq-02--how-verbose-should-a-search-result-be), implemented 2026-08-10; it was 175
+    before that). When more results exist, the response says
     how many total and that more are available, so the model can decide between narrowing
     the query and fetching another page. It does not silently truncate, and it does not
     auto-fetch every page of a 6,000-card result.
@@ -1149,7 +1180,8 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
      digital-only.
   8. `illustrationtag:dragon` (invalid operator, HTTP 400) returns a structured failure
      containing Scryfall's `details` text — and does not throw ([D-10](#d-10--tool-handlers-never-throw)).
-  9. A query with >175 matches reports the total count and that more results exist.
+  9. A query with more matches than fit on one page reports the total count and that more results
+     exist. (Page size was 175 when this was written; it is 88 since 2026-08-10 — see criterion 14.)
   10. Every outbound request carries a `User-Agent` naming this application and an `Accept`
       header ([§3.4](#34-rate-limits-are-hard-constraints-not-guidance)).
   11. Two searches issued back to back do not exceed 2 requests/second.
@@ -1161,6 +1193,14 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
       returns the full map. Checked against a real multi-card response, since the failure this
       addresses only appears at scale — a single card's untrimmed `legalities` is unremarkable
       and 111 cards' is the majority of the payload.
+  14. **A page reports at most 88 cards, and every matching card is reachable by some page.**
+      Added 2026-08-10 with [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s page cap. A
+      query matching more than 88 cards returns 88 with `has_more: true` — including when Scryfall
+      itself reports `has_more: false`, the case issue #25 hit at 111 cards. Card 89 of that result
+      appears on page 2, and no card is reachable by no page: page size 88 is exactly half
+      Scryfall's 175, so both halves of every upstream page are addressable. Kept separate from
+      criterion 13 rather than folded into it — two levers decided three days apart, with different
+      failure modes, get two independently falsifiable criteria.
 - **Open questions:** [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (how to surface syntax), [OQ-02](#oq-02--how-verbose-should-a-search-result-be) (result verbosity vs. context
   budget), [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) (EUR fallback when no USD price exists — opened by the acceptance pass).
 - **Delivery note (2026-08-03).** All twelve acceptance criteria are verified: 2–9 live against
@@ -1180,6 +1220,16 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   the decision it serves**; whether it is widened or a fourteenth criterion is added belongs to the
   slice that implements the trim, not here. Neither the trim nor the cap is in
   [`src/`](../src/tools/card-search.ts).
+- **Delivery-note addendum (2026-08-10).** Both levers are implemented and
+  **[CAP-01](#cap-01--card-search) is delivered against criteria 1–14.** Criterion 13 stayed as
+  written and a criterion 14 was added, which is the choice the 2026-08-07 addendum left to the
+  implementing slice — [Slice 14](./slices/TrackA-Slice14.md). The trim, the cap and the paging
+  arithmetic all live in [`src/tools/card-search.ts`](../src/tools/card-search.ts), so the sentence
+  above about neither being in `src/` is true only of its own date. Verified live: issue #25's exact
+  query returned **53,043 characters against the 116,626 that breached the ceiling**, 88 cards with
+  `has_more: true` where Scryfall reported `has_more: false`, and its page 2 returned the remaining
+  23 — all 111 cards reachable. `npm run acceptance` passed 13 of 13 with no 429. Evidence:
+  [`docs/slices/TrackA-Slice14-results.md`](./slices/TrackA-Slice14-results.md).
 
 ---
 
@@ -1365,6 +1415,42 @@ been measured and shown insufficient on its own. The 2026-08-04 reasoning is kep
 stays open.
 *Resolves by:* implementing the trim and the cap with unit tests, then one live search to confirm
 the shaped page against a real harness rather than a local measurement.
+
+**Answered and closed 2026-08-10 — both levers are implemented and issue #25 is fixed.**
+[Slice 14](./slices/TrackA-Slice14.md) shipped them together, in
+[`src/tools/card-search.ts`](../src/tools/card-search.ts). The paragraph above reading "**Nothing is
+implemented.**" is true only of its own date and is left as written.
+
+1. **The trim.** `legalities: "queried" | "default" | "all"`, defaulting to `"queried"`, exactly as
+   decided. The queried set comes from a **scan, not a parse** — `q` is read to choose which keys to
+   keep and the bytes sent to Scryfall are unchanged
+   ([D-07](#d-07--three-way-cache-split)) — and it degrades to the seven paper formats on any miss,
+   so a scan failure costs bytes and never correctness. **The trim never yields an empty map**,
+   which is the guard that keeps a lookup miss from becoming a normal-looking wrong answer.
+2. **The cap is 88 cards, not the ~120 this answer estimated**, and the difference is a correctness
+   fix rather than a tightening. Scryfall's `page` parameter is in units of **175** and the endpoint
+   has **no offset**, so a 120-card cap over a 175-card page would leave cards 121–175 reachable by
+   **no `page` value at all** — a silent loss strictly worse than the payload problem the cap exists
+   to fix. Halving the upstream page instead makes our page *n* the half-page at
+   `floor((n-1)/2)+1`, offset `((n-1) % 2) * 88`, so every card is reachable at **one upstream
+   request per call** — which also keeps the [§3.4](#34-rate-limits-are-hard-constraints-not-guidance)
+   budget flat. The halves are 88 and 87; page counts therefore anchor to upstream pages, and a
+   176-card result is **3** of our pages where `ceil(176/88)` says 2.
+3. **The scope is reported**, once per response, as `legalities_mode` and `legalities_included`
+   (~100 characters against tens of thousands saved), because an absent key must never read as "not
+   legal" ([§3.6](#36-error-surface)).
+
+**Measured.** Issue #25's exact query, live through the built server: **116,626 → 53,043
+characters**, 88 cards with `has_more: true` where Scryfall reported `has_more: false`, and page 2
+returning the remaining 23 — all 111 cards reachable. The 175-card fixture shapes to **39,844**
+characters under the queried trim against the 169,504 recorded in
+[§4.1.1](#411-search-endpoint). Note the live figure is well above the fixture's: per-card cost
+varies with the cards a query returns, exactly as this answer warned, so the acceptance test asserts
+a bound rather than a number. Evidence:
+[`docs/slices/TrackA-Slice14-results.md`](./slices/TrackA-Slice14-results.md).
+
+`oracle_text` was **not** trimmed, as decided. No `D-` decision was minted: this is an
+implementation of an existing answer, and [§2](#2-locked-decisions) is untouched.
 
 ### OQ-03 — What is the bulk-data storage strategy, and when is it introduced?
 
@@ -1705,6 +1791,7 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-07 | **[OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) answered: no EUR fallback.** Resolution stays USD-only and [D-06](#d-06--pricing-from-scryfall)'s one-number-per-printing contract is untouched. What changes is the failure — a distinct **`no-usd-price`** reason carrying the EUR figure, so the model reports a currency gap instead of the flatly wrong "no price data". Bounded at **at most 3,047 paper printings, 3.15%** ([§4.1.1](#411-search-endpoint)). This question's own prescribed measurement method is recorded as **invalid**: the negated term it depends on is silently dropped. **Not implemented** — [`src/scryfall/prices.ts`](../src/scryfall/prices.ts) is unchanged and no [CAP-01](#cap-01--card-search) criterion changed status. | A 3% tail does not justify changing what a price *means*. The fallback's real cost is downstream and silent: every consumer would have to read a currency field before comparing two numbers, and any that forgot would compare euros to dollars and be wrong with no signal — whereas a `no-usd-price` reason cannot be misread as a price, because it is not one. Recording the prescribed method as invalid matters as much as the verdict: a later session re-checking the bound would otherwise re-run the same negated query and get the same confidently wrong 96%. |
 | 2026-08-07 | **[OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) answered: one tool, `deck_read`, over one thin normalized shape** — `{ platform, name, format, color_identity, cards: [{ name, quantity, board, finish, scryfall_id }] }`, with `board` a normalized enum spanning Archidekt's free-form categories and Moxfield's twelve fixed boards, and card detail reached through [§4.1.2](#412-batch-resolution) rather than passed through. **No amendment to [D-11](#d-11--tool-naming-convention)** is needed and it does not wait on [`docs/PLUGIN-PRD.md` PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports). **No CAP block was written and nothing is specified**; Archidekt's `deckFormat` integer→name table is still missing and still needs live data. | Two tools buy exactly one thing — per-schema documentation of platform-specific error behavior — which one tool's failure surface can express anyway under [§3.6](#36-error-surface), and they cost a second schema, a second name to keep in sync, and a second place for the shapes to drift apart. The shape is settled ahead of the spec session rather than by it because every downstream capability consumes the shape rather than the platform, and [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)'s ordering exists precisely to stop the first platform's payload from becoming the shape by default. This is a decision, not a specification: the Archidekt spec session still owns the CAP block and must check each field above against [§4.8.1](#481-the-deck-payload-is-enormous--measured)'s Moxfield record. |
 | 2026-08-08 | **The twelve-versus-thirteen discrepancy raised by the 2026-08-07 [OQ-02](#oq-02--how-verbose-should-a-search-result-be) row is settled — by propagation, not by a new decision.** [CAP-01](#cap-01--card-search)'s own **Delivery-note addendum (2026-08-07)** had already stated the substance plainly — delivered against criteria 1–12, criterion 13 added 2026-08-04 and not implemented — but four summaries elsewhere still read "all twelve acceptance criteria are verified" with no mention of a thirteenth: this document's status header, [`docs/DEV-ROADMAP.md`](../docs/DEV-ROADMAP.md) §2, [`README.md`](../README.md), and [`CLAUDE.md`](../CLAUDE.md). All four now say **1–12** and name criterion 13 as outstanding. **Nothing dated was rewritten** — the 2026-08-03 delivery note and the 2026-08-07 addendum are untouched — **no criterion changed status, and [§5](#5-capabilities) is unedited.** Whether criterion 13 is widened to cover [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s page cap, or a fourteenth added, still belongs to the slice that implements the trim. | The addendum was correct and invisible. A reader who opens a header, a roadmap, or a README — which is most readers, and every new session — got "all twelve verified" with nothing to suggest a thirteenth existed, so the resolution lived only in the one place a reader already deep in the block would find. That is the same shape as this project's other silent failures: the record was right and the thing anyone actually reads was wrong. Propagating it costs nothing and removes the last surface that can teach a future session the wrong count. Recorded as its own row rather than folded into a slice, because it is documentation hygiene across two documents and belongs to neither. |
+| 2026-08-10 | **[OQ-02](#oq-02--how-verbose-should-a-search-result-be) is closed — both levers implemented, and issue #25 is fixed.** Track A [Slice 14](./slices/TrackA-Slice14.md). `legalities: "queried" \| "default" \| "all"` defaulting to `"queried"`, over a **scan** of `q` that never parses or rewrites it ([D-07](#d-07--three-way-cache-split)) and degrades to the seven paper formats on any miss, so the map is **never empty**; plus a server-enforced page cap. **The cap is 88, not the ~120 this question estimated** — Scryfall's `page` is in units of 175 with no offset, so a 120-cap would strand cards 121–175 behind no `page` value at all; half an upstream page keeps every card reachable at one upstream request per call. `has_more` is now ours to compute, and two new fields (`legalities_mode`, `legalities_included`) report the scope so an absent key never reads as "not legal" ([§3.6](#36-error-surface)). **[CAP-01](#cap-01--card-search) criterion 13 verified and a criterion 14 added and verified — delivered against 1–14.** Live: **116,626 → 53,043 characters** on issue #25's exact query, all 111 cards reachable across 2 pages, `npm run acceptance` 13/13 with no 429. Three live findings in [§4.1.1](#411-search-endpoint): `format:` and `legal:` are real format operators, `f:edh` is an accepted value that is not a legality key, and a page past the end is HTTP **422**, not 404. No new `D-`; [§2](#2-locked-decisions)/[§3](#3-constraints) untouched. | The trim alone was already measured and refuted as sufficient, so shipping half of this would have closed nothing — 88,953 characters against a ceiling 116,626 had breached. Two independently falsifiable criteria rather than one widened criterion 13, because the levers were decided three days apart and fail differently: a broken trim returns wrong legality scope, a broken cap strands cards, and one criterion covering both can half-pass. The page size is the one place this slice overrode its own decision record, and it is recorded as a correctness fix rather than a tightening: "near 120" was an estimate of a byte budget, made before anyone had checked that 120 is unreachable in a 175-unit paging scheme. The alias and 422 findings both belong to the family this project keeps paying for — a normal-looking response carrying a wrong answer — and both are now guarded in code rather than remembered. |
 
 ---
 

@@ -24,7 +24,7 @@ another source. A silent substitution looks like an answer and is not one.
    belongs inside `q` — never search broadly and filter the results yourself. One precise call
    beats three vague ones.
 4. **Set `unique` / `order` / `dir` deliberately** (below), then call the tool **once**.
-5. **Read `total_cards` before `cards`** — it is the true total; at most 175 come back per page.
+5. **Read `total_cards` before `cards`** — it is the true total; at most 88 come back per page.
 6. **Narrow or refine** from what you see, and answer from the returned fields, not from memory.
 
 ## The operators most requests need
@@ -66,7 +66,7 @@ to the fix it implies, read `reference/recipes.md`.
 
 - `unique` defaults to `cards` — one row per card, the deckbuilding default; keep it. Use
   `"prints"` only for questions about a *specific printing*; `art` rolls up by illustration.
-- `order` decides *which* 175 cards you see first, so on a broad query it decides the whole
+- `order` decides *which* 88 cards you see first, so on a broad query it decides the whole
   answer. Match it to the request; the values are in `reference/operators.md`.
 - `dir`: `auto` | `asc` | `desc`. `auto` is Scryfall's per-field default.
 
