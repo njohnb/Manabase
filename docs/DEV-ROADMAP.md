@@ -253,13 +253,13 @@ Evidence: [`docs/slices/TrackC-Slice13-results.md`](./slices/TrackC-Slice13-resu
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)) |
 | README | install instructions in `owner/repo` form with the raw-URL trap warning ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), version floor, disclaimer |
 | Server source | `config.ts`, `index.ts`, `result.ts`, `scryfall/{client,prices,types}.ts`, `tools/{card-search,register}.ts` |
-| Tests | 21 suites, **73 tests, 73 passing**; `tsc --noEmit` clean — re-run 2026-08-04. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
+| Tests | 27 suites, **101 tests, 101 passing**; `tsc --noEmit` clean — re-run 2026-08-10 ([Slice 14](./slices/TrackA-Slice14.md) took it from 21 suites and 73 tests). Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
 | CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` **ran for the first time 2026-08-10** on tag `v0.1.0` (run `31421682409`), after its `actions/checkout`, `setup-node` and `upload-artifact` pins were bumped to `@v7` — `upload-artifact@v6` is the first major on `node24`, so `@v5` still carried the Node-20 deprecation annotation that prompted the bump |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
 | MCPB bundle | **Released 2026-08-10 as `v0.1.0`** — `manabase.mcpb`, 111,760 bytes, downloadable from a GitHub Release. `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented), refuses a `dist/` older than `src/`, and since 2026-08-10 unpacks the archive it just wrote to assert its `server/index.js` is the committed `dist/index.js` ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7). The Chat-tab install is now a download rather than a local build; a bundle still has **no update path** once installed. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) stays `in progress` — **criteria 1–7 and 9–11 verified, criterion 8 the only one left** — and was **reassigned 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md)**, which executed this half on 2026-08-10 without closing the slice: [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is untouched and `plugin.json` still carries no `version` |
-| Known open defect | Issue #25 (open, unfixed): a `card_search` payload exceeds the harness tool-result ceiling below one page. First measurement — 111 cards, 116,626 characters, `legalities` 54.5% of bytes — recorded against [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be). That question is **answered in full as of 2026-08-07** — the queried-format `legalities` default *and* a server-enforced page cap near 120 cards — but **nothing is implemented**, so the defect is unchanged and issue #25 stays open |
+| Known open defect | **None open.** Issue #25 — a `card_search` payload exceeding the harness tool-result ceiling below one page, first measured at 111 cards and 116,626 characters with `legalities` 54.5% of the bytes — was **fixed 2026-08-10** by [Slice 14](./slices/TrackA-Slice14.md), which implemented both of [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)'s levers and closed that question: the same query now measures 53,043 characters and all 111 cards stay reachable across two pages. **One carry-over that is not a defect in this tree:** the released `v0.1.0` MCPB bundle predates the fix and an installed bundle never updates itself, so a Chat-tab user carries the old payload until a newer bundle is released and reinstalled |
 
 Two properties of the existing scaffold worth preserving on purpose:
 
@@ -519,6 +519,39 @@ landed. Slice 14 implements it.
 - **Why it blocks [12](./slices/TrackC-Slice12.md):** a friend dry-run against a plugin with a
   known unrecoverable failure on a reasonable query tests the wrong thing — and the Chat tab,
   where the `v0.1.0` bundle already installs, has no shell to recover with.
+- **Landed:** 2026-08-10, commit `031a501` on `feat/slice14-trim-and-page-cap` (no PR number yet).
+  Both levers are in [`src/tools/card-search.ts`](../src/tools/card-search.ts) and
+  [`src/tools/register.ts`](../src/tools/register.ts):
+  [CAP-01](./MCP-PRD.md#cap-01--card-search) criterion 13 is verified and a criterion 14 was added
+  and verified, so **[CAP-01](./MCP-PRD.md#cap-01--card-search) is delivered against criteria
+  1–14**; [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be) is closed with a dated
+  answer in [`MCP-PRD.md` §7](./MCP-PRD.md#7-open-questions) and one
+  [§9](./MCP-PRD.md#9-revision-log) row. Tests 73 → 101, suites 21 → 27; `npm run acceptance` 13/13
+  live with no 429. Evidence:
+  [`docs/slices/TrackA-Slice14-results.md`](./slices/TrackA-Slice14-results.md).
+- **The page size is 88, not the "near 120"
+  [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be) estimated, and the reason is
+  reachability rather than bytes.** Scryfall's `page` is in units of 175 with no offset, so a
+  120-card cap strands cards 121–175 behind no `page` value at all. Two arithmetic traps follow and
+  both are tested: the page count anchors to **upstream** pages, so a 176-card result is 3 pages
+  and not `ceil(176/88)`; and the card range in the note is not `(page-1)*88+1`, which drifts one
+  card per upstream page and is already wrong on page 3.
+- **Three live findings, all recorded in [`MCP-PRD.md` §4.1.1](./MCP-PRD.md#411-search-endpoint):**
+  `format:` and `legal:` are real format operators, so the scan matches five and not three; `f:edh`
+  is accepted by Scryfall as a value but `edh` is **not** a legality key, which is why the trim
+  falls back to the seven paper formats rather than trimming to nothing; and a page past the end is
+  HTTP **422**, not the 404 that zero matches returns — re-coded at the handler to `bad_request`,
+  since `unexpected` reads as a server fault and discourages the retry that fixes it.
+- **What it deliberately did not do.** **No tag and no `.mcpb` release** — `v0.1.0` is spent, a
+  released bundle cannot be withdrawn, and `claude plugin tag` writes into the same `v*` namespace
+  [`release.yml`](../.github/workflows/release.yml) watches, so anyone on that bundle carries the
+  old payload until a new one is cut and reinstalled. Two lines under
+  [`skills/`](../skills) were corrected from 175 to 88 as a narrow exception agreed with the
+  author; the frontmatter is byte-identical, so
+  [Slice 9](./slices/TrackB-Slice9.md)'s 10/10 trigger accuracy stands and **no
+  [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+  [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.**
 
 ---
 

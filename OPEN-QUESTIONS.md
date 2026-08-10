@@ -17,7 +17,7 @@ work that needs a live harness, a live third party, or a capability that does no
 | ID | Question, short | Status | Settle now? |
 |---|---|---|---|
 | [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) | How is Scryfall syntax surfaced to the model? | Answered 2026-08-04 | Done |
-| [OQ-02](#oq-02--how-verbose-should-a-search-result-be) | How verbose should a search result be? | **Decided 2026-08-07** | Done — in the PRD |
+| [OQ-02](#oq-02--how-verbose-should-a-search-result-be) | How verbose should a search result be? | **Closed 2026-08-10** | Done — decided, implemented, issue #25 fixed |
 | [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) | Bulk-data storage strategy, and when? | Partly answered | Location half recorded 2026-08-07 |
 | [OQ-04](#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api) | Archidekt write API behavior and blast radius? | Open | No — deferred by design |
 | [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) | Do Spellbook / Archidekt / Moxfield rate-limit? | Open | No — third party must reply |
@@ -184,8 +184,13 @@ the cards a query happens to return, and the ceiling itself is only known as an 
 cap reports itself — the existing `has_more` and `note` fields already carry paging back to the
 model, so a capped response is a visible outcome and never a silent truncation.
 
-**Resolves by:** implementing the trim and the cap with unit tests, then one live search to confirm
-the shaped page against a real harness rather than a local measurement.
+**Resolved 2026-08-10 — implemented and closed.** [Slice 14](./docs/slices/TrackA-Slice14.md)
+shipped both levers, fixing issue #25: the same query measures **53,043 characters against
+116,626**, with all 111 cards reachable across two pages. The cap landed at **88, not the ~120 this
+entry estimated** — Scryfall's `page` is in units of 175 with no offset, so 120 would strand cards
+121–175 behind no `page` value at all. [CAP-01](./docs/MCP-PRD.md#cap-01--card-search) criterion 13
+is verified and a criterion 14 was added for the cap. Evidence:
+[`docs/slices/TrackA-Slice14-results.md`](./docs/slices/TrackA-Slice14-results.md).
 **Owning entry:** [`MCP-PRD` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be), against [CAP-01](./docs/MCP-PRD.md#cap-01--card-search).
 
 ### OQ-03 — What is the bulk-data storage strategy, and when is it introduced?

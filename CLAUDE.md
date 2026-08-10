@@ -13,7 +13,7 @@ Three documents in `docs/`, and they outrank this file and the code:
 |---|---|
 | `docs/MCP-PRD.md` | What the server does — tools, data sources, capability behavior, acceptance criteria. Decisions `D-01`…`D-12`, capabilities `CAP-0N`, open questions `OQ-0N`. |
 | `docs/PLUGIN-PRD.md` | What the user installs — packaging, install, config, skills. Decisions `P-01`…`P-13`, components `PC-0N`, open questions `PQ-0N`. |
-| `docs/DEV-ROADMAP.md` | Sequencing **only** — 13 slices, dependency graph, status. If it disagrees with a PRD, the PRD wins; fix the roadmap. |
+| `docs/DEV-ROADMAP.md` | Sequencing **only** — 14 slices, dependency graph, status. If it disagrees with a PRD, the PRD wins; fix the roadmap. |
 
 **The boundary rule** (PLUGIN-PRD §1, reproduced verbatim there and paraphrased nowhere):
 MCP-PRD owns what the server can do; PLUGIN-PRD owns what the user installs and experiences. A
@@ -42,7 +42,7 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (73 tests, 21 suites)
+npm test            # node --experimental-strip-types --test  (101 tests, 27 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
@@ -163,12 +163,12 @@ present — that test reports "absent" on a surface where the tool works.
 Tests use `node:test` + `node:assert/strict`, and load fixtures with `readFileSync` rather than
 importing JSON, so they behave identically under type stripping and under the bundle.
 
-## Current state (2026-08-09)
+## Current state (2026-08-10)
 
 Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered
-against criteria 1–12**, all twelve verified — nine live against real Scryfall. **Criterion 13 was
-added 2026-08-04, after delivery, and is not implemented**, so Track A being complete does not mean
-the block is fully satisfied; the slice that implements `OQ-02`'s trim and page cap owns it.
+against criteria 1–14**. Criteria 1–12 were verified 2026-08-03, nine live against real Scryfall;
+criterion 13 was added 2026-08-04 and stayed unimplemented until Slice 14 landed both of `OQ-02`'s
+levers on 2026-08-10, adding a criterion 14 for the page cap — see the Slice 14 note below.
 
 Track B has started. Slice 7 (install verification) landed 2026-08-04 as PRs #13 and #14: the
 plugin **has** now been installed from a marketplace on a cold profile, and six of `PC-02`'s ten
@@ -285,11 +285,11 @@ one regardless. De-hardcoding the name was correct and was not the fix. Whether 
 loads-*and*-fires criterion is open and undecided. No `PC-01` criterion changed status; the
 frontmatter is byte-identical, so Slice 9's numbers stand.
 
-**Issue #25 is open and unfixed:** a `card_search` payload exceeds the harness tool-result ceiling
-below one page — 111 cards, 116,626 characters, `legalities` 54.5% of the bytes and `oracle_text`
-25.1%. That is the first payload measurement `OQ-02` has ever had and it confirms the
-untrimmed-`legalities` inference. `OQ-02` was answered in full on 2026-08-07 (below), but
-**nothing has been trimmed, there is no cap and no verbose mode**, so the defect is unchanged.
+**Issue #25 — a `card_search` payload exceeding the harness tool-result ceiling below one page, at
+111 cards and 116,626 characters with `legalities` 54.5% of the bytes and `oracle_text` 25.1% — is
+fixed as of 2026-08-10 (Slice 14, below).** That measurement was the first `OQ-02` ever had and it
+confirmed the untrimmed-`legalities` inference. There is still **no verbose mode and no
+`oracle_text` trim**; what shipped is the trim and the cap, and nothing more.
 
 **Moxfield joined Archidekt as a deck platform, 2026-08-07 — docs only, nothing built.** `D-13`
 orders them: Archidekt first because the author uses it, Moxfield second, neither blocking the
@@ -313,7 +313,8 @@ is decided and unwritten. `OQ-02` is answered in full and carries **two** levers
 `legalities: "queried" | "default" | "all"` enum defaulting to `"queried"`, whose default set is the
 seven paper constructed formats (standard, pioneer, modern, legacy, vintage, commander, pauper),
 **plus** a server-enforced page cap near 120 cards reported through the existing `has_more`/`note`
-fields so it is never a silent truncation. The cap exists because a full 175-card page was finally
+fields so it is never a silent truncation. **That cap shipped at 88, not 120 — see the Slice 14
+note below.** The cap exists because a full 175-card page was finally
 measured — 169,504 characters, and the best available trim still reaches 88,953 against the 116,626
 that already failed, so the trim alone is refuted rather than confirmed. `OQ-09` is **no EUR
 fallback**: USD-only stands, `D-06` is untouched, and a new `no-usd-price` reason carries the EUR
@@ -455,9 +456,45 @@ as a new tag and `v0.1.0` is never moved or deleted; and **`upload-artifact@v5` 
 — `@v6` is the first major on `node24`, so bumping a major is not evidence the runtime moved with
 it.
 
+**Slice 14 (the result trim and page cap) landed 2026-08-10 as commit `031a501` on
+`feat/slice14-trim-and-page-cap` — no PR number yet.** It implements both of `OQ-02`'s levers in
+`src/tools/card-search.ts` and `src/tools/register.ts`, **closes `OQ-02`** (a dated §7 answer and
+one §9 row in `MCP-PRD.md`), and **fixes issue #25**: the same query measures 53,043 characters
+against 116,626, 88 cards with `has_more: true`, page 2 returning the remaining 23, all 111
+reachable. `CAP-01` criterion 13 is verified and a criterion 14 was added and verified, so the block
+is **delivered against criteria 1–14**. Tests 73 → 101, suites 21 → 27; `npm run acceptance` 13/13
+live, no 429. Evidence: `docs/slices/TrackA-Slice14-results.md`. The trim is a
+`legalities: "queried" | "default" | "all"` parameter defaulting to `"queried"`, chosen by a **scan**
+of `q` that never parses or rewrites it (`D-07` intact) and degrades to the seven paper formats on
+any miss, so **the map is never empty**. Two new required top-level fields, `legalities_mode` and
+`legalities_included`, report the scope, because an absent key must never read as "not legal"
+(§3.6) — and **`legalities_mode` names the scope *applied*, not the one requested**: a `"queried"`
+call whose scan found no format reports `"default"`.
+
+Five traps from that slice bind future work. **The cap is 88 because of reachability, not bytes.**
+Scryfall's `page` is in units of 175 with no offset, so the ~120 the decision estimated would strand
+cards 121–175 behind no `page` value at all — a silent loss worse than the payload problem; 88 is
+half an upstream page, so every card is reachable at one upstream request per call. **Two
+arithmetic traps follow, both tested:** the page count anchors to *upstream* pages, so 176 cards is
+**3** pages and not `ceil(176/88)`; and the card range in the note is not `(page-1)*88+1`, which
+drifts one card per upstream page and is already wrong on page 3. **`format:` and `legal:` are real
+format operators**, synonyms for `f:`, so the scan matches five — `f:`, `format:`, `legal:`,
+`banned:`, `restricted:` — not the three the skill's `reference/operators.md` had. **`f:edh` is
+accepted by Scryfall but `edh` is not a legality key**, so a scanner treating a scanned token as a
+key emits an empty legalities map from a perfectly good query — a normal-looking 200 carrying a
+wrong answer, which is why the fallback exists. And **a page past the end is HTTP 422, not 404**:
+it misses the 404-as-empty mapping and falls through to `unexpected`, which reads as a server fault
+and discourages the retry that fixes it, so the handler re-codes it to `bad_request` naming the
+valid range — distinct from zero matches, which stays a successful empty result with
+`total_cards: 0`. **No tag and no `.mcpb` release**, deliberately: `v0.1.0` is spent and a released
+bundle cannot be withdrawn, so anyone on that bundle carries the old payload until a new one is cut
+and reinstalled. Two `SKILL.md` lines changed 175 to 88; the frontmatter is byte-identical, so
+Slice 9's 10/10 trigger accuracy stands and **no `PC-01`, `PC-02` or `PC-03` criterion changed
+status.** `PQ-06` did not move in either half.
+
 Slice 12 is now the **only unblocked slice** and next on the critical path: it waited on 6, 9 and
-10, and all three have landed. 13's remaining `P-08` half waits on 12 alone.
-`docs/DEV-ROADMAP.md` §5 has the graph.
+10, and on 14 once that was scoped, and all four have landed. 13's remaining `P-08` half waits on
+12 alone. `docs/DEV-ROADMAP.md` §5 has the graph.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
