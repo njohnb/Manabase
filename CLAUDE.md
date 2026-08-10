@@ -486,11 +486,22 @@ wrong answer, which is why the fallback exists. And **a page past the end is HTT
 it misses the 404-as-empty mapping and falls through to `unexpected`, which reads as a server fault
 and discourages the retry that fixes it, so the handler re-codes it to `bad_request` naming the
 valid range — distinct from zero matches, which stays a successful empty result with
-`total_cards: 0`. **No tag and no `.mcpb` release**, deliberately: `v0.1.0` is spent and a released
-bundle cannot be withdrawn, so anyone on that bundle carries the old payload until a new one is cut
-and reinstalled. Two `SKILL.md` lines changed 175 to 88; the frontmatter is byte-identical, so
+`total_cards: 0`. Two `SKILL.md` lines changed 175 to 88; the frontmatter is byte-identical, so
 Slice 9's 10/10 trigger accuracy stands and **no `PC-01`, `PC-02` or `PC-03` criterion changed
 status.** `PQ-06` did not move in either half.
+
+**The fix shipped as `v0.1.1` the same day, as a separate deliberate act after PR #41 merged.**
+Tag `v0.1.1` on the merge commit ran `release.yml` and published `manabase.mcpb` (113,631 bytes);
+the released `server/index.js` sha256-matches the committed `dist/index.js`. `v0.1.0` is **spent
+and was not moved** — a released bundle cannot be withdrawn, so a defect ships as a new tag, which
+is exactly what this was. The tag versions the **bundle**, not the plugin (`PQ-09`): `plugin.json`
+still carries no `version`, `P-08` is untouched, and `PC-02` criterion 9 stays open. **No `PC-03`
+criterion changed status** — criterion 8 is still the only unverified one, because nobody has
+installed `v0.1.1` on Desktop yet. Two traps confirmed in the doing: **`0.1.01` is not semver** and
+`scripts/pack-mcpb.mjs`'s guard uses `\d+`, so it would have stamped a malformed version into a
+bundle that cannot be recalled — check a version string against real semver, not that regex; and
+**a bundle never self-updates**, so shipping a fix does not deliver it, and every `v0.1.0` install
+still carries the issue-#25 payload until someone reinstalls.
 
 Slice 12 is now the **only unblocked slice** and next on the critical path: it waited on 6, 9 and
 10, and on 14 once that was scoped, and all four have landed. 13's remaining `P-08` half waits on

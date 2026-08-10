@@ -258,8 +258,8 @@ Evidence: [`docs/slices/TrackC-Slice13-results.md`](./slices/TrackC-Slice13-resu
 | CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` **ran for the first time 2026-08-10** on tag `v0.1.0` (run `31421682409`), after its `actions/checkout`, `setup-node` and `upload-artifact` pins were bumped to `@v7` — `upload-artifact@v6` is the first major on `node24`, so `@v5` still carried the Node-20 deprecation annotation that prompted the bump |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
-| MCPB bundle | **Released 2026-08-10 as `v0.1.0`** — `manabase.mcpb`, 111,760 bytes, downloadable from a GitHub Release. `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented), refuses a `dist/` older than `src/`, and since 2026-08-10 unpacks the archive it just wrote to assert its `server/index.js` is the committed `dist/index.js` ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7). The Chat-tab install is now a download rather than a local build; a bundle still has **no update path** once installed. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) stays `in progress` — **criteria 1–7 and 9–11 verified, criterion 8 the only one left** — and was **reassigned 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md)**, which executed this half on 2026-08-10 without closing the slice: [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is untouched and `plugin.json` still carries no `version` |
-| Known open defect | **None open.** Issue #25 — a `card_search` payload exceeding the harness tool-result ceiling below one page, first measured at 111 cards and 116,626 characters with `legalities` 54.5% of the bytes — was **fixed 2026-08-10** by [Slice 14](./slices/TrackA-Slice14.md), which implemented both of [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)'s levers and closed that question: the same query now measures 53,043 characters and all 111 cards stay reachable across two pages. **One carry-over that is not a defect in this tree:** the released `v0.1.0` MCPB bundle predates the fix and an installed bundle never updates itself, so a Chat-tab user carries the old payload until a newer bundle is released and reinstalled |
+| MCPB bundle | **Released 2026-08-10 as `v0.1.0`, then `v0.1.1`** — `manabase.mcpb`, 111,760 then 113,631 bytes, downloadable from a GitHub Release. `v0.1.1` carries [Slice 14](./slices/TrackA-Slice14.md)'s issue-#25 fix; `v0.1.0` was not moved or deleted, because a released bundle cannot be withdrawn. `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented), refuses a `dist/` older than `src/`, and since 2026-08-10 unpacks the archive it just wrote to assert its `server/index.js` is the committed `dist/index.js` ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7). The Chat-tab install is now a download rather than a local build; a bundle still has **no update path** once installed. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) stays `in progress` — **criteria 1–7 and 9–11 verified, criterion 8 the only one left** — and was **reassigned 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md)**, which executed this half on 2026-08-10 without closing the slice: [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is untouched and `plugin.json` still carries no `version` |
+| Known open defect | **None open.** Issue #25 — a `card_search` payload exceeding the harness tool-result ceiling below one page, first measured at 111 cards and 116,626 characters with `legalities` 54.5% of the bytes — was **fixed 2026-08-10** by [Slice 14](./slices/TrackA-Slice14.md), which implemented both of [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)'s levers and closed that question: the same query now measures 53,043 characters and all 111 cards stay reachable across two pages. **Shipped to the Chat tab the same day as `v0.1.1`.** One carry-over that is not a defect in this tree: an installed bundle never updates itself, so anyone still on `v0.1.0` carries the old payload until they reinstall from the latest release |
 
 Two properties of the existing scaffold worth preserving on purpose:
 
@@ -542,16 +542,24 @@ landed. Slice 14 implements it.
   falls back to the seven paper formats rather than trimming to nothing; and a page past the end is
   HTTP **422**, not the 404 that zero matches returns — re-coded at the handler to `bad_request`,
   since `unexpected` reads as a server fault and discourages the retry that fixes it.
-- **What it deliberately did not do.** **No tag and no `.mcpb` release** — `v0.1.0` is spent, a
-  released bundle cannot be withdrawn, and `claude plugin tag` writes into the same `v*` namespace
-  [`release.yml`](../.github/workflows/release.yml) watches, so anyone on that bundle carries the
-  old payload until a new one is cut and reinstalled. Two lines under
+- **Scope.** Two lines under
   [`skills/`](../skills) were corrected from 175 to 88 as a narrow exception agreed with the
   author; the frontmatter is byte-identical, so
   [Slice 9](./slices/TrackB-Slice9.md)'s 10/10 trigger accuracy stands and **no
   [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
   [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
   [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.**
+- **Released as `v0.1.1`, 2026-08-10 — a separate deliberate act after PR #41 merged**, not part of
+  the slice. The tag on the merge commit ran
+  [`release.yml`](../.github/workflows/release.yml) and published `manabase.mcpb` (113,631 bytes);
+  the released `server/index.js` sha256-matches the committed
+  [`dist/index.js`](../dist/index.js). `v0.1.0` was **not moved or deleted** — a released bundle
+  cannot be withdrawn, so a defect ships as a new tag. The tag versions the **bundle**, not the
+  plugin ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08));
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is untouched and
+  [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 stays open. **No
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status** —
+  criterion 8 is still the only unverified one, since nobody has installed `v0.1.1` on Desktop yet.
 
 ---
 
@@ -1056,12 +1064,14 @@ still waits on [12](./slices/TrackC-Slice12.md) alone, one slice further out tha
 path.** The remaining path is 12 → 13. The edge that scheduled
 [14](./slices/TrackA-Slice14.md) ahead of [12](./slices/TrackC-Slice12.md) has done its work: issue
 #25 is fixed, so a friend dry run no longer measures a plugin carrying a known unrecoverable failure
-on a reasonable query. Note what that does **not** change — the fix reaches the Chat tab only when a
-new [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) bundle is cut, and
-[14](./slices/TrackA-Slice14.md) deliberately shipped **no tag and no release**, so anyone on
-`v0.1.0` still has the old payload until they reinstall. That is
-[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s
-user-facing half, which this slice does not move.
+on a reasonable query. The fix reached the Chat tab the same day: PR #41 merged and `v0.1.1` was
+tagged and released as a separate deliberate act, so the
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) bundle now carries it. Note what that
+does **not** change — **a bundle never self-updates**, so anyone still on `v0.1.0` has the old
+payload until they reinstall. That is
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s user-facing half, which
+shipping a fix **sharpens rather than eases**: there is now a released bundle that is known stale,
+and nothing tells its users so.
 
 **The [Slice 8](./slices/TrackB-Slice8.md) frontmatter fix (`ed82ceb`) was a prerequisite in
 fact for both of the slices that measure the skill.** [Slice 9](./slices/TrackB-Slice9.md)
