@@ -459,6 +459,10 @@ Slice 12 is now the **only unblocked slice** and next on the critical path: it w
 10, and all three have landed. 13's remaining `P-08` half waits on 12 alone.
 `docs/DEV-ROADMAP.md` §5 has the graph.
 
+Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
+by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
+arising *inside* triaged work are the other lane — `OPEN-QUESTIONS.md` and §7.
+
 ## Price handling — the three traps
 
 `resolvePrice` exists because reading `usd` alone is wrong:

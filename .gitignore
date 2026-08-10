@@ -9,6 +9,13 @@ Thumbs.db
 # everything tracked here is copied into every user's plugin cache on install.
 .claude/settings.local.json
 
+# Slash commands ARE tracked, and this line is what makes that true on the author's machine.
+# A global core.excludesFile there ignores `.claude/commands/` outright, which would silently
+# drop every command from the repo — present locally, absent in every clone, with no error.
+# A repo .gitignore outranks the global one, and the negation must name the directory because
+# a file cannot be re-included while its parent directory is excluded.
+!.claude/commands/
+
 # MCPB staging and the packed bundle. build/ is a throwaway staging tree; the .mcpb is a
 # release artifact that GitHub Actions produces and attaches to a Release, never a tracked file.
 build/
