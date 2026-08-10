@@ -400,7 +400,8 @@ rebuild, same branch and same workflow (PR #33, closed unmerged), which is what 
 work. `PQ-06`'s commit half is answered; **never say `PQ-06` is closed flatly** — its user-facing
 half stays open, a released `.mcpb` carries its `dist/` until reinstall, and the release gate has
 still never run against a tag. **No `PC-01`, `PC-02` or `PC-03` criterion changed status**, and
-`PC-03` keeps its Slice 11 assignment. Scope was narrowed with the author and four items are
+`PC-03` was reassigned from Slice 11 to Slice 13 later the same day (`86769ca`), moving no
+criterion. Scope was narrowed with the author and four items are
 **deferred, not dropped**: the doc-link checker (`scripts/check-doc-links.mjs`, `npm run
 lint:docs`) was unscheduled and **landed 2026-08-10 as PR #36** — see below; packed-bundle
 byte-identity and the first `v*` release go to Slice 13, and the README Chat-tab download line to

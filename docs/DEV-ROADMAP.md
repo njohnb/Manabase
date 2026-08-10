@@ -183,8 +183,11 @@ answered; its user-facing half stays open** and CI cannot close it. **No
 [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
 [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
 [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) acceptance criterion changed status**,
-and [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) keeps its
-[Slice 11](./slices/TrackC-Slice11.md) assignment. The slice's scope was narrowed with the author
+and [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) was **reassigned from
+[Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md) later the same
+day** (`86769ca`), which moved no criterion — the MCPB row in the table below carries it. An
+earlier form of this sentence said the assignment was kept; that was written before the
+reassignment and is corrected here 2026-08-10. The slice's scope was narrowed with the author
 and four items deferred rather than dropped — see its entry in [§4](#4-phase-1-slices). Evidence:
 [`docs/slices/TrackC-Slice11-results.md`](./slices/TrackC-Slice11-results.md).
 

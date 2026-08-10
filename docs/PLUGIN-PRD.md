@@ -1339,7 +1339,7 @@ those either. The two documents' first phases line up deliberately.
 the author iterates. Setting explicit semver is the act of declaring the plugin public, and it
 happens when Phase 1 is stable enough for the 5–20 to install it.
 
-**[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) is assigned to Slice 11, and it is still not a Phase 1 dependency.** Added 2026-08-04
+**[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) is assigned to [Slice 13](./slices/TrackC-Slice13.md) — reassigned there 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md), matching its block's `Phase:` field — and it is still not a Phase 1 dependency.** Added 2026-08-04
 with [P-14](#p-14--two-distribution-targets-one-source). It serves a surface, not a capability, so it changes
 who can install rather than what the plugin does. Phase 1 remains [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server): that pair
 is still the smallest thing that is both shippable and useful, and adding a second install
