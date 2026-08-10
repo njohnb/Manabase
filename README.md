@@ -69,8 +69,9 @@ unavailable. Serving that surface properly needs a second artifact, an MCPB bund
   to check if the tools do not appear
   ([`docs/PLUGIN-PRD.md` §3.4](./docs/PLUGIN-PRD.md#34-cross-platform-reach)).
 - **The MCPB bundle needs nothing.** Claude Desktop ships its own Node on macOS and Windows, so a
-  Chat-tab install has no runtime prerequisite at all. Building the bundle yourself does need
-  Node, but only until there is a release to download.
+  Chat-tab install has no runtime prerequisite at all — download the bundle and install it.
+  Building it yourself does need Node, and since `v0.1.0` that is an unsupported route rather than
+  the only one.
 
 ## Install
 

@@ -250,9 +250,9 @@ distribution targets from one source, amending `P-01`) and `PC-03` (the bundle).
 progress`, criteria 1–6, 9 and 11 verified. Committed: `mcpb/manifest.json`,
 `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`), and `.github/workflows/release.yml` — the repo's
 first `.github/` — which on a `v*` tag typechecks, tests, rebuilds `dist/` and fails on a diff,
-packs, and attaches `manabase.mcpb` to a Release. **No version is tagged, so that workflow has
-never run and there is nothing to download**; the README's Chat-tab path is still
-build-it-yourself. Do not describe a release that does not exist.
+packs, and attaches `manabase.mcpb` to a Release. At the time no version was tagged, so that
+workflow had never run, there was nothing to download, and the README's Chat-tab path was
+build-it-yourself. **All three inverted on 2026-08-10 — see the Slice 13 note below.**
 
 Four things about that surface bind every session. **The MCPB manifest format has no `skills`
 field** — verified against the published spec — so the Chat tab needs *two* installs permanently,
@@ -398,18 +398,21 @@ absent-`dist/` is exactly the failure `P-09` fears; `release.yml`'s gate was upg
 form. The check was observed **failing** on a deliberately stale `dist/` and then green on the
 rebuild, same branch and same workflow (PR #33, closed unmerged), which is what makes it known to
 work. `PQ-06`'s commit half is answered; **never say `PQ-06` is closed flatly** — its user-facing
-half stays open, a released `.mcpb` carries its `dist/` until reinstall, and the release gate has
-still never run against a tag. **No `PC-01`, `PC-02` or `PC-03` criterion changed status**, and
+half stays open and a released `.mcpb` carries its `dist/` until reinstall. (The release gate had
+still never run against a tag when that was written; it ran 2026-08-10 and was clean, which moves
+neither half of `PQ-06`.) **No `PC-01`, `PC-02` or `PC-03` criterion changed status**, and
 `PC-03` was reassigned from Slice 11 to Slice 13 later the same day (`86769ca`), moving no
-criterion. Scope was narrowed with the author and four items are
-**deferred, not dropped**: the doc-link checker (`scripts/check-doc-links.mjs`, `npm run
-lint:docs`) was unscheduled and **landed 2026-08-10 as PR #36** — see below; packed-bundle
-byte-identity and the first `v*` release go to Slice 13, and the README Chat-tab download line to
-Slice 12. Two traps follow. **A `src/` edit meant to
+criterion. Scope was narrowed with the author and four items were
+**deferred, not dropped** — **all four landed 2026-08-10**: the doc-link checker
+(`scripts/check-doc-links.mjs`, `npm run lint:docs`) was unscheduled and landed as PR #36 — see
+below; packed-bundle byte-identity and the first `v*` release landed as Slice 13's `PC-03` half;
+and the README Chat-tab download line, deferred to Slice 12 and re-deferred to Slice 13 for want of
+a release, landed in `710f569` once there was one. **That closes no slice** — 12's friend dry-run,
+its acceptance gate, is still outstanding, and 13 is partially executed. One trap follows. **A `src/` edit meant to
 demonstrate the gate must be in a module no test covers** — `src/index.ts` works; `src/config.ts`
-trips `tests/config.test.ts`, so `npm test` fails first and the gate step never runs. And
-**`.github/` now holds two workflows**: `release.yml` is still pinned to `actions/checkout@v4` /
-`setup-node@v4` where `ci.yml` uses `@v7`, it has never run, and Slice 13 should bump it.
+trips `tests/config.test.ts`, so `npm test` fails first and the gate step never runs.
+**`.github/` holds two workflows**, and `release.yml`'s `@v4` pins were bumped to `@v7` before its
+first run, which retires the item this paragraph used to leave for Slice 13.
 
 **Unscheduled work landed 2026-08-10 — the doc-link checker, PR #36 (`e6b2279`).** It is Slice
 11's deferred item and **is not a slice**; the branch it landed on,
@@ -427,8 +430,34 @@ halves, Slice 11 stays closed and Slice 12 is unmoved. One trap, learned in its 
 but not the arrow in `Criterion 12 — structured failure → revised retry` and raised a false alarm
 on a working link; a checker whose failures cannot be trusted gets deleted.
 
+**Slice 13 was partially executed 2026-08-10 — its `PC-03` half only, and the slice is not
+closed.** PR #37 (`2c7196c`) added the criterion 7 assertion to `scripts/pack-mcpb.mjs` and bumped
+`release.yml`'s action pins to `@v7`; tag `v0.1.0` on that commit ran the release workflow for the
+first time it has ever executed and published `manabase.mcpb` (111,760 bytes), which was installed
+on Claude Desktop from the released artifact and observed calling the tool. Evidence:
+`docs/slices/TrackC-Slice13-results.md`. `PC-03` criteria **7 and 10 are verified**, leaving 8 as
+its only unverified one; 3 and 4 were re-confirmed against the released artifact rather than the
+hand-packed one and keep their 2026-08-04 dates. **Criterion 7 lives in the pack script, not a
+workflow step** — it unpacks the archive it just wrote and sha256-compares `server/index.js`
+against the committed `dist/index.js`, never the staging tree, which is a `cpSync` of `dist/` and
+would be a tautology that passes forever; a mismatch exits 1 and deletes the bundle. **Do not read
+any of this as Slice 13 done or Phase 1 closed.** The `P-08` switchover did not happen and stays
+gated on Slice 12's friend dry-run: `plugin.json` still carries no `version`, `package.json` is
+still `0.0.0`, `claude plugin validate . --strict` still fails on that one warning so `PC-02`
+criterion 9 stays open, and `PQ-05` has no disposition. The tag versions the **bundle** (`PQ-09`).
+**`PQ-06` did not move in either half** — its commit half was already Slice 11's, and shipping a
+bundle real people install sharpens the user-facing half rather than easing it. No `CAP-01`,
+`PC-01` or `PC-02` criterion changed status. Three things to carry: **`v0.1.0` is spent, and
+`claude plugin tag` writes into the same `v*` namespace `release.yml` watches**, so the remaining
+half can accidentally cut a second bundle release — `--dry-run` its tag format first and pick a
+version string that has not been used; **a released bundle cannot be withdrawn**, so a defect ships
+as a new tag and `v0.1.0` is never moved or deleted; and **`upload-artifact@v5` is still `node20`**
+— `@v6` is the first major on `node24`, so bumping a major is not evidence the runtime moved with
+it.
+
 Slice 12 is now the **only unblocked slice** and next on the critical path: it waited on 6, 9 and
-10, and all three have landed. 13 waits on 12 alone. `docs/DEV-ROADMAP.md` §5 has the graph.
+10, and all three have landed. 13's remaining `P-08` half waits on 12 alone.
+`docs/DEV-ROADMAP.md` §5 has the graph.
 
 ## Price handling — the three traps
 
