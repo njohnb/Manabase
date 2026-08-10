@@ -41,14 +41,14 @@ itself — [`docs/MCP-PRD.md` OQ-02](./docs/MCP-PRD.md#oq-02--how-verbose-should
 
 ## Where it runs
 
-Manabase is a Claude Code plugin, and a plugin does not reach every surface the same way. Verified
-2026-08-04:
+Manabase is a Claude Code plugin, and a plugin does not reach every surface the same way. Surface
+behavior verified 2026-08-04; the Chat-tab bundle became a download on 2026-08-10:
 
 | Surface | Works today | What you get |
 |---|---|---|
 | **Claude Code in a terminal** | **Yes** — install below | Tools and skill. The supported configuration |
 | **Claude Desktop — Code tab** | **Yes** — same install, unmodified | The Code tab *is* Claude Code. No second artifact, no extra step |
-| **Claude Desktop — Chat tab** | **Experimental** — plugin **and** a bundle you build yourself | Installing the plugin alone delivers the **skill only**; the MCP server does **not** start there. Adding the bundle below gets you the tools |
+| **Claude Desktop — Chat tab** | **Experimental** — plugin **and** a bundle you download | Installing the plugin alone delivers the **skill only**; the MCP server does **not** start there. Adding the bundle below gets you the tools |
 | **Claude on the web** | **No, and not planned** | Serving it would need a hosted server. Deliberately out of scope — [`docs/PLUGIN-PRD.md` §8](./docs/PLUGIN-PRD.md#8-out-of-scope) |
 
 On the Chat tab the skill is present and its tool is not, which used to make Manabase *worse* than
@@ -102,9 +102,21 @@ format has no way to carry a skill, so the bundle ships the server and the plugi
 Install the plugin with the two commands under [Install](#install) — that gets you the skill — then
 add the bundle below for the tools.
 
-**There is no release to download yet.** The build pipeline exists
-([`.github/workflows/release.yml`](./.github/workflows/release.yml)) but no version has been tagged,
-so for now you build the bundle from a checkout — these are shell commands, unlike the two above:
+**Download `manabase.mcpb` from the latest release:**
+[github.com/njohnb/Manabase/releases/latest](https://github.com/njohnb/Manabase/releases/latest).
+It is built by GitHub Actions from a clean checkout
+([`.github/workflows/release.yml`](./.github/workflows/release.yml)) — never hand-packed — and the
+build fails if the bundled server is not the `dist/index.js` this repo has committed.
+
+You do not need Node for this. Claude Desktop ships its own, so the bundle has no runtime
+prerequisite at all — unlike the plugin, which needs Node on your `PATH`.
+
+<details>
+<summary>Building the bundle yourself instead</summary>
+
+Not required, and not the supported route — the release above is what
+[PC-03](./docs/PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) documents. If you want to run
+an unreleased commit, these are shell commands, unlike the two under [Install](#install):
 
 ```
 git clone https://github.com/njohnb/Manabase && cd Manabase
@@ -115,7 +127,9 @@ npm run pack:mcpb
 That writes `build/manabase.mcpb`. It refuses to pack a `dist/` older than `src/`, and with no tag
 it stamps the version `0.0.0-dev+<commit>` so an ad-hoc bundle cannot be mistaken for a release.
 
-Install it through **Settings → Extensions → Advanced settings → Install Extension…**, then
+</details>
+
+Install the `.mcpb` through **Settings → Extensions → Advanced settings → Install Extension…**, then
 **restart Claude Desktop**. Anthropic's documentation also lists double-clicking the `.mcpb` and
 dragging it onto the window; **double-click is not reliable** and the Settings route is the one
 verified to work here (2026-08-04).
@@ -125,8 +139,8 @@ That name differs from the Claude Code form and is not portable
 ([P-12](./docs/PLUGIN-PRD.md#p-12--plugin-name-and-server-key)).
 
 Known rough edges, all tracked. **An installed extension has no update path** — Claude Desktop will
-not tell you a newer bundle exists and will not fetch one, so every upgrade means packing or
-downloading again and reinstalling through the same Settings route. An installed bundle never
+not tell you a newer bundle exists and will not fetch one, so every upgrade means downloading the
+new release and reinstalling through the same Settings route. An installed bundle never
 re-pulls, so a stale build is invisible
 ([PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)). And the Chat tab has no
 shell, so an oversized result cannot be recovered there the way it can in Claude Code (see the
