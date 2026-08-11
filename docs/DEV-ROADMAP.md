@@ -305,7 +305,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | 9 | [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) evals | B — plugin | ☑ |
 | 10 | Context-cost measurement | C — release | ☑ |
 | 11 | `dist/` honesty mechanism | C — release | ☑ PR #32 · scope narrowed, see the block |
-| 12 | Docs polish & friend dry-run | C — release | ☐ |
+| 12 | Docs polish & friend dry-run | C — release | ◐ **partial, 2026-08-11 — not closed.** A non-author install succeeded and produced three friction issues (#43, #44, #45) and the README fixes, but acceptance criterion 8 fails and 6 and 7 are partial: the handover message, the friend's questions, their hesitations and the `/context` output were never captured. A second cold run, with a different person, is outstanding ([`docs/slices/TrackC-Slice12-results.md`](./slices/TrackC-Slice12-results.md)) |
 | 13 | Release gate — the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover | C — release | ◐ **partially executed** — the [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) bundle release ran 2026-08-10 (PR #37, tag `v0.1.0`); the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover has not, and still waits on [12](./slices/TrackC-Slice12.md) |
 | 14 | Result trim & page cap — [OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)'s two levers | A — server | ☑ landed 2026-08-10; unblocks [12](./slices/TrackC-Slice12.md) |
 
