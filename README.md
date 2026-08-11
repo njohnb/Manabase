@@ -51,29 +51,45 @@ reinstall through Settings → Extensions to pick it up.
 ## Where it runs
 
 Manabase is a Claude Code plugin, and a plugin does not reach every surface the same way. Surface
-behavior verified 2026-08-04; the Chat-tab bundle became a download on 2026-08-10:
+behavior verified 2026-08-04; the Chat-tab bundle became a download on 2026-08-10; the Claude
+Desktop rows were corrected 2026-08-11 after someone who had not built this installed it
+([`docs/slices/TrackC-Slice12-results.md`](./docs/slices/TrackC-Slice12-results.md)):
 
 | Surface | Works today | What you get |
 |---|---|---|
-| **Claude Code in a terminal** | **Yes** — install below | Tools and skill. The supported configuration |
-| **Claude Desktop — Code tab** | **Yes** — same install, unmodified | The Code tab *is* Claude Code. No second artifact, no extra step |
-| **Claude Desktop — Chat tab** | **Experimental** — plugin **and** a bundle you download | Installing the plugin alone delivers the **skill only**; the MCP server does **not** start there. Adding the bundle below gets you the tools |
+| **Claude Code in a terminal** | **Yes** — two commands, below | Tools and skill. The supported configuration, and the only one that installs in one step |
+| **Claude Desktop — Code tab** | **Yes**, but expect **two installs** | `/plugin` does not exist here. The plugin installs through Claude Desktop's own UI and delivers the **skill only**; the bundle brings the tools |
+| **Claude Desktop — Chat tab** | **Experimental** — the same two installs | Identical to the Code tab in what it takes to get working |
 | **Claude on the web** | **No, and not planned** | Serving it would need a hosted server. Deliberately out of scope — [`docs/PLUGIN-PRD.md` §8](./docs/PLUGIN-PRD.md#8-out-of-scope) |
 
-On the Chat tab the skill is present and its tool is not, which used to make Manabase *worse* than
-no Manabase: the model quietly answered from a web search of Scryfall's pages instead of saying the
-tool was missing. The skill now refuses to substitute — it stops and tells you the tool is
-unavailable. Serving that surface properly needs a second artifact, an MCPB bundle, specified as
+**On Claude Desktop, budget for two installs on either tab.** Installing the plugin gets you the
+skill; the MCP server arrives with the bundle, and until it does the skill is present and its tool
+is not. That combination used to make Manabase *worse* than no Manabase: the model quietly answered
+from a web search of Scryfall's pages instead of saying the tool was missing. The skill now refuses
+to substitute — it stops and tells you the tool is unavailable. The second artifact is the MCPB
+bundle, specified as
 [`docs/PLUGIN-PRD.md` PC-03](./docs/PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) under
-[P-14](./docs/PLUGIN-PRD.md#p-14--two-distribution-targets-one-source). A Chat-tab user needs
-**both** the plugin and the bundle; either alone is a degraded state.
+[P-14](./docs/PLUGIN-PRD.md#p-14--two-distribution-targets-one-source). Either artifact alone is a
+degraded state.
+
+One narrower path is **not** what the row above describes and has not been re-checked since
+2026-08-04: installing from a *terminal* with `/plugin`, then opening the Desktop Code tab, which
+shares the same plugin directory. That was recorded as working with no second artifact. The
+2026-08-11 run installed through Desktop's UI instead and needed the bundle, so treat the terminal
+route as the one with evidence behind it and the Desktop UI route as the one that costs you two
+installs.
 
 ## Requirements
 
+- **Git, installed before Claude Code** — `git --version`. Manabase never calls it, but installing
+  Claude Code itself required it on a fresh machine, so it stops you upstream of everything else on
+  this page (observed 2026-08-11,
+  [`docs/slices/TrackC-Slice12-results.md`](./docs/slices/TrackC-Slice12-results.md)). Get it out of
+  the way first.
 - **Claude Code 2.1.207 or later** — `claude --version` in a terminal. This is a hard floor, not a
   recommendation: below it the plugin is unsupported rather than degraded
   ([`docs/PLUGIN-PRD.md` P-10](./docs/PLUGIN-PRD.md#p-10--minimum-supported-claude-code-version)).
-- **Node on `PATH`** — `node --version`. That is the only runtime prerequisite, and it applies to
+- **Node on `PATH`** — `node --version`. That is the only *runtime* prerequisite, and it applies to
   the **plugin**: no build toolchain, no `npm install`, no Python, no shell. It is the first thing
   to check if the tools do not appear
   ([`docs/PLUGIN-PRD.md` §3.4](./docs/PLUGIN-PRD.md#34-cross-platform-reach)).
@@ -84,6 +100,11 @@ unavailable. Serving that surface properly needs a second artifact, an MCPB bund
 
 ## Install
 
+**Which instructions you follow depends on where you are running Claude Code**, and the two paths
+are not variations on each other — one is two commands, the other is two installs.
+
+### Claude Code in a terminal
+
 Two commands, both typed **at the Claude Code prompt** — not in a shell:
 
 ```
@@ -91,11 +112,27 @@ Two commands, both typed **at the Claude Code prompt** — not in a shell:
 /plugin install manabase@manabase
 ```
 
-No config file to edit, no credential prompt, no restart.
+No config file to edit, no credential prompt, no restart. The server comes with the plugin here,
+and this is the only surface where it does.
 
-> **Add the marketplace as `owner/repo`, not as a URL to `marketplace.json`.** Adding it by
-> direct URL downloads only that one file, and the plugin's relative source path will not
-> resolve. This is a partial, confusing failure rather than a clean one.
+### Claude Desktop — either tab
+
+**`/plugin` does not exist in Claude Code on Claude Desktop.** Those two commands belong to the
+terminal CLI; on Desktop there is nothing to type them into, and this is where a first install
+stalls (observed 2026-08-11). Claude Desktop has its own UI, and it takes **two** installs:
+
+1. **The plugin — this gets you the skill.** Customize → Plugins → Add → Add Marketplace → Add from
+   a Repository, paste `https://github.com/njohnb/Manabase`, then Sync. Install Manabase from the
+   marketplace that appears.
+2. **The bundle — this gets you the tools.** Follow
+   [The bundle](#the-bundle--claude-desktop-either-tab) below. Step 1 does **not** start the MCP
+   server on Desktop, so without this step the skill is installed and its tool is missing, which is
+   the one state this README most wants you out of.
+
+> **Never add the marketplace by linking to the `marketplace.json` file inside the repo.** In a
+> terminal use the `owner/repo` form above; in Claude Desktop paste the repository's own address, as
+> step 1 says. A link to the marketplace *file* downloads only that one file and the plugin's
+> relative source path will not resolve — a partial, confusing failure rather than a clean one.
 > ([`docs/PLUGIN-PRD.md` P-11](./docs/PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace).)
 
 ### Check that it worked
@@ -105,12 +142,18 @@ Run `/mcp`. You want `manabase` listed and **connected**. Then ask for cards in 
 the answer. No tool call, or no `manabase` in `/mcp`, means something is wrong; start at
 [If something is wrong](#if-something-is-wrong), which is written for exactly that.
 
-## Chat tab — experimental (Claude Desktop)
+**On Claude Desktop, skip to the question.** `/mcp`, `/plugin` and `claude --debug` are the terminal
+CLI's; `/plugin` is known to be absent on Desktop and the others are unconfirmed there, so ask for
+cards and watch for the tool call instead. Desktop's Plugins and Extensions panes are where the
+installed state is visible.
 
-**The Chat tab needs two installs, and neither one alone is the product.** The MCPB manifest
+## The bundle — Claude Desktop, either tab
+
+**Claude Desktop needs two installs, and neither one alone is the product.** The MCPB manifest
 format has no way to carry a skill, so the bundle ships the server and the plugin ships the skill.
-Install the plugin with the two commands under [Install](#install) — that gets you the skill — then
-add the bundle below for the tools.
+Do step 1 under [Claude Desktop — either tab](#claude-desktop--either-tab) first for the skill, then
+add the bundle here for the tools. This was the Chat tab's story from 2026-08-04; on 2026-08-11 a
+first-time installer found the Code tab needed the bundle as well.
 
 **Download `manabase.mcpb` from the latest release:**
 [github.com/njohnb/Manabase/releases/latest](https://github.com/njohnb/Manabase/releases/latest).
@@ -144,7 +187,8 @@ Install the `.mcpb` through **Settings → Extensions → Advanced settings → 
 dragging it onto the window; **double-click is not reliable** and the Settings route is the one
 verified to work here (2026-08-04).
 
-Verify by asking Claude in the Chat tab to list its available tools; you want `Manabase:card_search`.
+Verify by asking Claude to list its available tools; you want `Manabase:card_search`. That works on
+either Desktop tab — after the bundle install on 2026-08-11 the tools answered in both.
 That name differs from the Claude Code form and is not portable
 ([P-12](./docs/PLUGIN-PRD.md#p-12--plugin-name-and-server-key)).
 
@@ -252,6 +296,24 @@ Each entry gives the symptom you actually see, the check that tells it apart fro
 what to do next. The first two entries look identical from the outside — no tool calls, no error —
 and only the checks separate them.
 
+**The checks below are written for a terminal.** `/mcp`, `/plugin` and `claude --debug` are the
+terminal CLI's commands. On Claude Desktop `/plugin` is known to be absent (2026-08-11) and the
+other two are unconfirmed there, so start with the Desktop entry immediately below and use the app's
+Plugins and Extensions panes rather than a slash command.
+
+### You are on Claude Desktop and no card search ever runs
+
+**Symptom.** The plugin installed cleanly, Claude will talk about Magic, and no `card_search` tool
+call ever appears. Nothing errors.
+
+**Check Settings → Extensions for a Manabase entry.** Claude Desktop takes two installs and the
+plugin is only the first of them: it delivers the skill, and the MCP server arrives with the bundle.
+The plugin install succeeding tells you nothing about whether the server is there.
+
+**What to do.** If there is no Manabase extension listed, install `manabase.mcpb` —
+[The bundle](#the-bundle--claude-desktop-either-tab). This was the first thing a non-author install
+ran into on 2026-08-11, on both Desktop tabs, and it is more likely than everything below it.
+
 ### Claude never looks anything up
 
 **Symptom.** You ask a Magic question and Claude answers from memory, or says it cannot look
@@ -325,14 +387,15 @@ exactly like "the update did nothing"
 ### Claude says the Magic tool is unavailable
 
 That is the skill working as designed, not a bug — it will not quietly fill the gap with a web
-search. Check which surface you are on: on the Claude Desktop **Chat tab** the plugin delivers the
-skill but no server, which is the **Experimental** row above — you need the bundle as well.
+search. Check which surface you are on: on **Claude Desktop**, either tab, the plugin delivers the
+skill but no server — you need the bundle as well. See
+[The bundle](#the-bundle--claude-desktop-either-tab).
 
 ### A search errors out on size
 
 **Fixed 2026-08-10** (issue #25). A page now carries at most 88 cards and only the legalities the
 query asked about, so a result should no longer breach the harness's tool-result ceiling; if one
-still does, add constraints to the query rather than paging. On the Claude Desktop **Chat tab** the
+still does, add constraints to the query rather than paging. On **Claude Desktop** the
 fix arrived in the `v0.1.1` bundle, and a bundle does not update itself — if you installed `v0.1.0`,
 reinstall from the latest release first. See the note at the top of this file.
 
