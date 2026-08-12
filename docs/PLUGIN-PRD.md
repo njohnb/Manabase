@@ -9,6 +9,16 @@
 **Document status:** foundation established 2026-07-29. Two components specified ([PC-01](#pc-01--scryfall-query-craft),
 [PC-02](#pc-02--bundled-mcp-server)). Two components queued and unassigned. The roadmap past Phase 1 is deliberately open.
 
+**Component status 2026-08-11 — supersedes the count in the line above, which is dated and left as
+written.** **Four** components are specified: [PC-01](#pc-01--scryfall-query-craft) and
+[PC-02](#pc-02--bundled-mcp-server), plus [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) (2026-08-04,
+the MCPB bundle) and [PC-04](#pc-04--card-viewer) (2026-08-11, the card viewer — `proposed` earlier
+the same day, promoted when
+[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) closed). Phase 1 is
+unchanged and is still [PC-01](#pc-01--scryfall-query-craft) plus
+[PC-02](#pc-02--bundled-mcp-server) — **`specified` is not a phase assignment**, and neither of the
+two newer components has one.
+
 **Build status 2026-08-04:** the server [PC-02](#pc-02--bundled-mcp-server) declares now exists —
 `dist/index.js` is built and committed per [P-09](#p-09--server-ships-as-committed-built-javascript),
 and `.mcp.json` points at it. **Nothing on this document's side has been verified.** The plugin
@@ -590,6 +600,41 @@ twenty-five more) and hook types are `command`, `http`, `mcp_tool`, `prompt`, an
 **[verified]** Two facts a future hook component must not rediscover: exec form versus shell
 form ([§3.4](#34-cross-platform-reach)), and that a hook targeting this plugin's own server needs the scoped names from
 [P-12](#p-12--plugin-name-and-server-key).
+
+**Addendum — what the first hook component actually needs, researched because one arrived.
+[verified 2026-08-11]** The paragraph above names the two traps and stops there, which was right
+while no component needed a hook. [PC-04](#pc-04--card-viewer) does, so the mechanics are recorded
+here rather than in its block. Verified against `code.claude.com/docs/en/hooks` and
+`/plugins-reference` on 2026-08-11.
+
+- **Declaration.** `hooks/hooks.json` at the plugin root, or inline in `plugin.json`. Shape is a
+  top-level `hooks` object keyed by event name, each holding an array of `{ matcher, hooks: [...] }`.
+- **Exec form is selected by the presence of `args`**, not by a mode flag: `{"type": "command",
+  "command": "node", "args": ["…"]}` spawns directly, while omitting `args` makes `command` a shell
+  string. A `shell` field (`"bash"` | `"powershell"`) exists and is **ignored when `args` is set**,
+  which is the property [§3.4](#34-cross-platform-reach)'s exec-form rule depends on.
+- **`${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` substitute in a hook's `command` and in
+  every element of `args`** — not only in stdio server configs as [§4.1](#41-harness-features-relied-on) above records — and both are
+  additionally exported as environment variables on the spawned process. **This is what makes
+  [P-06](#p-06--cached-data-lives-in-the-plugin-data-directory) reachable from a hook**, which was
+  not established anywhere in this document before today.
+- **`async: true`** runs a hook in the background without blocking the turn. `asyncRewake` is the
+  variant that wakes Claude on exit code 2 and surfaces the hook's stderr to the model — which a
+  component wanting zero model context cost must **not** use.
+- **Default `command`-hook timeout is 600 seconds**, lowered to 30 under `UserPromptSubmit` and 10
+  under `MessageDisplay`; `SessionEnd` hooks share a 1.5-second budget.
+- **Matchers are regular expressions** over the tool name, so an MCP tool is matched as
+  `mcp__plugin_manabase_mtg__card_search` exactly or `mcp__plugin_manabase_mtg__.*` for the server
+  ([P-12](#p-12--plugin-name-and-server-key)).
+- **`PostToolUse` input** arrives on stdin as JSON carrying `session_id`, `transcript_path`, `cwd`,
+  `permission_mode`, `hook_event_name`, `tool_name`, `tool_input`, `tool_use_id` and
+  `tool_response`. **What `tool_response` holds for an *MCP* tool — the content array or a
+  string — is not stated and is unverified**; the documented example is a `Bash` call.
+
+**One thing this addendum does not license.** [PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)
+still forbids this plugin shipping a `SessionStart` hook, and knowing the mechanics better does not
+reopen it. The event this records against is `PostToolUse`, which costs nothing in a session that
+never calls the tool — which is the entire basis of that constraint.
 
 **Agents — noted but unused.** Plugin agents support `name`, `description`, `model`, `effort`,
 `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, and `isolation`
@@ -1364,6 +1409,211 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
 
 ---
 
+### PC-04 — Card viewer
+
+- **Type:** hook
+- **Status:** specified (2026-08-11 — `proposed` earlier the same day; see the addendum under
+  **Behavior**)
+- **Phase:** unassigned, and explicitly **not** Phase 1 — see [§6](#6-roadmap)
+- **User need:** I want to see the actual card while I'm working in a session, without opening a
+  browser and navigating to Scryfall. When a search comes back with twelve cards I want to look at
+  them — the art, the frame, whether it's the card I meant — not read twelve type lines and take
+  Claude's word for it.
+- **Surface:** a `PostToolUse` hook matched on the scoped search tool
+  (`mcp__plugin_manabase_mtg__card_search`, [P-12](#p-12--plugin-name-and-server-key) — the Claude
+  Code form, which is the only surface that has hook matchers). The hook renders nothing. The user
+  reaches the result through a page served on `127.0.0.1` by a local daemon, in a tab they keep open.
+- **Behavior:**
+
+  **Addendum 2026-08-11 — the prerequisite below is answered and this block is now `specified`.**
+  [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) is closed by
+  [`docs/MCP-PRD.md` OQ-13](./MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost):
+  [CAP-01](./MCP-PRD.md#cap-01--card-search) gains `images: "none" | "normal"`, defaulting to
+  `"none"`, returning an **array** of Scryfall `normal` URIs — one per face — as its acceptance
+  criterion 15. The paragraph immediately below is left exactly as written and is true of its own
+  date; read this one for current state. **Three consequences bind the build**, and the first is a
+  new blocker of a smaller kind. The opt-in defaults to `"none"`, and a `PostToolUse` hook
+  **observes a call it did not make** — it cannot add a parameter to a request that has already
+  gone out — so something has to cause `images: "normal"` to be set when the viewer is enabled and
+  nothing currently does. That is
+  [PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled), and it is a known cost rather
+  than a discovery: it was weighed when the opt-in was chosen over an always-on field. The response
+  field is an **array**, because a
+  transform card carries no top-level `image_uris` at all
+  ([`docs/MCP-PRD.md` §4.1.4](./MCP-PRD.md#414-card-image-uris)), which is what makes this block's
+  both-faces criterion 9 cheap. And the hook **never assembles an image URL from a card `id`** —
+  that route is verified to work and deliberately not taken upstream, so reinventing it here would
+  reintroduce exactly what was rejected. **Not buildable yet for a different reason than before:**
+  criterion 15 is unimplemented and unscheduled, which is a build blocker rather than a
+  specification one.
+
+  **This block is `proposed` and not buildable as written.** The prerequisite is stated first
+  because everything below assumes it:
+  [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) — the hook needs a stable
+  per-card handle and [CAP-01](./MCP-PRD.md#cap-01--card-search) returns none. Its behavior block
+  lists fifteen fields and no identifier, and
+  [`src/scryfall/types.ts`](../src/scryfall/types.ts) models no `id`, no image field and no artist
+  field, so the gap is in the wire types as well as the spec. Per
+  [§1](#1-overview)'s third consequence that is a `CAP` in
+  [`docs/MCP-PRD.md`](./MCP-PRD.md), not something this document specifies around.
+
+  **Why an `id` is not enough, which is the part that is easy to get wrong.** Exchanging an id for
+  an image URL means a call to a card endpoint, and those are the 2/second lane in
+  [`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance). The
+  daemon is a second process outside the server's two rate-limit lanes, so a search and a push
+  overlapping puts the application over its own budget — and that section is explicit that each
+  local copy must be well-behaved on its own, because there is no central throttle to fix it later.
+  **An image URI resolves this rather than mitigating it:** those are served from `*.scryfall.io`
+  file origins, which the same section rates **unlimited**, so the daemon never touches a
+  rate-limited endpoint at all. The prerequisite is therefore an image URI per result, not an
+  identifier.
+
+  What the component does, once it has one:
+
+  - **Three pieces and a one-way path.** The hook is a short-lived Node process the harness spawns
+    after a search; it parses the tool response, ensures the daemon is up, pushes the card set, and
+    exits. The daemon is long-lived, holds the current set in memory, caches images on disk, and
+    serves the page. The path runs search → hook → daemon → page and **no arrow points back into
+    the model's context** — nothing the daemon produces returns through the hook. That is what
+    makes the cost figures below structural rather than optimistic.
+  - **Opt-in and default off** ([§3.3](#33-trust-and-sandboxing) — a background process binding a
+    socket is precisely what "nothing the user would be surprised by" is about). A hook ships
+    enabled with its plugin and the harness has no per-hook toggle, so the switch is the hook's own
+    first instruction: a `userConfig` boolean `viewer_enabled` defaulting to false, read from
+    `CLAUDE_PLUGIN_OPTION_VIEWER_ENABLED` ([§4.4](#44-user-configuration)), checked before parsing
+    and before any spawn. Rejected alternatives, so they are not re-proposed: a marker file the
+    user creates by hand ([P-05](#p-05--credentials-collected-through-userconfig)'s failure mode
+    wearing a hat), a skill that starts the daemon (always-on description tokens in every session
+    in every project, spent to hold a switch — which would destroy this component's only strong
+    argument), and inferring consent from the page being open (circular; the daemon must already
+    run for the page to exist). **The cost is
+    [PQ-12](#pq-12--does-a-userconfig-boolean-with-a-default-prompt-at-enable-time) and is not
+    waved through.**
+  - **Exec form, and no shell anywhere.** Declared in `hooks/hooks.json` as `{"type": "command",
+    "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/viewer/hook.js"], "async": true}`. This is
+    the problem [§6](#6-roadmap) says the first hook component owns rather than inherits, and
+    [§4.1](#41-harness-features-relied-on)'s 2026-08-11 addendum is where it is solved: `args`
+    present selects exec form, `${CLAUDE_PLUGIN_ROOT}` substitutes inside `args`, and `async`
+    keeps the turn unblocked. **The second launch is the one a session will get wrong** — the hook
+    spawns the daemon with `process.execPath`, never the string `"node"`, because the hook is
+    already running under a Node the harness located and re-resolving `node` through `PATH` with no
+    shell is where Windows fails. `detached`, `stdio: "ignore"`, `windowsHide`, then unreferenced.
+  - **One daemon, enforced by the port bind itself.** The hook always attempts a spawn; a second
+    daemon takes `EADDRINUSE` and exits cleanly. No lockfile — a lockfile is a thing that survives a
+    crash and a bound port is not. It binds `127.0.0.1` explicitly and never `0.0.0.0`, on a fixed
+    port so the URL is a constant the README can print, and it shuts down after an idle period with
+    no page connected. It carries no authentication and needs none: the only thing it holds is
+    public card data on the user's own machine, which is worth saying plainly rather than inventing
+    a token that protects Scryfall images from their viewer.
+  - **Full card face, artist identifiable, nothing else** —
+    [`docs/MCP-PRD.md` §3.3](./MCP-PRD.md#33-legal-and-terms-of-service) governs this component
+    directly. No `art_crop`, no filter, no watermark, no overlay, no rounding that clips the border;
+    scaling preserves aspect ratio. This is the cheap path as much as the compliant one, since an
+    unmodified card image already carries the artist name and copyright line in its own border. The
+    artist string is rendered beside the image so it stays identifiable at scales where the printed
+    line is not. **A double-faced card shows both faces** — `image_uris` sits on `card_faces` rather
+    than on the card **[inferred; [`src/scryfall/types.ts`](../src/scryfall/types.ts) already models
+    `card_faces` and no image field, so the shape is half-known]** — because a viewer that silently
+    shows one face is the wrong-card failure this component exists to prevent.
+  - **No terminal front-end in the first version.** A character-cell renderer is filtering under the
+    rule above, the artist line does not survive it, and it is the only reason this component would
+    need a prerequisite other than Node on `PATH` ([§3.4](#34-cross-platform-reach)). Recorded as a
+    possible later addition rather than as a cut feature.
+  - **Marketplace hyperlinks are consistent with
+    [`docs/MCP-PRD.md` D-06](./MCP-PRD.md#d-06--pricing-from-scryfall), and are deliberately not
+    shipped yet.** Recorded as reasoned rather than assumed, because the question is adjacent enough
+    to a locked decision to be worth settling once. That decision fixes where a price *number* comes
+    from; an outbound link is not a price source — the page displays no figure obtained from the
+    target and issues no request to it — and D-06's two prohibitions are a paid price provider and
+    scraping TCGplayer, neither of which a link is. Scryfall's data-use terms are satisfied for the
+    same reason: no implied endorsement, no gate, and additive rather than a repackaging of their
+    data. **The sharp edge is referral parameters:** those URLs carry Scryfall's own, and they are
+    passed through byte-for-byte — never rewritten, never given the author's affiliate code, which
+    would monetize fan content against
+    [`docs/MCP-PRD.md` §3.3](./MCP-PRD.md#33-legal-and-terms-of-service). Not in the first version
+    regardless, because the field is absent from
+    [CAP-01](./MCP-PRD.md#cap-01--card-search) too and shipping links would widen
+    [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) from one field to two.
+  - **What is written to disk, and what is not.** Images only, under
+    `${CLAUDE_PLUGIN_DATA}/viewer/` and nowhere else
+    ([P-06](#p-06--cached-data-lives-in-the-plugin-data-directory),
+    [PC-02](#pc-02--bundled-mcp-server) criterion 6), keyed by a hash of the URL and bounded by
+    count or bytes with least-recently-used eviction. **Nothing recording the query, the result set,
+    or a history of what was searched is persisted** — that is a privacy surface this component was
+    not asked to create, and holding the current set in memory only is what keeps it from existing.
+    Uninstalling the plugin removes the directory ([§4.5](#45-persistent-data)), so there is no
+    cleanup step to document.
+  - **Says nothing about query construction.** That is [PC-01](#pc-01--scryfall-query-craft)'s, and
+    this component ships no skill and no instruction text at all.
+- **Depends on:** a revised [CAP-01](./MCP-PRD.md#cap-01--card-search) returning an image URI per
+  result — **blocking**, and [`docs/MCP-PRD.md`](./MCP-PRD.md)'s to make.
+  [PC-02](#pc-02--bundled-mcp-server), whose scoped tool name the matcher names and whose server
+  produces the response the hook reads. Harness features: plugin `hooks/hooks.json`, `PostToolUse`,
+  exec form, `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` substitution in hook `args`, and
+  `userConfig` reaching a hook process — all in [§4.1](#41-harness-features-relied-on)'s 2026-08-11
+  addendum and [§4.4](#44-user-configuration). Runtime prerequisite: Node on `PATH`, unchanged.
+  No other PC.
+- **Context cost:**
+  - **Always-on: 0 tokens.** Basis: [§4.6](#46-context-cost-accounting) records hooks as
+    "harness-only — no model context cost", and this component ships no skill, no agent and no
+    command, so it adds nothing to the listing [§3.1](#31-context-budget) budgets. It is one of the
+    few components that cannot be argued against on budget grounds, and that should be stated rather
+    than left implicit.
+  - **On-invoke: 0 tokens.** Basis: the hook runs outside the model loop and returns nothing to
+    Claude. `async: true` and the deliberate avoidance of `asyncRewake` are what hold this — the
+    rewake variant surfaces a hook's stderr to the model as a system reminder
+    ([§4.1](#41-harness-features-relied-on)), which would convert a zero-cost component into a
+    per-fire one.
+  - **The figure to check rather than trust** is criterion 10 below: measured, not asserted.
+- **Acceptance criteria:**
+  1. With `viewer_enabled` false or unset, a card search spawns no process and leaves no port bound.
+     The default-off state is the one most likely to rot, because nobody exercises it.
+  2. With it true, the cards from a search are visible on the page without the user leaving the
+     session or running a command.
+  3. The hook is declared in exec form — `args` present — and fires on Windows, macOS and Linux with
+     no shell invoked ([§3.4](#34-cross-platform-reach)).
+  4. No file is created or modified under `${CLAUDE_PLUGIN_ROOT}`
+     ([P-06](#p-06--cached-data-lives-in-the-plugin-data-directory)).
+  5. Everything written lands under `${CLAUDE_PLUGIN_DATA}/viewer/`, and **no artifact anywhere
+     records the query text or the result set.**
+  6. The daemon accepts connections on `127.0.0.1` and refuses them from another host on the same
+     network.
+  7. A second and third card search in the same session leave exactly one daemon running.
+  8. Each card is rendered as an unmodified full card face with the artist identifiable in the same
+     interface — no `art_crop`, no filter, no overlay
+     ([`docs/MCP-PRD.md` §3.3](./MCP-PRD.md#33-legal-and-terms-of-service)).
+  9. A double-faced card shows both faces.
+  10. `claude plugin details manabase` reports the same always-on total with this component present
+      as without it, confirming the 0 above by measurement
+      ([§4.6](#46-context-cost-accounting)).
+  11. The daemon exits after its idle period with no page connected, so it does not outlive the work
+      that started it.
+  12. Every image fetch goes to a `*.scryfall.io` file origin and **no request is issued to a
+      rate-limited card endpoint**, verified by observing the daemon's outbound traffic
+      ([`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)).
+      No outbound request reaches a host outside those
+      [`docs/MCP-PRD.md` §4](./MCP-PRD.md#4-external-dependencies) enumerates
+      ([§3.3](#33-trust-and-sandboxing)).
+  13. **Given a tool response carrying no image URI — the pre-prerequisite world, and any future
+      response shape change — the hook exits cleanly and displays nothing.** It never falls back to
+      resolving a card by name. This is the negative criterion, and it exists because the failure it
+      guards against is showing a confidently wrong printing rather than showing nothing.
+- **Open questions:**
+  ~~[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) (**blocking** — the
+  [CAP-01](./MCP-PRD.md#cap-01--card-search) prerequisite)~~ **answered and closed 2026-08-11**;
+  [PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled) replaces it as this block's
+  blocker and is a **smaller** one — it blocks building, not specifying, and lives one layer down in
+  [`docs/MCP-PRD.md`](./MCP-PRD.md),
+  [PQ-11](#pq-11--does-an-explicit-push-command-justify-reopening-the-bin-executables-rejection)
+  (an explicit push versus [§8](#8-out-of-scope)'s `bin/` rejection),
+  [PQ-12](#pq-12--does-a-userconfig-boolean-with-a-default-prompt-at-enable-time) (what the opt-in
+  switch costs [PC-02](#pc-02--bundled-mcp-server) criterion 2). Plus two verification items that
+  are not judgment calls and so are not `PQ`s: what `tool_response` contains for an MCP tool
+  ([§4.1](#41-harness-features-relied-on)), and whether the daemon should also stop on `SessionEnd`
+  via a second hook rather than on idle timeout alone.
+
+---
+
 ## 6. Roadmap
 
 **Phase 1 — [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server) together.**
@@ -1421,6 +1671,49 @@ packed-bundle byte-identity assertion to [Slice 13](./slices/TrackC-Slice13.md),
 [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) was reassigned there on 2026-08-09 — the same
 principle, now pointing at the slice that can still act on it. No
 [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.
+
+**[PC-04](#pc-04--card-viewer) is `proposed` and unassigned, added 2026-08-11, and it is not Phase 1
+for two independent reasons.** Either would be sufficient. This section's Phase 1 is
+[PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server) together and nothing
+else, and that pairing is an argument about the smallest thing that is both shippable and useful —
+a viewer changes neither half of it. Separately, [§3.5](#35-what-the-user-must-see-and-must-not)
+requires Phase 1 to produce **zero prompts and zero local state**, and this component is a
+background daemon behind an enable-time prompt with an on-disk image cache. It is three for three
+against a constraint Phase 1 states as an absolute.
+
+**It is also not merely unscheduled — it is blocked**, which is a different status and should not be
+collapsed into the queue below.
+[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) has to be answered in
+[`docs/MCP-PRD.md`](./MCP-PRD.md) before this component can move to `specified`, and per
+[§1](#1-overview)'s third consequence that is not this document's call to make. Assigning it a
+phase now would be scheduling work whose prerequisite has no owner yet.
+
+**Addendum 2026-08-11 — the condition named above was met the same day, and the component is now
+`specified`.** [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) was answered
+in [`docs/MCP-PRD.md`](./MCP-PRD.md) as
+[OQ-13](./MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost), so the
+paragraph above has done its job and is left as written. **Neither half of the phase reasoning
+moves.** Phase 1 is still [PC-01](#pc-01--scryfall-query-craft) and
+[PC-02](#pc-02--bundled-mcp-server) and nothing else, and
+[§3.5](#35-what-the-user-must-see-and-must-not)'s zero-prompts-zero-local-state requirement still
+rules this component out of it three ways over — a specified component is not a Phase 1 component,
+and the two were never the same claim. **It stays unscheduled**, and the blocker is now a build
+blocker rather than a specification one:
+[CAP-01](./MCP-PRD.md#cap-01--card-search)'s criterion 15 is unimplemented with no slice, and
+[PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled) is open. The ordering that
+follows is worth stating because it is easy to get backwards: **criterion 15 ships first, and this
+component cannot be scheduled ahead of it.**
+
+**What it does settle, regardless of when it ships.** This section has carried a standing note that
+"the first component that needs a hook raises the cross-platform bar
+([§3.4](#34-cross-platform-reach)): Phase 1 deliberately ships no hook, so the first one to arrive
+owns the exec-form and Windows-shell problem rather than inheriting a solution." The first one has
+arrived and **the problem is solved rather than deferred** — exec form selected by the presence of
+`args`, `${CLAUDE_PLUGIN_ROOT}` verified to substitute inside `args`, and `process.execPath` rather
+than `"node"` for the process the hook itself spawns. That work is recorded in
+[§4.1](#41-harness-features-relied-on)'s 2026-08-11 addendum, where the *next* hook component
+inherits it, rather than inside a block that may sit `proposed` for some time. The note above is
+therefore discharged by this component even if this component never ships.
 
 ### Queued and unassigned
 
@@ -1804,6 +2097,147 @@ writes the number anywhere. The dev fallback matters as much as the tag path: it
 untagged bundle announces itself as one, so a hand-packed artifact can never be mistaken for a
 release in an install dialog that shows the version.
 
+### PQ-10 — Does `CAP-01` gain an image URI, and what does that cost?
+
+**Blocking [PC-04](#pc-04--card-viewer).** Opened 2026-08-11. The hook needs a stable per-card
+handle and [CAP-01](./MCP-PRD.md#cap-01--card-search) returns none — no `id`, no image field, no
+artist field, in the spec and in [`src/scryfall/types.ts`](../src/scryfall/types.ts) alike. Per
+[§1](#1-overview)'s third consequence that makes it a `CAP` in
+[`docs/MCP-PRD.md`](./MCP-PRD.md) rather than something specifiable here, and this question exists
+so the plugin-side blocker persists rather than living only in a component block.
+
+**Two things this question must not be allowed to lose.** First, **an identifier alone does not
+unblock the component.** Exchanging an id for an image URL is a call to a card endpoint, the
+2/second lane in
+[`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance), issued by a
+daemon that sits outside the server's two rate-limit lanes — two independently throttled clients in
+one application, against a section that is explicit each local copy must be well-behaved on its own.
+An image URI on a `*.scryfall.io` file origin is rated **unlimited** by that same section, so it
+removes the problem instead of managing it. Second, **it is not free.**
+[`docs/MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be) was answered
+and implemented on 2026-08-10 with a legality trim and an 88-card page cap, after a payload breached
+a harness tool-result ceiling at 111 cards. A URL per card pushes against a budget that was settled
+three days ago and settled expensively, so "add one field" is the wrong frame for it.
+
+*Resolves by:* running `docs/prompts/02-add-capability-prompt.md` against
+[`docs/MCP-PRD.md`](./MCP-PRD.md) and deciding there whether
+[CAP-01](./MCP-PRD.md#cap-01--card-search) returns an image URI, behind what default, and at what
+measured cost to a full page. Not by any edit to this document. Two Scryfall field-level facts that
+decision needs are **unverified here and deliberately so** — the key set of `purchase_uris`, and
+whether `image_uris` sits on `card_faces` for double-faced cards — because `scryfall.com` returned
+HTTP 403 to an honestly identified fetcher on 2026-08-11 and
+[`docs/MCP-PRD.md` §3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis) makes a
+block an answer rather than an obstacle to route around.
+
+**Answered 2026-08-11, upstream and the same day, by
+[`docs/MCP-PRD.md` OQ-13](./MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost).
+Yes — behind an opt-in, at a measured +21.6%.** [CAP-01](./MCP-PRD.md#cap-01--card-search) gains
+`images: "none" | "normal"` defaulting to `"none"`, returning an **array** of Scryfall `normal`
+URIs, one per face, plus an acceptance criterion 15. **It is not implemented**, and
+[CAP-01](./MCP-PRD.md#cap-01--card-search) stays delivered against criteria 1–14 — so what this
+answer removes is the *specification* blocker, not the build one.
+[PC-04](#pc-04--card-viewer) moves `proposed` → `specified` because
+[§6](#6-roadmap) already named that the condition, and it moves no further because criterion 15 has
+no slice.
+
+**Both things this question refused to lose survived the answer**, which is the point of having
+written them down. The identifier route was rejected *despite* being measurably cheaper — a bare
+`id` costs +8.5% against the image array's +21.6% — and rejected on exactly the
+[§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) grounds recorded above rather
+than on bytes. And the cost was real: the array is +9,888 characters on an 88-card page, which is
+why it is off by default rather than simply added.
+
+**Three things the answer establishes that this component's block predates.** A transform card
+carries **no top-level `image_uris` at all** — the object sits on each `card_faces` entry — which is
+why the field is an array and why [PC-04](#pc-04--card-viewer)'s both-faces criterion is cheap
+rather than an extra lookup. The image URL **is** derivable from a card `id` and the `?timestamp`
+is optional, verified live; that route is recorded and deliberately not taken, so the hook must
+never assemble one. And `purchase_uris` carries exactly three keys — `tcgplayer`, `cardmarket`,
+`cardhoarder` — which settles the fact
+[PQ-11](#pq-11--does-an-explicit-push-command-justify-reopening-the-bin-executables-rejection)'s
+neighbouring marketplace-link reasoning was written without. Details and method:
+[`docs/MCP-PRD.md` §4.1.4](./MCP-PRD.md#414-card-image-uris).
+
+**Closed.** No follow-up question is opened here: what remains is implementation, which
+[`docs/MCP-PRD.md` OQ-13](./MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost)
+owns, and one thing that document states as unsettled — whether an opted-in page needs its own cap,
+since the 88-card cap was sized against a payload with no images.
+
+### PQ-11 — Does an explicit push command justify reopening the `bin/` executables rejection?
+
+Opened 2026-08-11 with [PC-04](#pc-04--card-viewer). That component's hook covers the case that
+motivated it — cards appear after a search. It does not cover "show me these three cards" said
+mid-conversation, which would want a command on the Bash tool's `PATH` and is therefore a reopening
+of [§8](#8-out-of-scope)'s `bin/` rejection rather than a detail of this component.
+
+**Recorded rather than taken.** [§8](#8-out-of-scope) rejects `bin/` because adding names to a
+user's `PATH` is a larger imposition than the feature repays, and that reasoning still holds for
+everyone who does not want the viewer — which, given [PC-04](#pc-04--card-viewer) is default-off, is
+everyone by default. A component reopening a rejection on its first outing should have to earn it,
+and the honest sequence is to ship the hook, find out whether it is insufficient in practice, and
+then argue from that rather than from anticipation.
+*Resolves by:* [PC-04](#pc-04--card-viewer) shipping and the author finding the search-triggered
+path genuinely inadequate. Until then the answer is no, and it is no for a reason rather than by
+default.
+
+### PQ-12 — Does a `userConfig` boolean with a default prompt at enable time?
+
+Opened 2026-08-11 with [PC-04](#pc-04--card-viewer), whose opt-in switch is a `userConfig` boolean
+`viewer_enabled` defaulting to false ([§4.4](#44-user-configuration)). The mechanism is right — it
+is harness-native, it costs no context, and the rejected alternatives are worse — but its price is
+paid by people who will never turn the viewer on.
+
+**The stake is a criterion, not a preference.** [PC-02](#pc-02--bundled-mcp-server) criterion 2 is
+"enabling the plugin produces zero configuration prompts", and
+[P-01](#p-01--plugin-is-the-distribution-unit) treats the empty enable-time prompt as the strongest
+available demonstration of its claim. [P-13](#p-13--no-user-configuration-in-phase-1) scopes the
+zero-prompt rule to Phase 1, so shipping this violates no decision — but it changes the install
+story for every user, and a criterion that quietly stops being true is worse than one deliberately
+retired. The documentation says `userConfig` values are "prompted at enable time" and distinguishes
+`required` only by whether validation fails on empty; **whether a non-required boolean carrying a
+`default` is skipped is not stated.** `claude plugin install --config viewer_enabled=true` exists
+and makes the prompt avoidable for anyone scripted, which is a mitigation and not an answer.
+*Resolves by:* declaring one non-required defaulted boolean on a scratch plugin and enabling it on a
+cold profile to observe whether a dialog appears — cheap, and it needs no part of
+[PC-04](#pc-04--card-viewer) to exist. If it does prompt, the follow-up question is whether
+[PC-02](#pc-02--bundled-mcp-server) criterion 2 is reworded, scoped to a viewer-less install, or
+retired, and that is this document's owner's call rather than a component's.
+
+### PQ-13 — What sets `images: "normal"` when the viewer is enabled?
+
+Opened 2026-08-11 when
+[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) closed. Its answer is an
+**opt-in defaulting to `"none"`**, so a `card_search` call carries image URIs only when something
+asked for them — and [PC-04](#pc-04--card-viewer)'s hook cannot be that something. A `PostToolUse`
+hook runs *after* a call it did not compose; it observes a response and cannot retroactively add a
+parameter to the request that produced it. Nothing currently causes the parameter to be set, so the
+viewer as specified displays nothing on an ordinary search.
+
+**This is a known cost, not a discovery**, and it should not be re-litigated as though the opt-in
+were a mistake. It was weighed against an always-on field and against an install-level switch when
+[`docs/MCP-PRD.md` OQ-13](./MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost)
+was decided: an always-on image array costs **+21.6%** on every page for every user forever,
+including the overwhelming majority who will never enable a viewer, and that is the cost the
+default-off choice declines to impose. What was not settled in the same breath is how the minority
+who *do* enable it get the field, and that omission is this question.
+
+**Three candidate mechanisms, none chosen.** [PC-01](#pc-01--scryfall-query-craft)'s skill could
+teach the model to set it — rejected on sight, because a skill travels to every surface and would
+ask for images on installs with no viewer and no hook
+([§3.6](#36-skills-carry-instructions-never-facts) is about card facts, but the same
+surface-independence argument applies). An install-level switch read once at the server's entry
+point ([`docs/MCP-PRD.md` D-03](./MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions))
+and driven by the same `userConfig` value as the hook would need no model cooperation at all, at the
+price of the same query returning different shapes on different machines — and it is a
+[`docs/MCP-PRD.md`](./MCP-PRD.md) change, not this document's to make. Or the viewer accepts that it
+fires only on calls that happened to ask, which makes it unreliable in exactly the case that
+motivated it.
+*Resolves by:* whichever session schedules [CAP-01](./MCP-PRD.md#cap-01--card-search)'s criterion
+15, because the second candidate changes what that criterion has to assert. **It blocks
+[PC-04](#pc-04--card-viewer) from being built and does not block it from being `specified`** — the
+component's behavior, surface and criteria are settled; what is unsettled is a mechanism one layer
+down, in the document that owns it.
+
 ---
 
 ## 8. Out of scope
@@ -1919,6 +2353,8 @@ and the correct move is to say so and stop.
 | 2026-08-10 | **The first MCPB bundle release — [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criteria 7 and 10 verified, and nothing else moved.** Tag `v0.1.0` on `2c7196c` (PR #37) ran [`.github/workflows/release.yml`](../.github/workflows/release.yml) for the first time it has ever executed, and published a Release carrying `manabase.mcpb` at 111,760 bytes — the first artifact this project has produced that a user downloads rather than builds. **Criterion 7** is asserted inside [`scripts/pack-mcpb.mjs`](../scripts/pack-mcpb.mjs) rather than as a workflow step, so CI inherits it through `npm run pack:mcpb` and there is no second copy to drift: it unpacks the archive it just wrote and compares that `server/index.js` to the committed `dist/index.js` by sha256, deleting the bundle on mismatch, and it was demonstrated failing before it was trusted. **Criterion 8 — installing asks for no configuration — is now the only [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion unverified.** Criteria 3 and 4 were re-confirmed against the *released* artifact rather than the 2026-08-04 hand-packed one — the bundle was downloaded from the Release and installed on Claude Desktop, and a card question called the tool; they keep their existing dates and status, recorded as corroboration and not as a status change, because the artifact under test differed rather than the criterion. **This is [Slice 13](./slices/TrackC-Slice13.md)'s [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) half and no more.** The tag names the **bundle**, not the plugin ([PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)): `.claude-plugin/plugin.json` still carries **no** `version`, [P-08](#p-08--version-scheme) is untouched, `claude plugin validate . --strict` still fails on that one warning, and [PC-02](#pc-02--bundled-mcp-server) criterion 9 stays open. No [PC-01](#pc-01--scryfall-query-craft), [PC-02](#pc-02--bundled-mcp-server) or [CAP-01](./MCP-PRD.md#cap-01--card-search) criterion changed status. **[PQ-06](#pq-06--what-keeps-the-committed-dist-honest) did not move in either half**, and **[PQ-05](#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) has no disposition, so [§6](#6-roadmap)'s Phase 1 is *not* closed** and neither is [Slice 13](./slices/TrackC-Slice13.md). [`release.yml`](../.github/workflows/release.yml)'s action pins were bumped `@v4` → `@v7` before that first run rather than after it. Evidence: [`docs/slices/TrackC-Slice13-results.md`](./slices/TrackC-Slice13-results.md). | [Slice 13](./slices/TrackC-Slice13.md) partially executed, attributed that way with the author ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)) — the slice bundles two things **by schedule, not by dependency**, and only the half that does not need [Slice 12](./slices/TrackC-Slice12.md) was run. The bundle release is not gated on the friend dry-run because the tag moves nothing a plugin user experiences; the [P-08](#p-08--version-scheme) switchover is gated on it, because [§6](#6-roadmap)'s Phase 1 closes on [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server) verified and [PC-02](#pc-02--bundled-mcp-server)'s remaining evidence *is* that dry-run. **Criterion 10's whole value was in a run that had not happened** — the 2026-08-04 row entered it unverified on purpose, refusing to mark it verified because the file existed — so this row is what that entry was waiting for. Criterion 7's placement is the same reasoning one level down: comparing the staging tree, which is a copy of `dist/`, would have passed forever and detected nothing. **Two traps for whoever runs the other half.** `v0.1.0` is spent, and `claude plugin tag` writes into the same `v*` namespace [`release.yml`](../.github/workflows/release.yml) watches — if it emits `v<semver>` it will fire the release workflow and cut a second bundle release, so discover its format with `--dry-run` first and pick a version string that has not been used. And **a released bundle cannot be withdrawn**, because it has no update path: a defect ships as a new version and a new tag, and `v0.1.0` is never moved or deleted. Shipping an artifact real people install arguably **sharpens** [PQ-06](#pq-06--what-keeps-the-committed-dist-honest)'s user-facing half rather than easing it. |
 | 2026-08-10 | **A second bundle release, `v0.1.1` — and no [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.** Cut after [`docs/MCP-PRD.md` CAP-01](./MCP-PRD.md#cap-01--card-search)'s [Slice 14](./slices/TrackA-Slice14.md) merged (PR #41), to carry the issue-#25 result-size fix to the Chat tab, which is the surface that **cannot** recover an oversized result because it has no shell. `manabase.mcpb`, 113,631 bytes, on the merge commit. **Criterion 7 held on a second, independently produced artifact** — the *downloaded* asset's `server/index.js` sha256-matches the committed [`dist/index.js`](../dist/index.js) — recorded as corroboration, not a status change. **Criterion 8 remains the only unverified one**: `v0.1.1` has not been installed on Desktop. `v0.1.0` was **not moved or deleted**, so this component now has **two live releases, one of them known stale**. [P-08](#p-08--version-scheme) untouched, `plugin.json` still version-less, [PC-02](#pc-02--bundled-mcp-server) criterion 9 still open, [§6](#6-roadmap)'s Phase 1 still not closed. Evidence: [`docs/slices/TrackA-Slice14-results.md`](./slices/TrackA-Slice14-results.md). | The 2026-08-04 finding that an installed extension has no update path is what makes this row worth writing rather than filing under "we released again": **shipping the fix did not deliver it.** Every `v0.1.0` install still carries the payload that breaks on a reasonable query, and nothing in Claude Desktop will say so — so [PQ-06](#pq-06--what-keeps-the-committed-dist-honest)'s user-facing half is now not merely open but *demonstrated*, with a concrete stale artifact in the wild rather than a hypothetical one. That is a stronger case for whatever answers it than the question had yesterday. One trap surfaced in the cutting and belongs here because the next person will hit it: the version first chosen was `0.1.01`, which is **not valid semver** — a leading zero in a numeric identifier is forbidden — and [`scripts/pack-mcpb.mjs`](../scripts/pack-mcpb.mjs)'s guard, `^\d+\.\d+\.\d+(?:[-+].+)?$`, **accepts it**, because `\d+` matches `01`. It would have stamped a malformed version into an artifact that cannot be recalled. Validate a candidate against real semver rather than that regex; widening the guard is an obvious follow-up and was deliberately **not** folded into a release cut. |
 | 2026-08-11 | **Docs polish and the friend dry-run — a *partial* run, and [Slice 12](./slices/TrackC-Slice12.md) does not close on it.** One non-author installed the plugin on **Windows 11, Claude Code 2.1.219**: the install **succeeded** and card search worked on **both** Claude Desktop tabs, but by a path [`README.md`](../README.md) did not describe. **Three friction issues filed — #43, #44, #45 — and two or three author interventions.** The four observations this slice exists to buy were **not captured**: the handover message, the friend's questions and whether tools fired, their hesitations verbatim, and the `/context` output. Acceptance criterion 8 **fails**; criteria 6 and 7 are **partial**. **[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) is unconfirmed** — the by-name recovery clause is written, and nobody has yet watched a non-author use it. [`README.md`](../README.md) gained a **git** prerequisite ordered ahead of Claude Code, an Install section split into terminal-CLI and Claude Desktop routes, both Desktop rows corrected to **two installs**, and a Desktop-first troubleshooting entry. Fan Content disclaimer re-verified byte-identical (whitespace-normalized) across `plugin.json`, the marketplace entry and the README. Results: [`docs/slices/TrackC-Slice12-results.md`](./slices/TrackC-Slice12-results.md). | Track C [Slice 12](./slices/TrackC-Slice12.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)) — the last gate before the [P-08](#p-08--version-scheme) switchover, which **stays gated**. [PC-02](#pc-02--bundled-mcp-server)'s "what the user sees when something is wrong" now has a documented surface corrected by someone who did not write it, which is the part that worked. Two things are filed rather than fixed because this slice may edit neither [§4](#4-harness-and-delivery) nor a PC block: **#45 contradicts [§4.2](#42-marketplace-and-install-path)'s `[verified 2026-08-04]` claim that the Desktop Code tab needs no second artifact**, and [PC-02](#pc-02--bundled-mcp-server) criterion 1 describes no reachable path on Claude Desktop, where `/plugin` does not exist. [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion 8 stays unverified — a non-author installed the released bundle and nobody recorded whether it prompted. |
+| 2026-08-11 | **[PC-04](#pc-04--card-viewer) appended (card viewer, hook) with `Status: proposed` and a blocking prerequisite — the first hook component this plugin has specified, and nothing was built.** It is `proposed` rather than `specified` because [CAP-01](./MCP-PRD.md#cap-01--card-search) returns no per-card handle — no `id`, no image field, no artist field, in its behavior block and in [`src/scryfall/types.ts`](../src/scryfall/types.ts) alike — so per [§1](#1-overview)'s third consequence the work is a `CAP` in [`docs/MCP-PRD.md`](./MCP-PRD.md) and this document says so and stops. Three questions opened: **[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost)** (blocking — the [CAP-01](./MCP-PRD.md#cap-01--card-search) prerequisite), **[PQ-11](#pq-11--does-an-explicit-push-command-justify-reopening-the-bin-executables-rejection)** (an explicit push command versus [§8](#8-out-of-scope)'s `bin/` rejection, recorded rather than taken), and **[PQ-12](#pq-12--does-a-userconfig-boolean-with-a-default-prompt-at-enable-time)** (whether the opt-in switch costs [PC-02](#pc-02--bundled-mcp-server) criterion 2). [§4.1](#41-harness-features-relied-on) gains a dated addendum recording the hook mechanics researched for it, and [§6](#6-roadmap) records the phase reasoning. **[§2](#2-locked-decisions), [§3](#3-constraints) and [§8](#8-out-of-scope) are untouched, no `P-` decision was added or amended, and no [PC-01](#pc-01--scryfall-query-craft), [PC-02](#pc-02--bundled-mcp-server) or [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.** Phase 1 is unmoved and [Slice 12](./slices/TrackC-Slice12.md) is still the open gate. | The component was requested with its own analysis, and two things that analysis did not contain are the reason this row exists. **An identifier would not have unblocked it.** Exchanging an id for an image URL is a call to a card endpoint — the 2/second lane — issued by a daemon sitting outside the server's two rate-limit lanes, which is two independently throttled clients in one application against a section stating that each local copy must be well-behaved on its own ([`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)). An **image URI** is served from a `*.scryfall.io` file origin, rated unlimited there, so it removes the conflict instead of managing it — which changes what [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) has to ask for. And **[`docs/MCP-PRD.md` §3.3](./MCP-PRD.md#33-legal-and-terms-of-service)'s image-handling rules govern this component directly** and were not cited: no cropping away artist or copyright, no distortion or filtering, and `art_crop` only where both stay identifiable. Deciding on the unmodified full card face satisfies them almost for free, since the image already carries both in its own border — and it is what removes the character-cell terminal front-end, which is filtering, loses the artist line, and was the sole reason this component would have needed a prerequisite beyond Node on `PATH`. **The standing [§6](#6-roadmap) note that the first hook component owns the exec-form and Windows-shell problem is discharged**, and deliberately discharged into [§4.1](#41-harness-features-relied-on) rather than into a block that may sit `proposed` for a while: exec form is selected by the presence of `args`, `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` **do** substitute inside a hook's `args` (which is what makes [P-06](#p-06--cached-data-lives-in-the-plugin-data-directory) reachable from a hook at all, and was recorded nowhere before today), and the daemon must be spawned with `process.execPath` rather than the string `"node"`. Two Scryfall field-level facts are marked **[inferred]** rather than verified — `purchase_uris`' key set, and whether `image_uris` sits on `card_faces` — because `scryfall.com` returned **HTTP 403** to an honestly identified fetcher and [`docs/MCP-PRD.md` §3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis) makes a block an answer. They belong to the [CAP-01](./MCP-PRD.md#cap-01--card-search) session regardless. |
+| 2026-08-11 | **[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) closed, and [PC-04](#pc-04--card-viewer) promoted `proposed` → `specified` the same day it was appended.** The prerequisite was answered upstream as [`docs/MCP-PRD.md` OQ-13](./MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost): [CAP-01](./MCP-PRD.md#cap-01--card-search) gains `images: "none" \| "normal"` defaulting to `"none"`, returning an **array** of Scryfall `normal` URIs one per face, as an acceptance criterion 15. Edits here: [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) gains a dated answer, [PC-04](#pc-04--card-viewer)'s `Status` line and a **Behavior** addendum record the promotion, its `Open questions` line strikes [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost), [§6](#6-roadmap) gains an addendum, and the document-status block gains a dated component count. **One question opened — [PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled).** **[§2](#2-locked-decisions), [§3](#3-constraints) and [§8](#8-out-of-scope) are untouched, no `P-` decision was added or amended, and no [PC-01](#pc-01--scryfall-query-craft), [PC-02](#pc-02--bundled-mcp-server), [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) or [PC-04](#pc-04--card-viewer) acceptance criterion changed status.** Phase 1 is unmoved; [Slice 12](./slices/TrackC-Slice12.md) is still the open gate and nothing was built. | [§6](#6-roadmap) had already named the promotion condition — "[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) has to be answered in [`docs/MCP-PRD.md`](./MCP-PRD.md) before this component can move to `specified`" — so this row applies a condition the document set for itself rather than making a fresh judgment. **The two facts this question refused to lose both survived it**, which is the return on having written them down: a bare card `id` was measured at **+8.5%** against the image array's **+21.6%** and rejected anyway, on [`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) grounds rather than byte grounds, because exchanging an id for a URL is a 2/second-lane call from a daemon outside the server's lanes; and the cost was real enough that the field is off by default. The two `[inferred]` facts are now **verified** — the 403 was on `scryfall.com`'s documentation pages and the API itself answered normally, which is a distinction the earlier row could not draw. [PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled) exists because a default of `"none"` and a `PostToolUse` hook do not compose: the hook observes a call it did not make and cannot add a parameter to a request already sent, so **the viewer as specified would display nothing on an ordinary search**. That is a known cost of the opt-in rather than a defect discovered late — it was weighed against an always-on field costing every user +21.6% forever — but it was not settled in the same breath, and an unsettled mechanism recorded as a parenthetical inside a component block is how this project's other invisible failures started. It blocks building, not specifying, which is why the status still moves. |
 
 ---
 

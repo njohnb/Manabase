@@ -9,7 +9,10 @@
 ([CAP-01](#cap-01--card-search)) and **delivered against criteria 1–14** ([§9](#9-revision-log)):
 1–12 on 2026-08-03, then criterion 13 (the `legalities` trim) and a new criterion 14 (the page cap)
 on 2026-08-10, when [Slice 14](./slices/TrackA-Slice14.md) implemented both of
-[OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s levers and closed that question. Ten capabilities
+[OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s levers and closed that question. **A
+criterion 15 was added 2026-08-11 and is not implemented** — opt-in card images, answering
+[OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost); the block therefore
+carries fifteen criteria and is delivered against fourteen. Ten capabilities
 queued and unassigned — two of them added 2026-08-07 when Moxfield joined Archidekt as a deck
 platform ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second), [§4.8](#48-moxfield)).
 
@@ -690,6 +693,70 @@ treat a Scryfall outage as total outage and fail with a clear message rather tha
 trace. Migration to a bulk-only fallback would mean losing regex and tag operators entirely —
 i.e. losing [CAP-01](#cap-01--card-search)'s core value.
 
+#### 4.1.4 Card image URIs
+
+**Date verified:** 2026-08-11. Researched for
+[OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost); two of the facts
+below were carried as `[inferred]` by
+[`docs/PLUGIN-PRD.md` PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost)
+because `scryfall.com`'s documentation pages returned HTTP 403 to an honestly identified fetcher
+that day. They are verified here against the API itself, which answered normally — the block was
+on the docs site, not the API, and [§3.7](#37-undocumented-and-bot-protected-third-party-apis) was
+not tested by either.
+
+**Images are served from `cards.scryfall.io`, which [§3.4](#34-rate-limits-are-hard-constraints-not-guidance)
+rates unlimited.** This is the fact that makes an image URI cheap and a card `id` expensive: a
+consumer holding a URI fetches from a file origin with no rate limit, while a consumer holding an
+identifier must call `/cards/{id}` — the **2/second** lane — to turn it into one. **[verified]**
+
+**`image_uris` carries eleven keys, not the six the documentation lists.** **[verified]** Live on
+`Sol Ring` (`msc/211`): the documented `small`, `normal`, `large`, `png`, `art_crop`,
+`border_crop`, plus five undocumented webp variants — `thumb`, `grid`, `display`, `art`, `crop`.
+Do not model the undocumented five. They are recorded so a future session does not read their
+presence as evidence the documentation is being tracked; this is the same class of
+documentation/reality gap as `eur_etched` in [§4.1.3](#413-price-fields--three-verified-traps),
+inverted — there a documented field does not exist, here five undocumented ones do.
+
+**`image_uris` is absent at the top level on a multi-faced card and sits on each `card_faces`
+entry instead.** **[verified]** Confirmed on
+`Delver of Secrets // Insectile Aberration` (`inr/60`), where the top-level key is missing
+entirely and both faces carry a full eleven-key object of their own. A consumer that reads
+`card.image_uris.normal` unconditionally therefore gets `undefined` for every transform card and
+must fall back to `card_faces`, not the other way round. Measured over one live 175-card page of
+`f:commander t:creature` (2026-08-11): **169 cards carried top-level `image_uris`, 6 carried
+faces-only, and 0 carried none** — so 175 cards need **181** image URLs. Layouts present were
+`normal` 167, `transform` 6, and `prepare` 2, the last an undocumented layout that carries
+top-level images normally.
+
+**A `normal` URI is 93–94 characters and its length does not vary with the card.** **[verified]**
+The path is composed entirely from the printing's `id`, so nothing about a card's name, set, or
+text moves it.
+
+**The `?timestamp` query parameter is optional and the URL is derivable from the `id`.**
+**[verified]** `https://cards.scryfall.io/normal/front/9/1/<id>.jpg` and the same URL with
+`?1783903215` both returned HTTP 200 with a byte-identical 71,336-byte JPEG, and a double-faced
+card's second face is the *same* `id` under `back/` rather than a different identifier. A wrong
+face path is not silent: `back/` on a single-faced card returns HTTP **404** with an HTML body.
+**Recorded as an observation and deliberately not relied on** — Scryfall publishes the URIs so
+that it can change how they are composed, and a client that assembles them instead is betting on
+an undocumented scheme whose breakage would look like every card image failing at once. It is
+recorded because it is the reason returning a bare `id` is not the cheap option it appears to be:
+the byte saving is real and it buys a hardcoded URL template.
+
+**`purchase_uris` carries exactly three keys** — `tcgplayer`, `cardmarket`, `cardhoarder` — each a
+referral-tagged URL. **[verified]** Identical key set on both cards sampled. Adjacent and distinct:
+`related_uris`, whose key set is **not** fixed (`gatherer` was present on one sample and absent on
+the other). Nothing in this document consumes either field; they are recorded because
+[`docs/PLUGIN-PRD.md` PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost)
+asked for the key set and because [D-06](#d-06--pricing-from-scryfall) makes the pricing
+relationship with TCGplayer worth stating: these are Scryfall's referral links, and passing one on
+means passing it **byte for byte** or not at all.
+
+**Method.** Four requests total, spaced, with an app-naming `User-Agent` and an `Accept` header
+([§3.4](#34-rate-limits-are-hard-constraints-not-guidance)): two `/cards/named` and one
+`/cards/search` on the 2/second lane, and three `HEAD`-equivalent image fetches on the unlimited
+file origin. No 429.
+
 ### 4.2 Scryfall bulk data
 
 **Date verified:** 2026-07-29
@@ -1138,6 +1205,22 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
     the scope actually applied — a `queried` request whose scan found no format reports `default`,
     because that is what the payload carries. `legalities_included` lists the keys present on
     every card. Formats outside it were **not returned** and that is not a claim about legality.
+  - **Card images are available behind an opt-in and are absent by default** (added 2026-08-11,
+    answering [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost); **not
+    implemented**). `images: "none" | "normal"`, defaulting to `"none"`. When `"normal"`, each card
+    carries an `images` **array** of Scryfall `normal` URIs — one entry for an ordinary card and one
+    per face for a multi-faced one, in face order, because
+    [§4.1.4](#414-card-image-uris) establishes that a transform card has no top-level `image_uris`
+    at all. The URIs are passed through exactly as Scryfall returns them, `?timestamp` included, and
+    are never assembled from the card `id`. Measured cost on a full page: **+9,888 characters on 88
+    cards, +21.6%**, which is why the default is off.
+  - **No artist field, and that is a [§3.3](#33-legal-and-terms-of-service) decision rather than an
+    omission.** That section requires the artist and copyright stay identifiable wherever images are
+    surfaced. An unmodified full card face prints both in its own border, so the obligation is met
+    by what the URI already points at and costs nothing. A consumer that crops — `art_crop`, or any
+    other framing that removes the border — is outside what this capability's images support, and
+    would need the artist carried separately before it could satisfy
+    [§3.3](#33-legal-and-terms-of-service).
   - **Price correctness is part of this capability, not deferred.** Results constrain to
     paper printings for price purposes, and surface `usd_foil` / `usd_etched` when `usd` is
     null rather than reporting no price ([§4.1.3](#413-price-fields--three-verified-traps)). A card with genuinely no paper price says
@@ -1201,8 +1284,20 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
       Scryfall's 175, so both halves of every upstream page are addressable. Kept separate from
       criterion 13 rather than folded into it — two levers decided three days apart, with different
       failure modes, get two independently falsifiable criteria.
+  15. **`images` is absent by default, and present for every face when asked for.** Added
+      2026-08-11 with [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost)'s
+      answer; **not implemented**. A call that does not set `images` returns no image field on any
+      card and is byte-identical to the same call before this criterion existed — the default costs
+      nothing, which is the whole basis of the decision. A call setting `images: "normal"` returns
+      one URI for a single-faced card and **two for a transform card**, checked against a real
+      multi-faced card rather than a fixture, since the failure this addresses is specifically that
+      `image_uris` is absent at the top level there
+      ([§4.1.4](#414-card-image-uris)) and a consumer reading it unconditionally gets `undefined`
+      with no error. No URI is constructed from a card `id`.
 - **Open questions:** [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) (how to surface syntax), [OQ-02](#oq-02--how-verbose-should-a-search-result-be) (result verbosity vs. context
-  budget), [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) (EUR fallback when no USD price exists — opened by the acceptance pass).
+  budget), [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) (EUR fallback when no USD price exists — opened by the acceptance pass),
+  [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost) (image URIs —
+  answered 2026-08-11, unimplemented).
 - **Delivery note (2026-08-03).** All twelve acceptance criteria are verified: 2–9 live against
   Scryfall, and 1, 10, 11, 12 at unit level. Criterion 12 is unit-level permanently — provoking
   a real 429 to observe it is what [§3.4](#34-rate-limits-are-hard-constraints-not-guidance)
@@ -1230,6 +1325,17 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   `has_more: true` where Scryfall reported `has_more: false`, and its page 2 returned the remaining
   23 — all 111 cards reachable. `npm run acceptance` passed 13 of 13 with no 429. Evidence:
   [`docs/slices/TrackA-Slice14-results.md`](./slices/TrackA-Slice14-results.md).
+- **Delivery-note addendum (2026-08-11).** A criterion 15 was added and **is not implemented**, so
+  **[CAP-01](#cap-01--card-search) remains delivered against criteria 1–14** and its `Status` is
+  unchanged. This is the same shape as 2026-08-04, when criterion 13 was added to a block already
+  marked delivered, and it is stated here rather than left to inference because the 2026-08-08
+  revision-log row exists entirely because a count went stale in four places at once. Nothing in
+  [`src/`](../src/tools/card-search.ts) changed and no slice is scheduled: the decision behind
+  criterion 15 is
+  [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost), and the thing
+  waiting on it is a plugin component
+  ([`docs/PLUGIN-PRD.md` PC-04](./PLUGIN-PRD.md#pc-04--card-viewer)), not anything this document
+  owns.
 
 ---
 
@@ -1251,6 +1357,21 @@ that everything else reuses; it proves the capability template in [§5](#5-capab
 most queued capabilities build on. Phase 1 requires no credentials, no bulk-data pipeline, and
 no local storage, so it validates [D-01](#d-01--distribution-local-package-over-stdio)'s install-friction claim before any heavier machinery
 exists.
+
+**No phase changed on 2026-08-11, and [CAP-01](#cap-01--card-search)'s image criterion is
+deliberately unscheduled.** [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost)
+amended a Phase 1 capability that is already delivered, which is a shape this section has not had
+to describe before — Phase 1 stays complete, because a delivered phase is complete against the
+criteria it was delivered against and criterion 15 is not among them. It is unscheduled rather
+than queued because it is not a capability and has no row in the table below: it adds a field to a
+capability that exists, and the thing that wants it is
+[`docs/PLUGIN-PRD.md` PC-04](./PLUGIN-PRD.md#pc-04--card-viewer), whose own scheduling is that
+document's to decide. **Do not read the unscheduled state as low value or as deferred-by-doubt** —
+the decision is taken and the measurement is done; what is missing is a slice, and the slice
+belongs with whichever session commits to the component. The one ordering constraint worth
+recording: the component cannot ship before this does, so a plan that schedules
+[PC-04](./PLUGIN-PRD.md#pc-04--card-viewer) without scheduling criterion 15 first has the
+dependency backwards.
 
 **Ten capabilities are queued and unassigned.** Phase assignment happens in the sessions
 that specify them, not here. They are, with the dependencies already visible from [§4](#4-external-dependencies):
@@ -1680,6 +1801,83 @@ that table and it can only come from live data. Nothing is specified and no CAP 
 [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) and must still discover the
 `deckFormat` table.
 
+### OQ-13 — Should a card search result carry image URIs, and at what cost?
+
+Opened and answered 2026-08-11. Raised from outside this document by
+[`docs/PLUGIN-PRD.md` PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost),
+which is blocking [PC-04](./PLUGIN-PRD.md#pc-04--card-viewer) (a card viewer) and correctly refused
+to specify around it: [CAP-01](#cap-01--card-search) returns no per-card handle of any kind — no
+`id`, no image field, no artist field — so a component that needs to show a card cannot be built
+against what this document currently promises. Recorded here as its own question rather than
+folded into [OQ-02](#oq-02--how-verbose-should-a-search-result-be), which is closed and whose
+subject is the opposite one: [OQ-02](#oq-02--how-verbose-should-a-search-result-be) removed bytes
+nobody asked for, and this adds bytes somebody did.
+*Resolves by:* deciding whether [CAP-01](#cap-01--card-search) returns an image URI, behind what
+default, and at what measured cost to a full page.
+
+**Answered: `images: "none" | "normal"`, defaulting to `"none"`, returning an array of Scryfall
+`normal` URIs — one per face.** [CAP-01](#cap-01--card-search)'s behavior gains two bullets and an
+acceptance criterion 15. **Nothing is implemented**, no criterion changed status, and
+[CAP-01](#cap-01--card-search) stays delivered against 1–14.
+
+**Measured, which is what the question asked for.** One live 175-card page of
+`f:commander t:creature` shaped through the delivered `cardSearch`
+([§4.1.4](#414-card-image-uris), 2026-08-11). Page 1 is 88 cards and **45,754 characters** under
+the queried-legality default. Adding the array of every face's `normal` URI costs **+9,888
+characters, +21.6%**, at 112.4 characters per card; front-only would be +9,240 and is rejected
+below. That lands a full opted-in page near 55,600 characters against the **116,626** that breached
+a harness tool-result ceiling in issue #25 and the **53,043** that replaced it — so an opted-in
+page is *slightly worse than the payload that currently ships* and still comfortably inside the
+known-bad figure. It is affordable precisely because it is off by default, and it would not have
+been affordable three days ago at 175 cards per page.
+
+**Why an opt-in rather than always-on, when [OQ-02](#oq-02--how-verbose-should-a-search-result-be)
+distrusted model-set parameters.** That distrust is real and it is recorded in this document, so
+it has to be answered rather than stepped around: the 2026-08-04 answer rejected a `fields` /
+`verbose` parameter because *nothing in a well-formed query predicts an oversized result*, so the
+call that fails is exactly the call that forgot to set it. **The asymmetry is direction.** That
+parameter was subtractive and defaulted to expensive, so forgetting it produced a call that failed
+with no signal available at query time. This one is additive and defaults to cheap, so forgetting
+it produces a call that succeeds and shows no picture — a visible, recoverable outcome the model
+can fix on the next call, which is the same self-correction contract
+[D-10](#d-10--tool-handlers-never-throw) is built on. A default of `"none"` also means every
+existing consumer is byte-identical after this ships, which is what criterion 15's first half
+asserts.
+
+**Why not a bare card `id`, which is less than half the bytes.** Returning the 36-character `id`
+costs **+3,872 characters, +8.5%** — measurably cheaper, and rejected on two grounds.
+[§4.1.4](#414-card-image-uris) verifies that the image URL *is* derivable from the `id` and that
+the `?timestamp` is optional, so this option is real rather than theoretical; what it buys is a
+hardcoded URL template for a scheme Scryfall does not document as stable, whose breakage would
+present as every card image failing at once with no error anywhere. The second ground is the
+decisive one and it is a [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) argument, not a
+byte argument: a consumer that does *not* assemble the URL has to exchange the `id` for one
+through `/cards/{id}`, which is the **2/second** lane, issued by a client sitting outside this
+server's two rate-limit lanes. That is two independently throttled callers inside one application,
+against a section that is explicit each local copy must be well-behaved on its own. An image URI
+resolves on `cards.scryfall.io`, rated **unlimited** by the same section, so it removes the
+conflict rather than managing it.
+
+**Why an array, and why `normal`.** [§4.1.4](#414-card-image-uris) verifies that a transform card
+carries no top-level `image_uris` at all — the object lives on each `card_faces` entry — so a
+single-URI field would be either absent or wrong on every double-faced card, and 6 of 175 cards on
+the sampled page were exactly that. An array costs 648 characters over front-only across a full
+page and removes a whole class of silent gap. `normal` rather than `large` or `png` because it is
+the readable card face at the smallest size, and rather than `art_crop` because
+[§3.3](#33-legal-and-terms-of-service) requires the artist and copyright stay identifiable and the
+full face carries both in its own border — which is also why no artist field was added.
+
+**What this does not settle.** No verbose mode beyond the two enum values, no `large`/`png`
+option, and no answer to whether an opted-in page needs its own cap — the 88-card cap was sized
+against a payload without images, and 55,600 characters is a projection from one query's cards,
+which [OQ-02](#oq-02--how-verbose-should-a-search-result-be) already established varies by at
+least 8% with what a query returns.
+*Resolves by:* implementing the parameter with unit tests including a real multi-faced card, then
+one live search confirming an opted-in page through a real harness rather than a local
+measurement — and, separately,
+[`docs/PLUGIN-PRD.md` PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost)
+recording this answer on its own side, which is that document's to do and not this one's.
+
 ---
 
 ## 8. Out of scope
@@ -1792,6 +1990,7 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-07 | **[OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) answered: one tool, `deck_read`, over one thin normalized shape** — `{ platform, name, format, color_identity, cards: [{ name, quantity, board, finish, scryfall_id }] }`, with `board` a normalized enum spanning Archidekt's free-form categories and Moxfield's twelve fixed boards, and card detail reached through [§4.1.2](#412-batch-resolution) rather than passed through. **No amendment to [D-11](#d-11--tool-naming-convention)** is needed and it does not wait on [`docs/PLUGIN-PRD.md` PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports). **No CAP block was written and nothing is specified**; Archidekt's `deckFormat` integer→name table is still missing and still needs live data. | Two tools buy exactly one thing — per-schema documentation of platform-specific error behavior — which one tool's failure surface can express anyway under [§3.6](#36-error-surface), and they cost a second schema, a second name to keep in sync, and a second place for the shapes to drift apart. The shape is settled ahead of the spec session rather than by it because every downstream capability consumes the shape rather than the platform, and [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)'s ordering exists precisely to stop the first platform's payload from becoming the shape by default. This is a decision, not a specification: the Archidekt spec session still owns the CAP block and must check each field above against [§4.8.1](#481-the-deck-payload-is-enormous--measured)'s Moxfield record. |
 | 2026-08-08 | **The twelve-versus-thirteen discrepancy raised by the 2026-08-07 [OQ-02](#oq-02--how-verbose-should-a-search-result-be) row is settled — by propagation, not by a new decision.** [CAP-01](#cap-01--card-search)'s own **Delivery-note addendum (2026-08-07)** had already stated the substance plainly — delivered against criteria 1–12, criterion 13 added 2026-08-04 and not implemented — but four summaries elsewhere still read "all twelve acceptance criteria are verified" with no mention of a thirteenth: this document's status header, [`docs/DEV-ROADMAP.md`](../docs/DEV-ROADMAP.md) §2, [`README.md`](../README.md), and [`CLAUDE.md`](../CLAUDE.md). All four now say **1–12** and name criterion 13 as outstanding. **Nothing dated was rewritten** — the 2026-08-03 delivery note and the 2026-08-07 addendum are untouched — **no criterion changed status, and [§5](#5-capabilities) is unedited.** Whether criterion 13 is widened to cover [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s page cap, or a fourteenth added, still belongs to the slice that implements the trim. | The addendum was correct and invisible. A reader who opens a header, a roadmap, or a README — which is most readers, and every new session — got "all twelve verified" with nothing to suggest a thirteenth existed, so the resolution lived only in the one place a reader already deep in the block would find. That is the same shape as this project's other silent failures: the record was right and the thing anyone actually reads was wrong. Propagating it costs nothing and removes the last surface that can teach a future session the wrong count. Recorded as its own row rather than folded into a slice, because it is documentation hygiene across two documents and belongs to neither. |
 | 2026-08-10 | **[OQ-02](#oq-02--how-verbose-should-a-search-result-be) is closed — both levers implemented, and issue #25 is fixed.** Track A [Slice 14](./slices/TrackA-Slice14.md). `legalities: "queried" \| "default" \| "all"` defaulting to `"queried"`, over a **scan** of `q` that never parses or rewrites it ([D-07](#d-07--three-way-cache-split)) and degrades to the seven paper formats on any miss, so the map is **never empty**; plus a server-enforced page cap. **The cap is 88, not the ~120 this question estimated** — Scryfall's `page` is in units of 175 with no offset, so a 120-cap would strand cards 121–175 behind no `page` value at all; half an upstream page keeps every card reachable at one upstream request per call. `has_more` is now ours to compute, and two new fields (`legalities_mode`, `legalities_included`) report the scope so an absent key never reads as "not legal" ([§3.6](#36-error-surface)). **[CAP-01](#cap-01--card-search) criterion 13 verified and a criterion 14 added and verified — delivered against 1–14.** Live: **116,626 → 53,043 characters** on issue #25's exact query, all 111 cards reachable across 2 pages, `npm run acceptance` 13/13 with no 429. Three live findings in [§4.1.1](#411-search-endpoint): `format:` and `legal:` are real format operators, `f:edh` is an accepted value that is not a legality key, and a page past the end is HTTP **422**, not 404. No new `D-`; [§2](#2-locked-decisions)/[§3](#3-constraints) untouched. | The trim alone was already measured and refuted as sufficient, so shipping half of this would have closed nothing — 88,953 characters against a ceiling 116,626 had breached. Two independently falsifiable criteria rather than one widened criterion 13, because the levers were decided three days apart and fail differently: a broken trim returns wrong legality scope, a broken cap strands cards, and one criterion covering both can half-pass. The page size is the one place this slice overrode its own decision record, and it is recorded as a correctness fix rather than a tightening: "near 120" was an estimate of a byte budget, made before anyone had checked that 120 is unreachable in a 175-unit paging scheme. The alias and 422 findings both belong to the family this project keeps paying for — a normal-looking response carrying a wrong answer — and both are now guarded in code rather than remembered. |
+| 2026-08-11 | **[OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost) opened and answered: [CAP-01](#cap-01--card-search) gains `images: "none" \| "normal"`, defaulting to `"none"`, returning an array of Scryfall `normal` URIs — one per face.** [CAP-01](#cap-01--card-search)'s behavior gains two bullets (the parameter, and a stated no-artist-field decision) and an **acceptance criterion 15**. New [§4.1.4](#414-card-image-uris) records the image research live. **Nothing is implemented, no criterion changed status, and [CAP-01](#cap-01--card-search) remains delivered against criteria 1–14** — a delivery-note addendum says so, because the 2026-08-08 row exists entirely because a criterion count went stale in four places at once. [§6](#6-phases) records that no phase moved and that criterion 15 is unscheduled rather than queued. **No `D-` decision was added or amended; [§2](#2-locked-decisions), [§3](#3-constraints) and [§8](#8-out-of-scope) are untouched**, and no existing CAP block other than [CAP-01](#cap-01--card-search) was edited. | Raised from outside this document by [`docs/PLUGIN-PRD.md` PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost), which is blocking [PC-04](./PLUGIN-PRD.md#pc-04--card-viewer) and refused to specify around a server gap — [CAP-01](#cap-01--card-search) returns no per-card handle at all, so a viewer cannot be built against what this document promises. The measurement is the substance: page 1 is 45,754 characters and the image array costs **+9,888, +21.6%**, landing an opted-in page near 55,600 against the 116,626 that breached a harness ceiling and the 53,043 that replaced it. **A bare `id` is less than half the bytes (+3,872, +8.5%) and was rejected anyway**, on [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) grounds rather than byte grounds: exchanging an id for a URL is a `/cards/{id}` call on the **2/second** lane from a client outside this server's two lanes, which is two independently throttled callers in one application, whereas `cards.scryfall.io` is rated unlimited. The opt-in had to answer [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s recorded distrust of model-set parameters rather than ignore it, and the answer is **direction** — that one was subtractive and defaulted to expensive, so forgetting it failed a call invisibly; this one is additive and defaults to cheap, so forgetting it shows no picture and is recoverable on the next call. An **array** rather than one URI because [§4.1.4](#414-card-image-uris) verifies a transform card has no top-level `image_uris` at all, which would have made a single field silently wrong on 6 of the 175 cards sampled. The two facts [PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) carried as `[inferred]` are now verified — the 403 was on `scryfall.com`'s docs pages, and the API itself answered normally. |
 
 ---
 
