@@ -1,18 +1,36 @@
 # Open questions — Q/A
 
-All 21 numbered questions the project carries, in question-and-answer form: 12 `OQ-` in
-[`docs/MCP-PRD.md` §7](./docs/MCP-PRD.md#7-open-questions) and 9 `PQ-` in
+All 27 numbered questions the project carries, in question-and-answer form: 14 `OQ-` in
+[`docs/MCP-PRD.md` §7](./docs/MCP-PRD.md#7-open-questions) and 13 `PQ-` in
 [`docs/PLUGIN-PRD.md` §7](./docs/PLUGIN-PRD.md#7-open-questions).
 
 **This file is derived and binds nothing.** The owning PRD entry is authoritative for every
 question below; each answer here links to it. If the two disagree, the PRD is right and this file
 is stale — fix it here, never there. It exists because the two `§7` sections are long-form and
 cross-linked for a reader who is already deep in one document, and there was no single place to
-see all 21 at once with a verdict on which are settleable today.
+see all 27 at once with a verdict on which are settleable today.
+
+**Re-derived 2026-08-24, and the gap it closed is the reason to distrust this file's freshness
+rather than its content.** Five questions opened after the triage below and were missing here
+entirely — [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost) and
+[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) through
+[PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled), all opened 2026-08-11 with
+[`PC-04`](./docs/PLUGIN-PRD.md#pc-04--card-viewer). Four rows had also gone stale against their
+owning entries, and stale is worse than absent: `PQ-01` and `PQ-02` still read *open* after
+[Slice 10](./docs/slices/TrackC-Slice10.md) answered both on 2026-08-08, `PQ-06`'s commit half was
+answered by [Slice 11](./docs/slices/TrackC-Slice11.md) on 2026-08-09, and `PQ-04` gained an
+**unconfirmed** disposition on 2026-08-11. All nine are corrected below. Nothing here changed an
+owning entry — every status was read from the PRD, which stays authoritative.
+
+[OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) was opened
+**later the same day** by [`CAP-02`](./docs/MCP-PRD.md#cap-02--combo-discovery) and is listed
+below. The re-derivation described above predates it, so read that paragraph's count of nine
+corrections as covering the questions that existed when it ran.
 
 Triaged **2026-08-07**. The "settle now?" verdict answers one specific question — *can this be
 resolved on a machine that cannot install or run the plugin?* — so it distinguishes desk work from
-work that needs a live harness, a live third party, or a capability that does not exist yet.
+work that needs a live harness, a live third party, or a capability that does not exist yet. The
+five rows added 2026-08-24 apply the same test on that date.
 
 | ID | Question, short | Status | Settle now? |
 |---|---|---|---|
@@ -28,15 +46,21 @@ work that needs a live harness, a live third party, or a capability that does no
 | [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms) | Will Moxfield grant approved access? | Open | No — third party must reply |
 | [OQ-11](#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id) | Does Moxfield mask private decks as 404? | Open | **Yes — three HTTP calls** |
 | [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) | Normalized deck shape; one tool or two? | **Decided 2026-08-07 — one tool** | Done — in the PRD |
-| [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) | Do tool schemas count as always-on cost? | Open | No — needs an installed harness |
-| [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) | What is this plugin's always-on cost? | Open | No — needs an installed harness |
+| [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost) | Should a search result carry image URIs? | **Answered 2026-08-11 — opt-in** | Done — decided and measured, not implemented |
+| [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) | How is Commander Spellbook syntax surfaced? | Open — **does not block [`CAP-02`](./docs/MCP-PRD.md#cap-02--combo-discovery)** | No — nothing to measure until the tool is built |
+| [PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) | Do tool schemas count as always-on cost? | **Answered 2026-08-08 — no, deferred** | Done — measured on a real harness |
+| [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) | What is this plugin's always-on cost? | **Answered 2026-08-08 — ~270** | Done — but the verdict is model-dependent |
 | [PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook) | Cache refresh trigger; ever a `SessionStart` hook? | Hook half **decided 2026-08-07 — never** | Rest with the owning capability |
-| [PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) | How to detect a friend's trimmed skill listing? | **Decided 2026-08-07** | Done — in the PRD |
+| [PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) | How to detect a friend's trimmed skill listing? | Answered 2026-08-07; **confirmation unconfirmed 2026-08-11** | No — needs a second cold run by a non-author |
 | [PQ-05](#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable) | Submit to the community marketplace? | Open | No — post-Phase-1 by its own terms |
-| [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) | What keeps the committed `dist/` honest? | Half-answered; remedy **decided 2026-08-07** | Needs [Slice 11](./docs/slices/TrackC-Slice11.md) to execute |
+| [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) | What keeps the committed `dist/` honest? | Commit half **answered 2026-08-09**; user-facing half open | No — no mechanism gives a released `.mcpb` a staleness signal |
 | [PQ-07](#pq-07--is-deck-optimization-a-skill-or-an-agent) | Is deck optimization a skill or an agent? | Open | No — capability does not exist |
 | [PQ-08](#pq-08--what-does-a-user-see-when-the-archidekt-credential-is-missing-expired-or-rejected) | What does a bad Archidekt credential look like? | Open | No — deferred by design |
 | [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) | MCPB manifest `version` versus `P-08`? | Answered + implemented | Done |
+| [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) | Does `CAP-01` gain an image URI, and at what cost? | **Closed 2026-08-11** | Done — answered upstream by `OQ-13` |
+| [PQ-11](#pq-11--does-an-explicit-push-command-justify-reopening-the-bin-executables-rejection) | Does a push command reopen the `bin/` rejection? | Open — recorded, and the answer is *no for now* | No — needs [`PC-04`](./docs/PLUGIN-PRD.md#pc-04--card-viewer) shipped and found wanting |
+| [PQ-12](#pq-12--does-a-userconfig-boolean-with-a-default-prompt-at-enable-time) | Does a defaulted `userConfig` boolean prompt at enable time? | Open | **Yes — one scratch plugin on a cold profile**, and it needs no part of `PC-04` |
+| [PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled) | What sets `images: "normal"` when the viewer is enabled? | Open — **blocks the `PC-04` build** | Partly — the three candidates are desk work, but the choice belongs to whoever schedules criterion 15 |
 
 Seven are settleable now in whole or in part: **OQ-02, OQ-03, OQ-12, PQ-03, PQ-04, PQ-06** at a
 desk, and **OQ-07, OQ-08, OQ-09, OQ-11** with a handful of single spaced requests that need no
@@ -458,6 +482,75 @@ Archidekt alone — designing for one platform and discovering the second does n
 outcome `D-13`'s ordering exists to prevent.
 **Owning entry:** [`MCP-PRD` OQ-12](./docs/MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two).
 
+### OQ-13 — Should a card search result carry image URIs, and at what cost?
+
+**Q.** Raised from outside `MCP-PRD` by
+[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost), which is blocking
+[`PC-04`](./docs/PLUGIN-PRD.md#pc-04--card-viewer) and refused to specify around it:
+[CAP-01](./docs/MCP-PRD.md#cap-01--card-search) returns **no per-card handle of any kind** — no
+`id`, no image field, no artist field — so a component that must show a card cannot be built
+against what that document promises. Recorded separately from
+[OQ-02](#oq-02--how-verbose-should-a-search-result-be) because the subject is the opposite one:
+`OQ-02` removed bytes nobody asked for, and this adds bytes somebody did.
+
+**A. Opened and answered 2026-08-11 — `images: "none" | "normal"`, defaulting to `"none"`,
+returning an array of Scryfall `normal` URIs, one per face.** `CAP-01` gains two behavior bullets
+and an acceptance **criterion 15**. **Nothing is implemented**, no criterion changed status, and
+`CAP-01` stays delivered against criteria 1–14.
+
+**Measured, which is what the question asked for.** One live 175-card page of `f:commander
+t:creature` shaped through the delivered `cardSearch`: page 1 is 88 cards and **45,754
+characters** under the queried-legality default, and the image array costs **+9,888 characters,
++21.6%** at 112.4 characters per card. That lands an opted-in page near 55,600 against the
+**116,626** that breached a harness ceiling in issue #25 and the **53,043** that replaced it — so
+it is affordable *because* it is off by default, and it would not have been affordable three days
+earlier at 175 cards per page.
+
+**Three sub-decisions worth not re-arguing.** An opt-in rather than always-on, because unlike the
+`verbose` parameter `OQ-02` rejected, this one is **additive and defaults to cheap**: forgetting it
+yields a call that succeeds and shows no picture, which is recoverable, where forgetting the
+subtractive one yielded a call that failed with no signal available at query time. Not a bare card
+`id`, which is measurably cheaper at **+8.5%** and was rejected on
+[§3.4](./docs/MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) grounds rather than byte
+grounds — exchanging an id for an image means a call on the **2/second** lane from a client outside
+this server's two lanes, while an image URI resolves on `cards.scryfall.io`, which the same section
+rates unlimited. And an **array** of `normal` URIs, because a transform card carries no top-level
+`image_uris` at all — the object lives on each `card_faces` entry, and 6 of the 175 sampled cards
+were exactly that.
+
+**Resolves by:** implementing the parameter with unit tests including a real multi-faced card, then
+one live search confirming an opted-in page through a real harness. One thing it deliberately does
+not settle: whether an opted-in page needs its own cap, since the 88-card cap was sized against a
+payload with no images.
+**Owning entry:** [`MCP-PRD` OQ-13](./docs/MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost).
+
+### OQ-14 — How should Commander Spellbook query syntax be surfaced to the model?
+
+**Q.** Opened 2026-08-24 by [`CAP-02`](./docs/MCP-PRD.md#cap-02--combo-discovery). `combo_search`
+passes a Commander Spellbook query string through unevaluated, so the model has to write one —
+and this is the second query language the project exposes. Same candidates as
+[OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model): tool description, a separate
+syntax tool, an MCP resource, or a plugin skill.
+
+**A. Open, and deliberately not blocking `CAP-02`.** The failure mode is milder than the one that
+made [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) urgent, and that is
+measured rather than assumed: Scryfall **silently drops** an unrecognized term and returns a
+confident wrong answer, while Commander Spellbook returns **HTTP 400 naming the offending
+character's position**. A bad guess therefore costs a call and teaches the model, instead of
+misinforming the user. Two open syntax questions sitting side by side are **not** the same risk.
+
+Two things already known: Commander Spellbook publishes a syntax guide, and **`/explain-query?q=`
+validates a query server-side** — an option [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+never had. There is also a plugin-side half — [`PC-01`](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)
+already teaches one syntax, and a second is either a second reference file or a second skill —
+which belongs to [`PLUGIN-PRD`](./docs/PLUGIN-PRD.md) and is not answered here.
+
+**Resolves by:** the method [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+established — measure whether Claude writes valid combo queries against a no-help baseline, and
+add teaching only where a gap shows. **Not settleable now:** there is nothing to measure until
+`CAP-02` is built, so it waits on the build slice rather than on a decision.
+**Owning entry:** [`MCP-PRD` OQ-14](./docs/MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model).
+
 ---
 
 ## `docs/PLUGIN-PRD.md` — plugin questions
@@ -467,15 +560,27 @@ outcome `D-13`'s ordering exists to prevent.
 **Q.** [§4.6](./docs/PLUGIN-PRD.md#46-context-cost-accounting) could not establish it either way,
 and it is the one cost figure [PC-02](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server) cannot state.
 
-**A. Open.** It matters more than a reporting detail: unlike a skill description, a tool schema
-**cannot be budget-trimmed**, so if schemas are a real always-on cost then tool count and
-description length in `MCP-PRD` become a context-budget decision rather than a formatting one.
-The current inference is that they are *not* counted — the server is not running when the command
-executes — but the docs state nothing either way.
+It matters more than a reporting detail: unlike a skill description, a tool schema **cannot be
+budget-trimmed**, so if schemas are a real always-on cost then tool count and description length
+in `MCP-PRD` become a context-budget decision rather than a formatting one.
 
-**Resolves by:** running `claude plugin details` on a plugin that bundles an MCP server and
-comparing the reported always-on total against the same plugin with the server removed. Needs an
-installed plugin, so it is blocked to a machine that can install one.
+**A. Answered 2026-08-08 — they do not count, because on this surface they are not resident at
+all.** The A/B ran as prescribed on Claude Code 2.1.226: with `.mcp.json` **~258**, without
+**~258** (inventory `MCP servers (0)`, so the change registered), restored **~258** — the control
+held and no run was voided. Two other instruments agree for one underlying reason: `claude plugin
+details` annotates the inventory row `tool schemas resolved at runtime; not counted`, and
+`/context` reports the server's tools as loaded on demand at **0 tokens** resident, with
+`card_search`'s schema costing **~398** only when fetched.
+
+**This retires the stake rather than merely answering the question.** A resident schema would have
+been a fixed cost no budget could trim; deferral removes the premise, so tool count and description
+length stay a formatting concern and
+[OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) gains no cost side.
+
+**Two limits, so this is not over-read.** Deferral is the harness default, not a guarantee — a
+server that opts out pays the ~398 every session. And this is the **Claude Code surface only**;
+whether the Chat tab defers an MCPB bundle's schemas is unmeasured. Record:
+[`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md).
 **Owning entry:** [`PLUGIN-PRD` PQ-01](./docs/PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports).
 
 ### PQ-02 — What is this plugin's measured always-on cost, and does it fit alongside what the author already has installed?
@@ -484,15 +589,28 @@ installed plugin, so it is blocked to a machine that can install one.
 `dotnet-plugin` already spends ~1,722 always-on tokens across 20 skills. The plugin's own
 footprint looks small; the aggregate is the question.
 
-**A. Open, and it is the question that decides whether `§3.1`'s silent degradation is a live risk
-or a theoretical one.** No context-cost measurement of any kind exists yet, which is also why
-[PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2 and
-[PC-02](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5, 8 and 10 are unverified.
+**A. Answered 2026-08-08 — ~270 tokens, and it fits with room to spare. The risk verdict is
+model-dependent and that qualifier is load-bearing.** Measured on Claude Code 2.1.226, model
+`claude-opus-5[1m]`, with the author's full two-plugin load enabled. The listing sits at **4.2k
+tokens across 47 skills against a ~10,000-token budget, with nothing trimmed**; Manabase
+contributes **~270** of it (~2.7% of budget) and its tool schema contributes **0**, per
+[PQ-01](#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports).
+So `§3.1`'s silent degradation is **theoretical on this machine**, and removing Manabase entirely
+would not change that.
 
-**Resolves by:** `/doctor`, which estimates the skill listing against the budget and names its
-biggest contributors, plus `/context`, whose Skills row reports the listing size after the budget
-is applied. Both need the plugin installed and the skill actually in the listing — the same
-precondition [Slice 9](./docs/slices/TrackB-Slice9.md) established after the frontmatter defect.
+**Never quote the headroom without the model beside it.** `skillListingBudgetFraction` is 1% of the
+*context window*, and the window is a property of the active model — the same install on a
+200k-context model faces a ~2,000-token budget against a ~4,200-token listing, where trimming would
+be certain. Two further findings: **~52% of the listing is built-in skills** no plugin controls and
+that grow with each release, and **`/doctor` is not the instrument** — on 2.1.226 it is a
+health-check workflow that neither prices the listing against a budget nor names contributors, so
+`/context` is what works. Record:
+[`docs/slices/TrackC-Slice10-results.md`](./docs/slices/TrackC-Slice10-results.md).
+
+**Resolves by:** answered. What it did **not** settle is
+[PC-01](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s criterion 2, measured the same day as
+~260–270 against a ≤250 gate and recorded **ambiguous-because-scaled** rather than failed, or
+[PC-02](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s criteria 5 and 8, which stay unverified.
 **Owning entry:** [`PLUGIN-PRD` PQ-02](./docs/PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed).
 
 ### PQ-03 — What triggers a refresh of the bulk data and the Comprehensive Rules cache, and should it ever be a `SessionStart` hook?
@@ -564,9 +682,38 @@ and the line reads correctly either way. And it does not attempt to make
 impossible: the description *is* the invocation mechanism, so the recovery has to be the user
 naming the skill.
 
-**Resolves by:** adding the line to `README.md`, and confirming at
-[Slice 10](./docs/slices/TrackC-Slice10.md) whether `/doctor` names this plugin — which sharpens the
-last sentence but does not gate the first two.
+**Amended 2026-08-08 — the drafted line's third sentence does not survive.** The caution above was
+justified by a wider margin than it supposed: `/doctor` on Claude Code 2.1.226 does not merely fail
+to name this plugin among the contributors, it **does not price the skill listing against a budget
+and does not name contributors at all**. Only the diagnosis clause moves; the symptom and the
+by-name recovery never depended on it. The line to write became:
+
+> If Claude does not reach for Magic knowledge on its own, invoke
+> `manabase:scryfall-query-craft` by name — it still works when the skill listing has been trimmed.
+> Run `/context` to confirm whether trimming is what happened: its Skills row reports the listing
+> size after the cap is applied, and lists every skill with its cost.
+
+One limit on that last clause: [Slice 10](./docs/slices/TrackC-Slice10.md) measured a listing with
+**nothing trimmed**, so what a trimmed entry looks like in `/context` is **[inferred]** from `§3.1`,
+not observed.
+
+**Amended 2026-08-11 — the clause is written, the confirmation did not happen, and the disposition
+is *unconfirmed*.** [Slice 12](./docs/slices/TrackC-Slice12.md) added the by-name recovery clause to
+`README.md`, so this question's actual contribution now exists on the page. What the slice did not
+produce is the confirmation demanded since 2026-08-07: the friend dry-run ran and the installer
+never ran `/context`, so **nobody has yet watched a non-author use the mitigation.** Neither
+*answered* nor *reopened* — the step that decides between them did not run, and both earlier
+answers stand unchanged.
+
+**The run sharpens the question.** The installer landed on **Claude Desktop**, where `/plugin` does
+not exist **[verified 2026-08-11]** and where `/context` is **unverified — nobody tried it there**.
+If the diagnosis clause is unreachable on the surface a first-time installer actually reaches, that
+is a sharper form of this question than the one recorded above. It is not established; it is
+written down so the next run tests it deliberately.
+
+**Resolves by:** a second cold run in which a non-author uses the mitigation and `/context` is
+recorded — including whether `/context` works on Claude Desktop at all. Evidence for the partial
+run: [`docs/slices/TrackC-Slice12-results.md`](./docs/slices/TrackC-Slice12-results.md).
 **Owning entry:** [`PLUGIN-PRD` PQ-04](./docs/PLUGIN-PRD.md#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed).
 
 ### PQ-05 — Should the plugin be submitted to the community marketplace once it is stable?
@@ -631,8 +778,27 @@ guarantees that what was packed matched `src/` **at pack time** and says nothing
 is running today. The `0.0.0-dev+<commit>` stamp remains the only mitigation, and it distinguishes
 a hand-packed artifact from a release rather than detecting staleness.
 
-**Resolves by:** [Slice 11](./docs/slices/TrackC-Slice11.md) — which is unblocked — adding
-`ci.yml`, plus the release gate actually executing once against a real tag.
+**The commit half is answered 2026-08-09.** [Slice 11](./docs/slices/TrackC-Slice11.md) landed
+`.github/workflows/ci.yml`: on every pull request and every push to `main` it reinstalls from the
+lockfile, rebuilds `dist/`, and fails the run if the tree moved. It was observed failing on a
+deliberately stale `dist/` and then green on the rebuild, same branch and same workflow, which is
+what makes it known to work.
+
+**Two corrections to the 2026-08-07 decision above.** The comparison shipped is `git status
+--porcelain -- dist/`, **not** the `git diff --exit-code -- dist/` that decision named: `git diff`
+cannot see the failure `P-09` actually fears, because an *absent* `dist/index.js` is recreated by
+the rebuild as an untracked file that `git diff` does not report at all. And the local false alarm
+is **not** a CRLF artifact as that decision assumed — the rebuilt file hashes identically to the
+index blob while `git status` still reports ` M`; it is a stale stat cache, cleared by `git add
+--renormalize dist/index.js`. The conclusion drawn from the wrong premise held anyway: the Linux
+runner does not reproduce it.
+
+**The user-facing half stays open, and shipping releases sharpened it rather than easing it.**
+`v0.1.0` and `v0.1.1` are both installed artifacts now, and a bundle still carries whatever `dist/`
+it was packed with until someone reinstalls. **Never say `PQ-06` is closed flatly.**
+
+**Resolves by:** a released `.mcpb` gaining any staleness signal at all, which no mechanism in this
+repo currently provides.
 **Owning entry:** [`PLUGIN-PRD` PQ-06](./docs/PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest).
 
 ### PQ-07 — Is deck optimization a skill or an agent?
@@ -688,3 +854,110 @@ hand-packed artifact can never be mistaken for a release in an install dialog th
 version.
 
 **Owning entry:** [`PLUGIN-PRD` PQ-09](./docs/PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08).
+
+### PQ-10 — Does `CAP-01` gain an image URI, and what does that cost?
+
+**Q.** Opened 2026-08-11, **blocking**
+[`PC-04`](./docs/PLUGIN-PRD.md#pc-04--card-viewer). The hook needs a stable per-card handle and
+[CAP-01](./docs/MCP-PRD.md#cap-01--card-search) returns none — in the spec and in
+[`src/scryfall/types.ts`](./src/scryfall/types.ts) alike. Per `PLUGIN-PRD` §1's third consequence
+that makes it a `CAP` in `MCP-PRD` rather than something specifiable in the plugin document, and
+this question exists so the blocker persists on the plugin side rather than living only in a
+component block.
+
+**A. Closed 2026-08-11, upstream and the same day, by
+[OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost) — yes, behind an
+opt-in, at a measured +21.6%.** What the answer removes is the **specification** blocker, not the
+build one:
+[`PC-04`](./docs/PLUGIN-PRD.md#pc-04--card-viewer) moves `proposed` → `specified` and no further,
+because criterion 15 is unimplemented and has no slice.
+
+**Both things this question refused to lose survived the answer**, which is the point of having
+written them down. **An identifier alone would not have unblocked the component** — the id route
+was rejected *despite* being cheaper (+8.5% against +21.6%), on the rate-lane grounds this question
+recorded rather than on bytes. And **it was not free**: +9,888 characters on an 88-card page, which
+is why it is off by default rather than simply added.
+
+**Three facts the answer established that `PC-04`'s block predates.** A transform card carries **no
+top-level `image_uris`**, which is why the field is an array and why the both-faces criterion is
+cheap. The image URL **is** derivable from a card `id` and the `?timestamp` is optional — verified
+live, recorded, and deliberately not taken, so the hook must never assemble one. And
+`purchase_uris` carries exactly three keys: `tcgplayer`, `cardmarket`, `cardhoarder`.
+
+**Resolves by:** closed. What remains is implementation, owned by `OQ-13`, plus the one thing that
+question leaves unsettled — whether an opted-in page needs its own cap.
+**Owning entry:** [`PLUGIN-PRD` PQ-10](./docs/PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost).
+
+### PQ-11 — Does an explicit push command justify reopening the `bin/` executables rejection?
+
+**Q.** Opened 2026-08-11 with [`PC-04`](./docs/PLUGIN-PRD.md#pc-04--card-viewer). That component's
+hook covers the case that motivated it — cards appear after a search. It does not cover "show me
+these three cards" said mid-conversation, which would want a command on the Bash tool's `PATH` and
+is therefore a reopening of `PLUGIN-PRD` §8's `bin/` rejection rather than a detail of the
+component.
+
+**A. Recorded rather than taken, and the answer is *no* for a reason rather than by default.** §8
+rejects `bin/` because adding names to a user's `PATH` is a larger imposition than the feature
+repays, and that reasoning holds for everyone who does not want the viewer — which, given `PC-04`
+is default-off, is everyone by default. A component reopening a rejection on its first outing
+should have to earn it.
+
+**Resolves by:** `PC-04` shipping and the author finding the search-triggered path genuinely
+inadequate. Ship it, then argue from experience rather than anticipation.
+**Owning entry:** [`PLUGIN-PRD` PQ-11](./docs/PLUGIN-PRD.md#pq-11--does-an-explicit-push-command-justify-reopening-the-bin-executables-rejection).
+
+### PQ-12 — Does a `userConfig` boolean with a default prompt at enable time?
+
+**Q.** Opened 2026-08-11 with [`PC-04`](./docs/PLUGIN-PRD.md#pc-04--card-viewer), whose opt-in
+switch is a `userConfig` boolean `viewer_enabled` defaulting to false. The mechanism is right — it
+is harness-native and costs no context — but its price would be paid by people who will never turn
+the viewer on.
+
+**A. Open, and the stake is a criterion rather than a preference.**
+[`PC-02`](./docs/PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 2 is "enabling the plugin
+produces zero configuration prompts", and
+[P-01](./docs/PLUGIN-PRD.md#p-01--plugin-is-the-distribution-unit) treats the empty enable-time
+prompt as the strongest available demonstration of its claim.
+[P-13](./docs/PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1) scopes the zero-prompt rule to
+Phase 1, so shipping this violates no decision — but a criterion that quietly stops being true is
+worse than one deliberately retired. The documentation says `userConfig` values are prompted at
+enable time and distinguishes `required` only by whether validation fails on empty; **whether a
+non-required boolean carrying a `default` is skipped is not stated.** `claude plugin install
+--config viewer_enabled=true` makes the prompt avoidable for anyone scripted, which is a mitigation
+and not an answer.
+
+**Resolves by:** declaring one non-required defaulted boolean on a scratch plugin and enabling it on
+a cold profile to see whether a dialog appears. Cheap, and it needs no part of `PC-04` to exist. If
+it does prompt, the follow-up is whether `PC-02` criterion 2 is reworded, scoped to a viewer-less
+install, or retired.
+**Owning entry:** [`PLUGIN-PRD` PQ-12](./docs/PLUGIN-PRD.md#pq-12--does-a-userconfig-boolean-with-a-default-prompt-at-enable-time).
+
+### PQ-13 — What sets `images: "normal"` when the viewer is enabled?
+
+**Q.** Opened 2026-08-11 when
+[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) closed. Its answer is an
+opt-in defaulting to `"none"`, so a `card_search` call carries image URIs only when something asked
+for them — and [`PC-04`](./docs/PLUGIN-PRD.md#pc-04--card-viewer)'s hook cannot be that something. A
+`PostToolUse` hook runs *after* a call it did not compose. Nothing currently causes the parameter to
+be set, so the viewer as specified displays nothing on an ordinary search.
+
+**A. Open. This is a known cost, not a discovery**, and it should not be re-litigated as though the
+opt-in were a mistake: an always-on image array costs +21.6% on every page for every user forever,
+including the overwhelming majority who will never enable a viewer, and that is the cost the
+default-off choice declines to impose. What was not settled in the same breath is how the minority
+who *do* enable it get the field.
+
+**Three candidate mechanisms, none chosen.**
+[`PC-01`](./docs/PLUGIN-PRD.md#pc-01--scryfall-query-craft)'s skill could teach the model to set it
+— rejected on sight, because a skill travels to every surface and would ask for images on installs
+with no viewer and no hook. An install-level switch read once at the server's entry point and driven
+by the same `userConfig` value would need no model cooperation, at the price of the same query
+returning different shapes on different machines — and it is an `MCP-PRD` change, not the plugin
+document's to make. Or the viewer accepts that it fires only on calls that happened to ask, which
+makes it unreliable in exactly the case that motivated it.
+
+**Resolves by:** whichever session schedules `CAP-01`'s criterion 15, because the second candidate
+changes what that criterion has to assert. **It blocks `PC-04` from being built and does not block
+it from being `specified`** — the component's behavior, surface and criteria are settled; what is
+unsettled is a mechanism one layer down.
+**Owning entry:** [`PLUGIN-PRD` PQ-13](./docs/PLUGIN-PRD.md#pq-13--what-sets-images-normal-when-the-viewer-is-enabled).
