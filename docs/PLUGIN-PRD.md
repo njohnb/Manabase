@@ -19,6 +19,18 @@ unchanged and is still [PC-01](#pc-01--scryfall-query-craft) plus
 [PC-02](#pc-02--bundled-mcp-server) — **`specified` is not a phase assignment**, and neither of the
 two newer components has one.
 
+**Component status 2026-08-24 — supersedes the count above, which is dated and left as written.**
+**Five** components are specified: the four above plus
+[PC-05](#pc-05--commander-deck-ratios) (Commander deck ratios, a skill). Phase 1 is still
+[PC-01](#pc-01--scryfall-query-craft) plus [PC-02](#pc-02--bundled-mcp-server) and **three
+components now sit `specified` with no phase**. Two things about the newest are easy to read
+backwards. Its `SKILL.md` **is written**, which no other unscheduled component can say — so
+`specified` here means specified-and-drafted, while every acceptance criterion but 1 is still
+unverified and it has **no slice**. And it is **not blocked**: unlike
+[PC-04](#pc-04--card-viewer) it waits on no prerequisite, and unlike the Deck analysis and Deck
+optimize rows in [§6](#6-roadmap)'s queue it needs no capability beyond the delivered
+[CAP-01](./MCP-PRD.md#cap-01--card-search). It is unscheduled for want of a slice alone.
+
 **Build status 2026-08-04:** the server [PC-02](#pc-02--bundled-mcp-server) declares now exists —
 `dist/index.js` is built and committed per [P-09](#p-09--server-ships-as-committed-built-javascript),
 and `.mcp.json` points at it. **Nothing on this document's side has been verified.** The plugin
@@ -1614,6 +1626,157 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
 
 ---
 
+### PC-05 — Commander deck ratios
+
+- **Type:** skill
+- **Status:** specified
+- **Phase:** unassigned
+- **User need:** When I ask what to add to my Commander deck, what to cut, or what to swap
+  something for, I want the answer built on how a Commander deck is actually proportioned —
+  enough lands, enough ramp, enough draw — rather than a list of individually good cards that
+  leaves the deck short somewhere. And when my deck is built around a theme rather than a
+  mechanic, I want to be asked what the theme is, not guessed at.
+- **Surface:** auto-invoked by description, on requests for deckbuilding judgement — add, cut,
+  swap, "is this enough lands", "help me start a deck". Not invoked for a plain card lookup,
+  which is [PC-01](#pc-01--scryfall-query-craft)'s. No command
+  ([P-07](#p-07--skills-not-commands)), no hook, no `userConfig`.
+- **Behavior:**
+  - Carries a **baseline ratio** for the 100 cards — 1 commander, 36–38 lands, 10–12 ramp, 8–10
+    card draw, 8–10 removal, 7–10 win conditions, 15–20 synergy — as a default that is stated
+    and departed from openly, never as a law.
+  - **A card counts in every slot it fills.** This is structural rather than a convenience: the
+    low ends sum to 84 and the high ends to 100 against 99 slots, so the ranges reconcile only
+    if cards double-count. A deck counted one-card-one-slot reads short on every axis at once.
+  - **Three override paths, in precedence order:** an explicit user instruction; the deck's
+    theme (a landfall deck exceeds 38 lands on purpose); and nothing else. **Power level moves
+    card quality, not slot counts** — a budget answer never cuts the skeleton.
+  - Carries **four numeric checks**. Lands cross-check against
+    `28 + (2 × colors) + average mana value`, recording that the formula and the band **disagree
+    below three colors** — the band wins, 34–35 is the floor. Curve targets an average mana value
+    of 2.5–3.5. **Fixing** applies at three or more colors and is framed as a **quality constraint
+    on the land and ramp counts, not a new slot**, so raising it swaps within those counts.
+    **Interaction density** puts removal plus draw at ~30% of non-land cards, and is stated as a
+    cross-check that *agrees* with the ratio rather than a separate rule: 99 − 37 lands leaves 62,
+    30% of 62 is ~19, and 8–10 removal plus 8–10 draw gives 16–20.
+  - Carries a **six-fault review checklist** for a deck that already exists — draw, lands,
+    interaction, curve, fixing, win condition. Four are the ratio read from the failure direction
+    and are checked by counting; the **win-condition test is the one that is not arithmetic**, and
+    the skill asks the user to state in one sentence how the deck wins, reporting an inability to
+    do so as the finding rather than recommending more cards into it.
+  - **Fetches no external statistic.** Deck sites publish per-commander averages; the skill names
+    them as reasonable for the *user* to consult and forbids retrieving them, computing every
+    figure from the deck in front of it. This extends the same no-fallback rule that governs card
+    facts to benchmarks, and it exists because the tempting failure here is not naming a card from
+    memory but quoting a number from a page nothing checked.
+  - Defers deck testing and playgroup adaptation to `reference/deck-review.md` — goldfishing read
+    as a ratio diagnosis rather than a card recommendation, and meta answers costed out of the
+    removal and synergy budgets. That file also records that **Commander has no sideboard in
+    normal play**, because the 60-card advice this material descends from assumes one.
+  - Establishes commander and strategy first, **asking when either is vague**, then counts a
+    supplied decklist into slots, names the gaps largest-first, and searches one gap at a time
+    through [`docs/MCP-PRD.md` CAP-01](./MCP-PRD.md#cap-01--card-search) constrained to the
+    commander's color identity and `f:commander`.
+  - **Emits only tag operators this repo has seen return live results** — `otag:ramp` and
+    `function:removal`. Slots with no confirmed tag are searched by oracle text instead. The
+    reason is [`docs/MCP-PRD.md` §4.1.1](./MCP-PRD.md#411-search-endpoint)'s silent-drop
+    behavior: an invalid term is discarded whenever a valid term remains, so a plausible-looking
+    tag name returns an ordinary result computed from fewer constraints, with no error.
+  - Treats **non-mechanical themes** — art, IP, concept, a joke the deck is telling — as
+    first-class, and **states which half of such a theme search can reach and which it cannot.**
+    There is no operator for the colors used in an illustration, nor for tone or narrative
+    implication; the honest output is a candidate pool from the closest searchable proxy, judged
+    by the user, never a filtered list presented as complete.
+  - **Accepts a decklist as pasted text and refuses a deck URL**, saying the capability is absent
+    and asking for the list. It never fetches the page and never works from an inferred deck.
+- **Depends on:** [`docs/MCP-PRD.md` CAP-01](./MCP-PRD.md#cap-01--card-search) **only**, which is
+  delivered — this component needs no capability that does not exist, which is what distinguishes
+  it from the two blocked rows in [§6](#6-roadmap)'s queue. No dependency on
+  [PC-01](#pc-01--scryfall-query-craft): the two are independent skills that may fire in the same
+  session, and this one names the other in plain text for query syntax rather than linking to it
+  ([§3.3](#33-trust-and-sandboxing) — an installed skill cannot reference a path outside its own
+  directory). Ships inside [PC-02](#pc-02--bundled-mcp-server)'s plugin.
+- **Context cost:**
+  - **Always-on: the `description` plus `when_to_use` pair, measured at 637 characters** — 240
+    and 397 — against [§3.1](#31-context-budget)'s 1,536 ceiling, and against
+    [PC-01](#pc-01--scryfall-query-craft)'s 763. Basis: the same character measure criterion 1
+    applies, taken from the file. **Its token cost is not yet measured**, and
+    [§4.6](#46-context-cost-accounting)'s method — `claude plugin details` against a pinned
+    plugin-cache clone — is the instrument that would. **The always-on figure is unaffected by
+    body growth**, which is what makes the progressive-disclosure split below cheap.
+  - **On-invoke: the body, 9,774 characters.** Basis: [PC-01](#pc-01--scryfall-query-craft)'s
+    body measured 2,169 tokens at 6,660 characters, so this one estimates to **~3,200 tokens** at
+    the same density — inside [§3.1](#31-context-budget)'s 5,000-token compaction bound, and
+    **an estimate rather than a measurement.** It is the largest skill body in the plugin, at
+    roughly 64% of the bound, so the next addition to it is the one that should be weighed
+    against a second reference file rather than appended.
+  - **On-demand: `reference/deck-review.md`, 3,070 characters (~1,000 tokens estimated).** Read
+    only when deck testing or playgroup adaptation comes up, following
+    [PC-01](#pc-01--scryfall-query-craft)'s `reference/` pattern. Counting it against the
+    compaction bound would be wrong — it is not resident — but it is recorded because a session
+    that reads both pays roughly 4,200 tokens.
+  - **Justification for paying the always-on cost:** it answers a different question from
+    [PC-01](#pc-01--scryfall-query-craft) — how a deck should be proportioned, versus how one
+    request becomes one query — and folding it into that skill would rewrite frontmatter whose
+    10/10 trigger accuracy was measured in [Slice 9](./slices/TrackB-Slice9.md) and is relied on.
+    It is also the cheaper half of the deckbuilding surface: it delivers the recommendation and
+    replacement work **without** the deck-reading capability the [§6](#6-roadmap) queue waits on.
+- **Acceptance criteria:**
+  1. `description` plus `when_to_use` measures ≤1,536 characters ([§3.1](#31-context-budget)).
+     **Verified 2026-08-24 at 637.**
+  2. `SKILL.md` renders to ≤5,000 tokens ([§3.1](#31-context-budget)).
+  3. **The skill asserts no card facts.** A review finds no card name presented as a
+     recommendation, no oracle text, no price, no legality, and no claim that a named card fills
+     a named slot ([§3.6](#36-skills-carry-instructions-never-facts)).
+  4. **Negative: no tag operator outside `otag:ramp` and `function:removal` appears**, in the
+     file or in an emitted query, across the full eval set. This is the silent-drop guard and it
+     is the criterion most likely to regress.
+  5. Given a commander and no stated strategy, the skill **asks** before it searches.
+  6. Given a pasted 99, it reports per-slot counts with multi-category counting applied, and its
+     slot totals sum above the card count when overlap exists.
+  7. Given an Archidekt or Moxfield URL, it states the capability is absent and asks for the list
+     as text. **No fetch is attempted and no deck content is inferred.**
+  8. Given a non-mechanical theme, it names which part of the theme it could search and which it
+     could not, rather than returning a filtered list as though complete.
+  9. Every emitted recommendation query carries the commander's color identity and
+     `f:commander`.
+  10. Any departure from the baseline ratio is stated with its reason.
+  11. **Should-not-trigger: on prompts that are card lookups with no deck behind them, this skill
+      does not fire and [PC-01](#pc-01--scryfall-query-craft) does.**
+  12. **Loads *and* fires, in a real harness** — the criterion
+      [PC-01](#pc-01--scryfall-query-craft) gained on 2026-08-04 after a skill passed three
+      static checks without ever loading.
+  13. **[PC-01](#pc-01--scryfall-query-craft)'s trigger accuracy does not regress with this skill
+      installed.** [Slice 9](./slices/TrackB-Slice9.md) measured 10/10 with it alone in the
+      listing; that figure is re-taken with both present. See
+      [PQ-14](#pq-14--does-a-second-skill-degrade-pc-01s-measured-trigger-accuracy).
+
+  *Criteria 14–19 added 2026-08-24 with the deck-review material, and **appended rather than
+  interleaved** so that the numbering criteria 1–13 are already cited by does not move.*
+
+  14. Each of the four numeric checks is reported **as a number taken from the deck**, not as a
+      verdict — land count, average mana value, multi-color source count, and interaction density.
+  15. **A fixing recommendation never raises the land or ramp count.** It swaps within them. This
+      is the criterion that catches the checklist being read as a seventh slot.
+  16. The interaction-density check is reported with its arithmetic against **that deck's own**
+      non-land count, not against the 62 the worked example uses.
+  17. Given a deck with no stated win condition, the skill **asks the user to state it in one
+      sentence and reports an inability to do so as the finding**, before recommending any card.
+  18. **Negative: no statistic, average, or benchmark is retrieved from an external site**, and no
+      such figure is asserted from memory. Every number traces to the deck supplied or to a tool
+      result. This is the no-fallback rule extended from card facts to statistics.
+  19. **Negative: no operator for a land's color production is emitted.** None is confirmed in
+      this repo, and this is the same silent-drop guard as criterion 4 applied to the slot most
+      likely to tempt one.
+- **Open questions:**
+  [PQ-14](#pq-14--does-a-second-skill-degrade-pc-01s-measured-trigger-accuracy) (**the one that
+  could sink it** — trigger competition with [PC-01](#pc-01--scryfall-query-craft)).
+  [PQ-07](#pq-07--is-deck-optimization-a-skill-or-an-agent) is **adjacent and not blocking**: it
+  asks whether *deck optimization* is a skill or an agent, and that component is still blocked on
+  deck reading. This one is settled as a skill because it needs no context window of its own — it
+  budgets and searches, it does not perform a long analysis.
+
+---
+
 ## 6. Roadmap
 
 **Phase 1 — [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server) together.**
@@ -1714,6 +1877,38 @@ than `"node"` for the process the hook itself spawns. That work is recorded in
 [§4.1](#41-harness-features-relied-on)'s 2026-08-11 addendum, where the *next* hook component
 inherits it, rather than inside a block that may sit `proposed` for some time. The note above is
 therefore discharged by this component even if this component never ships.
+
+**[PC-05](#pc-05--commander-deck-ratios) is `specified` and unassigned, added 2026-08-24, and it
+is deliberately *not* either of the two blocked rows below.** The distinction is the whole reason
+it could be specified at all, and a session that collapses it into "Deck analysis" will conclude,
+wrongly, that this document specified a component against a capability that does not exist.
+
+**Deck analysis reads a deck; this budgets one.** The blocked row needs deck reading — a queued
+capability in [`docs/MCP-PRD.md` §6](./MCP-PRD.md#6-phases) with no phase — because analyzing a
+deck means first obtaining it from a platform. [PC-05](#pc-05--commander-deck-ratios) obtains the
+deck from the conversation instead: the user names a commander and a theme, or pastes the 99 as
+text. Everything downstream of that — counting slots, naming gaps, searching each gap — runs on
+[`docs/MCP-PRD.md` CAP-01](./MCP-PRD.md#cap-01--card-search) alone, which is delivered. **It
+refuses a deck URL rather than degrading toward one**, which is criterion 7 and is what keeps the
+boundary honest rather than merely stated.
+
+**So it is not Phase 1, and it is not blocked either.** Phase 1 remains
+[PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server) and nothing else,
+on the same smallest-thing-that-is-both argument that excluded
+[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) and [PC-04](#pc-04--card-viewer): a deck-ratio
+skill changes neither half of it. It is unscheduled for want of a slice, not for want of a
+prerequisite — the ordinary case, and the first component in this document to sit in it. It
+introduces no prompt, no local state and no hook, so unlike
+[PC-04](#pc-04--card-viewer) nothing in [§3.5](#35-what-the-user-must-see-and-must-not) rules it
+out of a phase; only the phase argument does.
+
+**What it does not settle.** [PQ-07](#pq-07--is-deck-optimization-a-skill-or-an-agent) stays open.
+This component resolved the skill-versus-agent choice **for itself** — it budgets and searches
+rather than performing a long analysis, so it needs no context window of its own — and that
+reasoning does not transfer to Deck optimize, which is downstream of a deck read whose size is
+the reason the question exists ([`docs/MCP-PRD.md` §4.8.1](./MCP-PRD.md#481-the-deck-payload-is-enormous--measured)
+measured one Moxfield deck at 1.63 MB). A second skill in the listing does, however, put
+[PQ-14](#pq-14--does-a-second-skill-degrade-pc-01s-measured-trigger-accuracy) in front of it.
 
 ### Queued and unassigned
 
@@ -2238,6 +2433,45 @@ motivated it.
 component's behavior, surface and criteria are settled; what is unsettled is a mechanism one layer
 down, in the document that owns it.
 
+### PQ-14 — Does a second skill degrade PC-01's measured trigger accuracy?
+
+Raised 2026-08-24 with [PC-05](#pc-05--commander-deck-ratios), the first component to put a second
+skill in this plugin's listing. [Slice 9](./slices/TrackB-Slice9.md) measured
+[PC-01](#pc-01--scryfall-query-craft) at **10/10 trigger accuracy over 20 queries** — and measured
+it with that skill alone in the listing. Every figure this project has for skill invocation was
+taken in a one-skill world.
+
+**The overlap is real and already written down**, which is what makes this a question rather than a
+worry. [PC-01](#pc-01--scryfall-query-craft)'s `when_to_use` claims "deckbuilding for
+commander/EDH" explicitly; [PC-05](#pc-05--commander-deck-ratios) claims deckbuilding *judgement*
+and disclaims plain lookups by name. Those are distinguishable in prose. Whether they are
+distinguishable **by the mechanism that actually selects a skill** is not something this document
+can reason its way to — [§4.6](#46-context-cost-accounting) records that the listing is a budgeted,
+silently-trimmed surface, so the failure mode is not only mis-selection but a skill dropping out of
+the listing altogether.
+
+Three outcomes are worth naming in advance, because two of them are cheap and one is not. Both
+fire correctly and nothing changes. Or the wrong one fires on a boundary prompt, and the fix is a
+frontmatter edit to the **new** skill — cheap, because [PC-05](#pc-05--commander-deck-ratios) has
+no measured accuracy to protect and [PC-01](#pc-01--scryfall-query-craft) does. Or
+[PC-01](#pc-01--scryfall-query-craft)'s own accuracy drops, which is the expensive one: its
+frontmatter is deliberately frozen — the text was **not** shortened during
+[Slice 10](./slices/TrackC-Slice10.md) precisely so
+[Slice 9](./slices/TrackB-Slice9.md)'s rate would stand — so recovering it means re-opening a file
+this project has twice declined to touch, and re-running the evals to re-earn the number.
+
+**Do not treat criterion 13 as this question's answer.** That criterion asserts the non-regression;
+this question asks whether it holds, and the two are settled by the same measurement but are not
+the same claim.
+*Resolves by:* re-running [`evals/trigger-evals.json`](../evals/trigger-evals.json)'s 20 queries
+with both skills installed, in the slice that ships
+[PC-05](#pc-05--commander-deck-ratios) — the same instrument
+[Slice 9](./slices/TrackB-Slice9.md) used, so the before and after are comparable. Note the
+confound that slice already recorded: **a baseline that merely omits the skill path is
+contaminated**, because the harness auto-invoked the skill unprompted, and the agent registry
+resolves at session start — so the isolating subagent type must exist *before* the measuring
+session.
+
 ---
 
 ## 8. Out of scope
@@ -2355,6 +2589,8 @@ and the correct move is to say so and stop.
 | 2026-08-11 | **Docs polish and the friend dry-run — a *partial* run, and [Slice 12](./slices/TrackC-Slice12.md) does not close on it.** One non-author installed the plugin on **Windows 11, Claude Code 2.1.219**: the install **succeeded** and card search worked on **both** Claude Desktop tabs, but by a path [`README.md`](../README.md) did not describe. **Three friction issues filed — #43, #44, #45 — and two or three author interventions.** The four observations this slice exists to buy were **not captured**: the handover message, the friend's questions and whether tools fired, their hesitations verbatim, and the `/context` output. Acceptance criterion 8 **fails**; criteria 6 and 7 are **partial**. **[PQ-04](#pq-04--how-would-the-author-detect-that-a-friends-skill-listing-has-been-budget-trimmed) is unconfirmed** — the by-name recovery clause is written, and nobody has yet watched a non-author use it. [`README.md`](../README.md) gained a **git** prerequisite ordered ahead of Claude Code, an Install section split into terminal-CLI and Claude Desktop routes, both Desktop rows corrected to **two installs**, and a Desktop-first troubleshooting entry. Fan Content disclaimer re-verified byte-identical (whitespace-normalized) across `plugin.json`, the marketplace entry and the README. Results: [`docs/slices/TrackC-Slice12-results.md`](./slices/TrackC-Slice12-results.md). | Track C [Slice 12](./slices/TrackC-Slice12.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)) — the last gate before the [P-08](#p-08--version-scheme) switchover, which **stays gated**. [PC-02](#pc-02--bundled-mcp-server)'s "what the user sees when something is wrong" now has a documented surface corrected by someone who did not write it, which is the part that worked. Two things are filed rather than fixed because this slice may edit neither [§4](#4-harness-and-delivery) nor a PC block: **#45 contradicts [§4.2](#42-marketplace-and-install-path)'s `[verified 2026-08-04]` claim that the Desktop Code tab needs no second artifact**, and [PC-02](#pc-02--bundled-mcp-server) criterion 1 describes no reachable path on Claude Desktop, where `/plugin` does not exist. [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion 8 stays unverified — a non-author installed the released bundle and nobody recorded whether it prompted. |
 | 2026-08-11 | **[PC-04](#pc-04--card-viewer) appended (card viewer, hook) with `Status: proposed` and a blocking prerequisite — the first hook component this plugin has specified, and nothing was built.** It is `proposed` rather than `specified` because [CAP-01](./MCP-PRD.md#cap-01--card-search) returns no per-card handle — no `id`, no image field, no artist field, in its behavior block and in [`src/scryfall/types.ts`](../src/scryfall/types.ts) alike — so per [§1](#1-overview)'s third consequence the work is a `CAP` in [`docs/MCP-PRD.md`](./MCP-PRD.md) and this document says so and stops. Three questions opened: **[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost)** (blocking — the [CAP-01](./MCP-PRD.md#cap-01--card-search) prerequisite), **[PQ-11](#pq-11--does-an-explicit-push-command-justify-reopening-the-bin-executables-rejection)** (an explicit push command versus [§8](#8-out-of-scope)'s `bin/` rejection, recorded rather than taken), and **[PQ-12](#pq-12--does-a-userconfig-boolean-with-a-default-prompt-at-enable-time)** (whether the opt-in switch costs [PC-02](#pc-02--bundled-mcp-server) criterion 2). [§4.1](#41-harness-features-relied-on) gains a dated addendum recording the hook mechanics researched for it, and [§6](#6-roadmap) records the phase reasoning. **[§2](#2-locked-decisions), [§3](#3-constraints) and [§8](#8-out-of-scope) are untouched, no `P-` decision was added or amended, and no [PC-01](#pc-01--scryfall-query-craft), [PC-02](#pc-02--bundled-mcp-server) or [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.** Phase 1 is unmoved and [Slice 12](./slices/TrackC-Slice12.md) is still the open gate. | The component was requested with its own analysis, and two things that analysis did not contain are the reason this row exists. **An identifier would not have unblocked it.** Exchanging an id for an image URL is a call to a card endpoint — the 2/second lane — issued by a daemon sitting outside the server's two rate-limit lanes, which is two independently throttled clients in one application against a section stating that each local copy must be well-behaved on its own ([`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)). An **image URI** is served from a `*.scryfall.io` file origin, rated unlimited there, so it removes the conflict instead of managing it — which changes what [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) has to ask for. And **[`docs/MCP-PRD.md` §3.3](./MCP-PRD.md#33-legal-and-terms-of-service)'s image-handling rules govern this component directly** and were not cited: no cropping away artist or copyright, no distortion or filtering, and `art_crop` only where both stay identifiable. Deciding on the unmodified full card face satisfies them almost for free, since the image already carries both in its own border — and it is what removes the character-cell terminal front-end, which is filtering, loses the artist line, and was the sole reason this component would have needed a prerequisite beyond Node on `PATH`. **The standing [§6](#6-roadmap) note that the first hook component owns the exec-form and Windows-shell problem is discharged**, and deliberately discharged into [§4.1](#41-harness-features-relied-on) rather than into a block that may sit `proposed` for a while: exec form is selected by the presence of `args`, `${CLAUDE_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_DATA}` **do** substitute inside a hook's `args` (which is what makes [P-06](#p-06--cached-data-lives-in-the-plugin-data-directory) reachable from a hook at all, and was recorded nowhere before today), and the daemon must be spawned with `process.execPath` rather than the string `"node"`. Two Scryfall field-level facts are marked **[inferred]** rather than verified — `purchase_uris`' key set, and whether `image_uris` sits on `card_faces` — because `scryfall.com` returned **HTTP 403** to an honestly identified fetcher and [`docs/MCP-PRD.md` §3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis) makes a block an answer. They belong to the [CAP-01](./MCP-PRD.md#cap-01--card-search) session regardless. |
 | 2026-08-11 | **[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) closed, and [PC-04](#pc-04--card-viewer) promoted `proposed` → `specified` the same day it was appended.** The prerequisite was answered upstream as [`docs/MCP-PRD.md` OQ-13](./MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost): [CAP-01](./MCP-PRD.md#cap-01--card-search) gains `images: "none" \| "normal"` defaulting to `"none"`, returning an **array** of Scryfall `normal` URIs one per face, as an acceptance criterion 15. Edits here: [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) gains a dated answer, [PC-04](#pc-04--card-viewer)'s `Status` line and a **Behavior** addendum record the promotion, its `Open questions` line strikes [PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost), [§6](#6-roadmap) gains an addendum, and the document-status block gains a dated component count. **One question opened — [PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled).** **[§2](#2-locked-decisions), [§3](#3-constraints) and [§8](#8-out-of-scope) are untouched, no `P-` decision was added or amended, and no [PC-01](#pc-01--scryfall-query-craft), [PC-02](#pc-02--bundled-mcp-server), [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) or [PC-04](#pc-04--card-viewer) acceptance criterion changed status.** Phase 1 is unmoved; [Slice 12](./slices/TrackC-Slice12.md) is still the open gate and nothing was built. | [§6](#6-roadmap) had already named the promotion condition — "[PQ-10](#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) has to be answered in [`docs/MCP-PRD.md`](./MCP-PRD.md) before this component can move to `specified`" — so this row applies a condition the document set for itself rather than making a fresh judgment. **The two facts this question refused to lose both survived it**, which is the return on having written them down: a bare card `id` was measured at **+8.5%** against the image array's **+21.6%** and rejected anyway, on [`docs/MCP-PRD.md` §3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) grounds rather than byte grounds, because exchanging an id for a URL is a 2/second-lane call from a daemon outside the server's lanes; and the cost was real enough that the field is off by default. The two `[inferred]` facts are now **verified** — the 403 was on `scryfall.com`'s documentation pages and the API itself answered normally, which is a distinction the earlier row could not draw. [PQ-13](#pq-13--what-sets-images-normal-when-the-viewer-is-enabled) exists because a default of `"none"` and a `PostToolUse` hook do not compose: the hook observes a call it did not make and cannot add a parameter to a request already sent, so **the viewer as specified would display nothing on an ordinary search**. That is a known cost of the opt-in rather than a defect discovered late — it was weighed against an always-on field costing every user +21.6% forever — but it was not settled in the same breath, and an unsettled mechanism recorded as a parenthetical inside a component block is how this project's other invisible failures started. It blocks building, not specifying, which is why the status still moves. |
+| 2026-08-24 | **[PC-05](#pc-05--commander-deck-ratios) appended (Commander deck ratios, skill) with `Status: specified`, and the skill was written — [`skills/commander-deck-ratios/SKILL.md`](../skills/commander-deck-ratios/SKILL.md), this plugin's second.** It carries a baseline ratio for the 99 — 36–38 lands, 10–12 ramp, 8–10 card draw, 8–10 removal, 7–10 win conditions, 15–20 synergy — plus multi-category counting, the `28 + (2 × colors) + average mana value` land cross-check, a 2.5–3.5 curve target, theme clarification, and a refusal to read a deck URL. **Frontmatter measured at 638 characters** (240 + 398) against [§3.1](#31-context-budget)'s 1,536 ceiling, so criterion 1 is **verified**; the body is 6,749 characters, estimated **~2,200 tokens and not measured**. `npm test` is 104/104, the three added assertions being the frontmatter parse that [§4.1](#41-harness-features-relied-on)'s YAML trap exists to catch. **One question opened — [PQ-14](#pq-14--does-a-second-skill-degrade-pc-01s-measured-trigger-accuracy)**, and [§6](#6-roadmap) gains the placement argument separating this component from the two blocked rows in its queue. **[§2](#2-locked-decisions), [§3](#3-constraints) and [§8](#8-out-of-scope) are untouched, no `P-` decision was added or amended, and no [PC-01](#pc-01--scryfall-query-craft), [PC-02](#pc-02--bundled-mcp-server), [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) or [PC-04](#pc-04--card-viewer) criterion changed status.** Phase 1 is unmoved, [Slice 12](./slices/TrackC-Slice12.md) is still the open gate, and this component has **no slice** — every criterion but 1 is unverified. | The request was a deckbuilding ruleset covering recommendations and replacements, and **the boundary rule split it in half.** Recommendations against a deck the user *links* need deck reading — a queued capability in [`docs/MCP-PRD.md` §6](./MCP-PRD.md#6-phases) with no phase — and [§6](#6-roadmap)'s queue already holds that work twice, as **Deck analysis** and **Deck optimize**; per [§1](#1-overview)'s third consequence that half is a `CAP` in the other document and this one says so and stops. Recommendations against a deck supplied *in the conversation* need nothing that does not exist, so that half was specified and built — which is why the placement argument in [§6](#6-roadmap) is longer than the block deserves on its own. **The refusal is a criterion rather than a note** (criterion 7): a skill that quietly degraded toward fetching a deck page would reintroduce the failure PR #24 fixed, where an absent tool sent the model to a silent web search and made an installed Manabase *less* grounded than no Manabase. Two constraints shaped the content more than the ratio did. **The ratio is not a card fact and [§3.6](#36-skills-carry-instructions-never-facts) permits it** — but "card X fills slot Y" is one, so the file carries the counting rule and never a card, and the author's own worked example was left out for that reason. And **only `otag:ramp` and `function:removal` have measured live results anywhere in this repo**: [`docs/MCP-PRD.md` §4.1.1](./MCP-PRD.md#411-search-endpoint) records that an invalid term is silently dropped whenever a valid one remains, so inventing a plausible draw or win-condition tag would return an ordinary-looking answer computed from fewer constraints and no error — the slots with no confirmed tag search oracle text instead, and criterion 4 is the guard. The skill-versus-agent choice was settled **for this component only**, on the ground that budgeting and searching needs no context window of its own; [PQ-07](#pq-07--is-deck-optimization-a-skill-or-an-agent) is untouched and still waits on the deck read whose 1.63 MB payload is the reason it is a real question. The one genuine risk is [PQ-14](#pq-14--does-a-second-skill-degrade-pc-01s-measured-trigger-accuracy). Every trigger figure this project holds was taken with a single skill in the listing, and [PC-01](#pc-01--scryfall-query-craft)'s `when_to_use` already claims "deckbuilding for commander/EDH" — **folding this into that skill was considered and rejected for the same reason**, since it would rewrite frontmatter that [Slice 10](./slices/TrackC-Slice10.md) deliberately declined to shorten in order to protect [Slice 9](./slices/TrackB-Slice9.md)'s 10/10. |
+| 2026-08-24 | **[PC-05](#pc-05--commander-deck-ratios) gained the deck-review material the same day it was appended — no new component, and the count stays at five.** Added to [`skills/commander-deck-ratios/SKILL.md`](../skills/commander-deck-ratios/SKILL.md): two further numeric checks (**fixing**, framed as a quality constraint on the land and ramp counts rather than a seventh slot, and **interaction density** at ~30% of non-land cards), a **six-fault review checklist** for an existing deck, the non-arithmetic **win-condition test**, and a prohibition on fetching external statistics. A second file, `reference/deck-review.md` (3,070 characters), carries goldfishing-as-ratio-diagnosis and playgroup adaptation on demand, following [PC-01](#pc-01--scryfall-query-craft)'s `reference/` pattern. The body grew 6,749 → **9,774 characters**, estimated ~3,200 tokens against [§3.1](#31-context-budget)'s 5,000-token bound — **roughly 64% of it, and the block now says so**, so the next addition is weighed against a third file rather than appended. **Criteria 14–19 appended, deliberately not interleaved**, so the numbering criteria 1–13 are already cited by does not move; criterion 1 re-measured **638 → 637 characters** after a spelling normalization and stays verified. `npm test` 104/104, `npm run lint:docs` OK. **No new question, no `P-` decision, [§2](#2-locked-decisions)/[§3](#3-constraints)/[§8](#8-out-of-scope) untouched, and no other component's criteria moved.** Phase 1 unmoved; still no slice. | The material was six "common mistakes" and four "optimization tips", and the placement question answered itself on inspection: **four of the six mistakes are the baseline ratio read from the failure direction** — draw under 8, lands under 36, removal under 8, curve over 3.5 — so a separate component would have duplicated the ratio across two files, which is the drift this project's never-duplicate-a-decision rule exists to prevent, and would have added a **third** always-on description while [PQ-14](#pq-14--does-a-second-skill-degrade-pc-01s-measured-trigger-accuracy) is open on the second. The trigger surface is also identical: "what should I add" and "what is wrong with my deck" are one conversation. **Three items were changed rather than transcribed, and each for a rule this document already binds.** A named fixing artifact is a **card fact** ([§3.6](#36-skills-carry-instructions-never-facts)), so the skill specifies the *property* and lets [`docs/MCP-PRD.md` CAP-01](./MCP-PRD.md#cap-01--card-search) return the card — the same treatment the ratio's own worked example got. The benchmark tip pointed at a deck site for average mana value, which would send the model to a page nothing verifies — **the exact failure PR #24 fixed**, where an absent tool produced a silent web search and made an installed Manabase less grounded than none — so it became criterion 18, a prohibition, with the honest note that consulting such a site is fine for the *user*. And **Commander has no sideboard in normal play**, so the sideboard advice was recorded as a 60-card inheritance to discount rather than repeated. Two things were checked rather than assumed. **The 30% rule agrees with the ratio** — 99 − 37 lands leaves 62, 30% of 62 is ~19, against 8–10 removal plus 8–10 draw for 16–20 — so it is recorded as a cross-check that corroborates the skeleton, not a second rule that could contradict it. And **fixing is a quality constraint, not a slot**, which is rule 3 (power level changes quality, not counts) applied to color rather than to budget; criterion 15 exists because reading it as a slot is the specific way this section will be got wrong. Criterion 19 extends criterion 4's silent-drop guard to land color production, where **no operator is confirmed in this repo** and one that sounds real is exactly what [`docs/MCP-PRD.md` §4.1.1](./MCP-PRD.md#411-search-endpoint) punishes with an ordinary-looking wrong answer. |
 
 ---
 
