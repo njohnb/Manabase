@@ -1093,6 +1093,46 @@ header ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)): one schem
 `GET /variants/`, and three `POST /find-my-combos`. No authentication was attempted and no
 challenge was encountered. No 429.
 
+**Addendum — four probes taken to settle the paging path and two mapping questions.
+[verified 2026-08-24]** Taken after
+[CAP-02](#cap-02--combo-discovery) was specified, because three of its bullets rest on behaviour
+nothing above establishes. Five requests — four `GET /variants/` and one Scryfall
+`POST /cards/collection` — 1.2 seconds apart, with the app-naming `User-Agent` and an `Accept`
+header. No 429. The captures are in
+[`tests/fixtures/spellbook/`](../tests/fixtures/spellbook/README.md), which records which of them
+are verbatim and which are truncated.
+
+1. **`/variants/` ordering is stable across calls.** `card:"Thassa's Oracle"` at
+   `limit=40&offset=0` and then `limit=40&offset=40` returned 40 ids each, **zero overlap and no
+   gap** — 80 distinct ids in 80 slots, `count` 96 on both. Page 1's `next` was exactly the URL
+   page 2 was fetched by. **[verified]** This is the check
+   [CAP-02](#cap-02--combo-discovery)'s third cap bullet gates the upstream-paging path on, so
+   that path ships as specified and neither fallback — an explicit `ordering` parameter, or one
+   fetch and a client-side slice — is needed.
+
+2. **A valid query with no matches is HTTP 200 carrying `{"count":0,"next":null,"previous":null,
+   "results":[]}`, not a 404.** **[verified]** This is the **opposite** of Scryfall, which answers
+   zero matches with a 404 that [CAP-01](#cap-01--card-search) deliberately maps to a successful
+   empty result ([§4.1.1](#411-search-endpoint)). A consumer that ports that mapping here gains
+   nothing and loses a real signal: a 404 from this host means a bad path, not an empty answer.
+   Recorded because assuming parity is the standing hazard of this section — the HTTP 400 above is
+   the other half of the same warning, in the other direction.
+
+3. **`count` is `null` unless the request sends `count=true`.** The key is **always present**, so
+   a missing total does not announce itself as missing — it reads as a total of nothing. `next` is
+   populated either way and cannot substitute, since it names the following page rather than a
+   size. **[verified]** The OpenAPI schema declares `count` with `default: false`, so this is the
+   documented behaviour rather than a surprise; it is recorded because every capture taken on
+   2026-07-29 and earlier this date happened to carry `count=true`, which makes the field look
+   unconditional. Any call whose response must state a total sends `count=true`.
+
+4. **Scryfall's `POST /cards/collection` reports a miss in `not_found` as the identifier object
+   submitted, not as a bare string.** Three names, one invented, returned
+   `{ object, not_found, data }` with `not_found: [{"name":"Zzzz Not A Real Card 9999"}]` and the
+   two real cards in `data`. **[verified]** This is the mechanism
+   [§4.1.2](#412-batch-resolution) supplies and the only way a caller learns that a submitted
+   name matched nothing — Commander Spellbook itself will never say so.
+
 #### 4.4.1 The combo payload is enormous — measured
 
 This is the finding that shapes the capability, and it was measured rather than estimated. It is
