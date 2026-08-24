@@ -163,12 +163,14 @@ present — that test reports "absent" on a surface where the tool works.
 Tests use `node:test` + `node:assert/strict`, and load fixtures with `readFileSync` rather than
 importing JSON, so they behave identically under type stripping and under the bundle.
 
-## Current state (2026-08-10)
+## Current state (2026-08-11)
 
 Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered
 against criteria 1–14**. Criteria 1–12 were verified 2026-08-03, nine live against real Scryfall;
 criterion 13 was added 2026-08-04 and stayed unimplemented until Slice 14 landed both of `OQ-02`'s
-levers on 2026-08-10, adding a criterion 14 for the page cap — see the Slice 14 note below.
+levers on 2026-08-10, adding a criterion 14 for the page cap — see the Slice 14 note below. **A
+criterion 15 was added 2026-08-11 by `OQ-13` and is unimplemented and unscheduled**, so "delivered
+against 1–14" is literally true and is not the whole block — see the card-viewer note below.
 
 Track B has started. Slice 7 (install verification) landed 2026-08-04 as PRs #13 and #14: the
 plugin **has** now been installed from a marketplace on a cold profile, and six of `PC-02`'s ten
@@ -503,9 +505,53 @@ bundle that cannot be recalled — check a version string against real semver, n
 **a bundle never self-updates**, so shipping a fix does not deliver it, and every `v0.1.0` install
 still carries the issue-#25 payload until someone reinstalls.
 
-Slice 12 is now the **only unblocked slice** and next on the critical path: it waited on 6, 9 and
-10, and on 14 once that was scoped, and all four have landed. 13's remaining `P-08` half waits on
-12 alone. `docs/DEV-ROADMAP.md` §5 has the graph.
+**Slice 12 ran partially on 2026-08-11 and did not close — it is still the gate.** A non-author
+installed the plugin on Windows 11 / Claude Code 2.1.219, and card search worked afterwards on both
+Claude Desktop tabs — by a path the README did not describe. Three issues: **#43**, `/plugin` does
+not exist in Claude Code on Claude Desktop, so the README's terminal-only install instruction was
+unreachable there; **#44**, git is required before installing Claude Code and Requirements never
+said so; **#45**, Claude Desktop needed the MCPB bundle on the **Code** tab too, contradicting
+`PLUGIN-PRD.md` §4.2's `[verified]` claim that the Code tab needs no second artifact. #43 and #44
+are fixed in the README. **#45 is filed, not fixed, and must not be fixed by amending §4.2 yet** —
+the 2026-08-04 verification installed from the terminal CLI, which shares its plugin directory with
+the Desktop Code tab, and this run never used that path, so the two records may describe two
+different install routes rather than disagreeing; the CLI-into-Code-tab branch is untested and not
+contradicted. **Acceptance criterion 8 fails outright and 6 and 7 are partial:** the author was on
+a call throughout, intervened two or three times, and captured none of the four observations the
+slice exists to buy — the handover message, the friend's questions and whether tools fired, their
+hesitations in their own words, and the `/context` output `PQ-04` needs. So `PQ-04`'s disposition
+is **unconfirmed** — neither answered nor reopened, because the deciding step did not run — and
+**`PC-03` criterion 8 stays unverified**, the run having passed through the exact configuration it
+waits for with nobody recording whether the bundle prompted. A second cold run with a different
+person is outstanding, 13's `P-08` half still waits on it, and no `PC-01` or `PC-02` criterion
+changed status. Evidence: `docs/slices/TrackC-Slice12-results.md`. `docs/DEV-ROADMAP.md` §5 has the
+graph.
+
+**The card viewer arrived 2026-08-11 — specification only, nothing built.** `PLUGIN-PRD.md` gained
+`PC-04`, the plugin's **first hook component**: a `PostToolUse` hook on the scoped Claude Code tool
+name pushes card identifiers to a local daemon that serves a page on `127.0.0.1`, opt-in and
+default-off behind a `userConfig` boolean. Nothing it produces returns into the model's context, so
+its always-on *and* on-invoke costs are both **0**. It blocked immediately on `CAP-01` returning
+**no per-card handle of any kind** — no `id`, no image field, no artist field — and correctly
+refused to spec around it, raising `PQ-10`. `MCP-PRD.md` answered the same day as **`OQ-13`**:
+`images: "none" | "normal"` defaulting to `"none"`, returning an **array** of Scryfall `normal`
+URIs, one per face, as `CAP-01` criterion 15, measured at **+21.6%** (+9,888 characters) on an
+88-card page. `PC-04` moved `proposed` → `specified`, `PQ-10` closed, and **nothing is
+implemented** — no `CAP-01`, `PC-01`, `PC-02` or `PC-03` criterion changed status and criterion 15
+has no slice.
+
+Four things from that pair bind later work. **A bare card `id` was rejected despite being cheaper**
+(+8.5%): exchanging an id for an image is a call on the 2/second lane issued by a client outside
+this server's two lanes, while an image URI resolves on `cards.scryfall.io`, which §3.4 rates
+unlimited — so the hook must **never assemble an image URL from an `id`**, a route verified to work
+and deliberately not taken. **A transform card carries no top-level `image_uris` at all**, the
+object sitting on each `card_faces` entry, which is why the field is an array. **`PQ-13` blocks the
+build and not the spec:** the opt-in defaults to `"none"` and a `PostToolUse` hook observes a call
+it did not compose, so nothing currently causes `images: "normal"` to be set and the viewer as
+specified would display nothing. And two more questions came with it — `PQ-11` (an explicit push
+command versus §8's `bin/` rejection, recorded and answered *no for now*) and `PQ-12` (whether a
+non-required defaulted `userConfig` boolean prompts at enable time, which would cost `PC-02`
+criterion 2 and is settleable with one scratch plugin on a cold profile).
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
