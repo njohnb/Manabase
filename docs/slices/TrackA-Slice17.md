@@ -23,10 +23,18 @@ on two open questions, and then `doc-sync`.
   unchanged** and is the reason it carries an optional `bucket`.
 - `src/tools/combo-search.ts` and a `Clients` bundle in
   [`src/tools/register.ts`](../../src/tools/register.ts) carrying both `scryfall` and `spellbook`.
+  **`combo_search` ships the paging shape this slice matches** — `BYTE_BUDGET = 50_000`,
+  `ENVELOPE_RESERVE = 400`, `fillPage`, `normalizeOffset`, `outOfRangeFailure`, `offset` in and
+  `next_offset` out. Read it and `tests/tools/combo-search.test.ts`'s "comboSearch — the byte
+  budget" suite before writing this tool's paging; the contract under load is there, not here.
 - `src/http/client.ts` with `post` on `HttpClient` — from [Slice 15](./TrackA-Slice15.md), and
   still uncalled by production code until this slice.
-- [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criteria 2, 3, 6, 7, 8, 11, 12 and 14's
-  `combo_search` half verified.
+- [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) verification as it stands, stated exactly:
+  criteria **2, 6, 7, 11 and 12 in full**; criterion **3 in both halves** ([Slice 15](./TrackA-Slice15.md)'s
+  client half and [Slice 16](./TrackA-Slice16.md)'s handler half); and the **`combo_search` half
+  only** of criteria **1, 8 and 14**. Criteria **4, 5, 9, 10 and 13 are untouched** and are this
+  slice's. `Status` is still `specified` and **no criterion is marked delivered** — that happens
+  when this slice lands.
 - Fixtures: `tests/fixtures/spellbook/find-my-combos-deck.json` (**derived** — 164 variants reduced
   to 14, `count` adjusted to match), `find-my-combos-limit5.json` (**verbatim** — 4 `included` and
   1 `almostIncluded`), `find-my-combos-bogus-name.json` (verbatim), and
@@ -64,11 +72,14 @@ guard against one of them:
 |---|---|
 | `src/scryfall/collection.ts` | new — `resolveNames(client, names)`, batching at 75 |
 | `src/scryfall/types.ts` | modify — the `POST /cards/collection` response shape |
+| `src/spellbook/combos.ts` | modify — receives `BYTE_BUDGET`, `ENVELOPE_RESERVE` and a `ComboSummary[]` `fillPage`, lifted from `combo-search.ts` (requirement 9) |
+| `src/tools/combo-search.ts` | modify — calls the shared `fillPage`; **no behaviour change**, proven by its existing tests passing unedited |
 | `src/tools/combo-find-deck.ts` | new — `comboFindDeck(clients, params)` |
 | [`src/tools/register.ts`](../../src/tools/register.ts) | modify — the `combo_find_deck` definition, schema and dispatch |
 | `dist/index.js` | rebuild and commit — [P-09](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), enforced by CI |
 | `tests/scryfall/collection.test.ts` | new — batching, `not_found`, failure propagation |
-| `tests/tools/combo-find-deck.test.ts` | new — classification, the cap, the near-miss opt-in, refusals |
+| `tests/spellbook/combos.test.ts` | modify — the shared `fillPage` at its boundaries, including the oversized-combo guard |
+| `tests/tools/combo-find-deck.test.ts` | new — classification, the byte budget and offset paging, the near-miss opt-in, refusals |
 | `tests/tools/register.test.ts` | modify — the third tool, `EXPECTED_DESCRIPTION` |
 | [`docs/MCP-PRD.md`](../MCP-PRD.md) | modify — [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) delivery note, [§6](../MCP-PRD.md#6-phases), a dated [§7](../MCP-PRD.md#7-open-questions) paragraph on [OQ-05](../MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) and [OQ-06](../MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code), one [§9](../MCP-PRD.md#9-revision-log) row |
 | [`docs/DEV-ROADMAP.md`](../DEV-ROADMAP.md) | modify — [§7](../DEV-ROADMAP.md#7-phase-2-slices--combo-discovery) status, [§2](../DEV-ROADMAP.md#2-current-state-verified-2026-08-04) current state |
@@ -157,23 +168,77 @@ withdrawn.
 
 8. **Flatten matched buckets first, always, in bucket order.** `included`, then
    `includedByChangingCommanders`, then — only under `"matched+near"` — the four near buckets in
-   the order listed in requirement 6. This makes it **structurally impossible** for the 40-cap to
-   drop a matched combo on page 1, which is belt and braces on criterion 10 and costs nothing.
+   the order listed in requirement 6. The guarantee this buys is that **a matched combo is never
+   displaced by a near-miss**, which matched-first ordering delivers absolutely and which is belt
+   and braces on criterion 10.
 
-9. **The cap is 40, applied after classification, and `has_more` is ours.**
+   **Do not overclaim it.** An earlier draft said the ordering made it *structurally impossible*
+   for the cap to drop a matched combo from page 1. That held only for a fixed 40-cap with 40 or
+   fewer matched combos, and it does not hold under a byte budget: if the matched combos alone
+   exceed the budget, later matched combos land on page 2. That is correct behaviour — every one
+   is still reachable by following `next_offset` — but the promise is ordering, not fitting.
+
+9. **A page is filled to a BYTE BUDGET of 50,000 characters, applied after classification, and
+   paging is by `offset` / `next_offset`.** This matches `combo_search` as shipped. A fixed count
+   is the wrong instrument here for the reason it was wrong there: per-combo shaped cost spans
+   **547–4,421** characters (p50 1,390, p99 2,530, sampled mean 1,393 across 577 combos and 15
+   queries), a 5.7× spread driven by how many cards a combo uses, so one count is wrong in both
+   directions at once ([CAP-02](../MCP-PRD.md#cap-02--combo-discovery)'s page-cap bullet,
+   [§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured)'s three addenda).
+
    `total_combos` is the count after classification and filtering — not upstream's `count`, which
    counts everything in all six buckets regardless of `include`. Then:
 
    ```
-   page      = 1-based, default 1
-   slice     = flattened.slice((page - 1) * 40, (page - 1) * 40 + 40)
-   has_more  = total_combos > page * 40
+   offset       = 0-based index into the flattened classified list, default 0
+   combos       = fillPage(flattened.slice(offset))     // stops when the budget is spent
+   has_more     = offset + combos.length < total_combos
+   next_offset  = has_more ? offset + combos.length : absent
    ```
+
+   **`offset` here indexes the flattened classified list, not an upstream window.** That is the
+   one place this tool's paging differs from `combo_search`'s, and the difference is required:
+   `limit` and `offset` are never sent to `/find-my-combos` (requirement 5), so every call
+   re-fetches the full upstream result and re-slices locally. Two consequences belong in the tool
+   description, because a model that assumes otherwise pages wrongly and silently:
+
+   - **Offsets are stable only because upstream classification is deterministic** — the same
+     `/find-my-combos` request twice was byte-identical
+     ([§4.4](../MCP-PRD.md#44-commander-spellbook)). `combo_search`'s offsets rest on a
+     *different* verified fact, `/variants/` ordering probed live 2026-08-25, so do not cite one
+     as evidence for the other.
+   - **`include` changes the flattened list**, so an `offset` taken under `"matched"` means
+     nothing under `"matched+near"`. Changing `include` restarts paging at `offset: 0`.
+
+   **One combo larger than the whole budget is still returned.** Returning zero leaves
+   `next_offset` equal to `offset` and the caller pages forever on an empty result: an oversized
+   response is a bad page, a non-advancing offset is an infinite loop. `fillPage`'s
+   `kept.length > 0` condition is the whole guard and must not be "simplified" away.
+
+   An `offset` past the end is a `bad_request` with **no `status`**, mirroring `combo-search.ts`'s
+   `outOfRangeFailure`, so it never reads as "this deck has no combos". A deck that genuinely
+   matches nothing is a **successful empty result** with `total_combos: 0`.
 
    One upstream combo request per tool call, always — paging here re-fetches and re-classifies
    rather than holding state, because this server keeps no per-user state
    ([D-03](../MCP-PRD.md#d-03--testability-handlers-callable-as-plain-functions)). Say so in the
    tool description so nobody expects a cursor.
+
+   **Share the page filler with `combo_search`; do not write a second one.** Lift `BYTE_BUDGET`,
+   `ENVELOPE_RESERVE` and `fillPage` out of `src/tools/combo-search.ts` into
+   `src/spellbook/combos.ts`, beside `ComboSummary` — the module `CLAUDE.md` already describes as
+   the normalized shape every later consumer reads. Two copies of a budget is two places it can
+   drift, and the capability specifies **one** budget.
+
+   The shared `fillPage` takes `ComboSummary[]` rather than a `SpellbookVariantList`, because this
+   tool's input is already classified. `combo-search.ts` therefore maps its variants to summaries
+   before filling instead of shaping lazily inside the loop, spending at most `UPSTREAM_LIMIT`
+   (60) `toComboSummary` calls per request on combos it may discard. That cost is bounded,
+   unmeasurable beside a 20 KB gzipped fetch, and is the price of one budget.
+
+   **The evidence that the lift changed nothing is `tests/tools/combo-search.test.ts` passing
+   unedited**, including its "comboSearch — the byte budget" suite. If that suite needs a change
+   to stay green, the lift changed behaviour — stop and fix the lift, not the test.
 
 10. **An empty or missing decklist is a structured failure and issues no upstream combo request.**
     Empty `cards` array, absent `cards`, an array of only empty strings — all `bad_request`, and
@@ -273,14 +338,15 @@ export interface ComboFindDeckParams {
   cards: string[];                 // main-deck names; required, non-empty
   commanders?: string[];           // default []
   include?: ComboInclude;          // default "matched"
-  page?: number;                    // 1-based; default 1
-  format?: string;                  // default "commander"
+  offset?: number;                 // 0-based index into the flattened classified list; default 0
+  format?: string;                 // default "commander"
 }
 
 export interface ComboFindDeckData {
-  combos: ComboSummary[];          // <= 40, each carrying `bucket`
+  combos: ComboSummary[];          // filled to BYTE_BUDGET, each carrying `bucket`
   total_combos: number;            // after classification and filtering, not upstream's count
-  page: number;
+  offset: number;                  // where this page starts, echoing the request
+  next_offset?: number;            // where the next page starts; absent when has_more is false
   has_more: boolean;
   include: ComboInclude;           // the value applied
   format: string;
@@ -309,13 +375,14 @@ The tool's input schema, hand-written JSON Schema `as const`:
 cards:      { type: "array", items: { type: "string" }, minItems: 1 }   // required
 commanders: { type: "array", items: { type: "string" } }
 include:    { type: "string", enum: ["matched", "matched+near"] }        // default "matched"
-page:       { type: "integer", minimum: 1 }                             // default 1
+offset:     { type: "integer", minimum: 0 }                             // default 0
 format:     { type: "string" }                                          // default "commander"
 ```
 
 `minItems: 1` is **not** relied on — requirement 10's check lives in the handler, exactly as
-`card-search.ts`'s `normalizePage` defends itself against a schema `minimum` the SDK does not
-enforce.
+`combo-search.ts`'s `normalizeOffset` defends itself against a schema `minimum` the SDK does not
+enforce. Reuse `normalizeOffset`'s treatment here: a negative, non-integer or non-finite `offset`
+becomes 0 rather than failing the call.
 
 ## Out of scope — do NOT
 
@@ -361,11 +428,13 @@ enforce.
    call still returns combos. Driven from `tests/fixtures/collection-not-found.json`, whose
    `not_found` is `[{"name":"Zzzz Not A Real Card 9999"}]`.
 4. **[requirement 2]** `unresolved_cards` is present and `[]` on a decklist with no typos.
-5. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion 10]** **The cap is never sent
-   upstream as `limit`.** Asserted two ways: the outgoing `POST /find-my-combos` carries no `limit`
-   and no `offset` in its query, and — against `find-my-combos-limit5.json`, whose first five
-   upstream entries are four matched and one near — **all matched combos are returned**. Kept
-   separate from criterion 8 because the two fail differently: a broken cap returns too much, a cap
+5. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion 10]** **The budget is never sent
+   upstream as `limit`, and neither is the caller's `offset`.** Asserted two ways: the outgoing
+   `POST /find-my-combos` carries no `limit` and no `offset` in its query — including on a call
+   made with a non-zero `offset`, which is the regression a "pass it through like `combo_search`"
+   edit would introduce — and, against `find-my-combos-limit5.json`, whose first five upstream
+   entries are four matched and one near, **all matched combos are returned**. Kept separate from
+   criterion 8 because the two fail differently: a broken budget returns too much, and a budget
    pushed upstream returns a plausible answer missing the combos the user actually has.
 6. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion 9]** `include` defaults to
    `"matched"` and **no near-miss combo appears** in a response that did not ask for one.
@@ -400,29 +469,40 @@ enforce.
     a 75-name list issues **1**; a 76-name list issues **2**. Asserted by counting calls.
 11. **[requirement 4]** A failing Scryfall batch call returns that `Failure` and makes **no**
     Commander Spellbook call. A successful call that reports misses proceeds.
-12. **[requirement 8]** With a fixture whose matched and near combos together exceed 40 under
-    `"matched+near"`, page 1 contains **every** matched combo.
-13. **[requirement 13]** `color_identity` reads `results.identity` and is `"UBR"` on the deck
+12. **[requirement 8]** With a synthesized payload whose matched and near combos together exceed
+    the byte budget under `"matched+near"`, **no near-miss appears before a matched combo** in the
+    flattened order, and a matched combo displaced past the budget is reachable at `next_offset`.
+    Assert ordering and reachability, **not** that every matched combo fits page 1 — that is the
+    claim requirement 8 stops making.
+13. **[requirement 9, the shared filler]** `tests/tools/combo-search.test.ts` passes **unedited**
+    after `fillPage`, `BYTE_BUDGET` and `ENVELOPE_RESERVE` move to `src/spellbook/combos.ts`, and
+    the oversized-combo guard is asserted once against the shared function: one combo larger than
+    the whole budget is returned, and `next_offset` advances past it.
+14. **[requirement 9]** An `offset` past the end returns a `bad_request` carrying **no `status`**,
+    while a deck matching nothing returns a **successful empty result** with `total_combos: 0`.
+    The two must not collapse — that is the same distinction `combo-search.ts`'s
+    `outOfRangeFailure` exists to hold.
+15. **[requirement 13]** `color_identity` reads `results.identity` and is `"UBR"` on the deck
     fixture — not `undefined`, which is what reading the envelope top level produces.
-14. **[requirement 6]** All six bucket names round-trip verbatim, and an unknown seventh bucket in
+16. **[requirement 6]** All six bucket names round-trip verbatim, and an unknown seventh bucket in
     a synthesized payload is ignored without throwing.
-15. **[requirement 12]** 601 main cards or 13 commanders returns a `bad_request` before any call.
-16. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criteria 6 and 7, re-asserted]** No price
+17. **[requirement 12]** 601 main cards or 13 commanders returns a `bad_request` before any call.
+18. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criteria 6 and 7, re-asserted]** No price
     field and no `imageUri*` field in a serialized `combo_find_deck` response.
-17. `tools/list` reports **three** tools, `dispatchToolCall` routes each to the right client, and
+19. `tools/list` reports **three** tools, `dispatchToolCall` routes each to the right client, and
     an unknown tool name still throws.
-18. `npm test` passes and the suite/test totals are recorded against the current 27 / 101.
-19. `npm run typecheck` is clean under `exactOptionalPropertyTypes`,
+20. `npm test` passes and the suite/test totals are recorded against the current **56 / 215**.
+21. `npm run typecheck` is clean under `exactOptionalPropertyTypes`,
     `noUncheckedIndexedAccess` and `verbatimModuleSyntax`.
-20. `npm run acceptance` is still **13/13** live against real Scryfall.
-21. `npm run build` leaves `git status --porcelain -- dist/` empty, in the same commit as the
+22. `npm run acceptance` is still **13/13** live against real Scryfall.
+23. `npm run build` leaves `git status --porcelain -- dist/` empty, in the same commit as the
     `src/` change.
-22. **One live confirmation, and only one.** Run a real decklist — the 94-card deck of
+24. **One live confirmation, and only one.** Run a real decklist — the 94-card deck of
     [§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured), including one deliberately
     invented name — through the built server against both live APIs. Record the **shaped** response
     character count beside the **640,684** raw figure, and confirm the invented name appears in
     `unresolved_cards`. Calls stay ≥ 600 ms apart and **never provoke a 429**.
-23. `npm run lint:docs` passes and [`docs/MCP-PRD.md`](../MCP-PRD.md) shows: a dated
+25. `npm run lint:docs` passes and [`docs/MCP-PRD.md`](../MCP-PRD.md) shows: a dated
     [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) delivery note naming criteria 1–14 with their
     evidence, the [§6](../MCP-PRD.md#6-phases) Phase 2 update, dated paragraphs on
     [OQ-05](../MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits),
@@ -430,8 +510,8 @@ enforce.
     and [OQ-14](../MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model),
     and exactly one new [§9](../MCP-PRD.md#9-revision-log) row. No new `D-` decision;
     [§2](../MCP-PRD.md#2-locked-decisions) and [§3](../MCP-PRD.md#3-constraints) untouched.
-24. **[requirement 18]** `doc-sync` was dispatched and its diff reviewed before committing.
-25. `docs/slices/TrackA-Slice17-results.md` records: the date, the live run from criterion 22 with
+26. **[requirement 18]** `doc-sync` was dispatched and its diff reviewed before committing.
+27. `docs/slices/TrackA-Slice17-results.md` records: the date, the live run from criterion 24 with
     both character counts, the suite/test counts, a per-criterion table for all fourteen
     [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criteria, and a "what this slice deliberately
     did not do" section.
@@ -468,14 +548,16 @@ Suites to add:
   bucket names.
 - **The `include` opt-in** — the default, the explicit `"matched"`, `"matched+near"`, and a
   wrong-typed value falling back to the default.
-- **The cap and paging** — the after-classification cap; matched-first ordering under the cap;
-  `total_combos` versus upstream `count`; page 2; a page past the end.
+- **The byte budget and offset paging** — the budget applied after classification; matched-first
+  ordering under it; `total_combos` versus upstream `count`; a second page reached by
+  `next_offset`; `next_offset` absent on the last page; an `offset` past the end; the oversized
+  single combo still returned; a negative or non-integer `offset` normalized to 0.
 - **Refusals** — empty and missing decklists, the 600/12 caps, the unknown format — each asserting
   zero upstream calls.
 - **Sweeps** — price and `imageUri*` absence on a serialized response, as
   [Slice 16](./TrackA-Slice16.md) does.
 
-`npm run acceptance` stays a deliberate, human-run, local step, and criterion 22's live run is a
+`npm run acceptance` stays a deliberate, human-run, local step, and criterion 24's live run is a
 separate one-off. Neither is wired into CI under any trigger — [Slice 6](./TrackA-Slice6.md) and
 [Slice 11](./TrackC-Slice11.md) both refuse this and
 [§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) is why.
@@ -487,9 +569,15 @@ separate one-off. Neither is wired into CI under any trigger — [Slice 6](./Tra
 npm test                       # record suite/test counts for the results doc
 npm run typecheck
 
-# 2) the omissions are real, not just untested
-grep -ri "imageuri\|tcgplayer\|cardkingdom\|cardmarket" src/     # must print nothing
-grep -rn "mcp__plugin\|Manabase:" src/ skills/                   # must print nothing
+# 2) the omissions are real, not just untested — READ the hits, do not expect silence.
+#    Slice 16's copy of these two steps said "must print nothing" and could not: the wire
+#    types and combo-search.ts name the forbidden fields in comments deliberately, and
+#    register.ts has carried the scoped tool name in a P-12 comment since the first tool.
+#    Every hit must be a COMMENT. A hit on a property read, a type member or a string
+#    literal is the defect these steps exist to catch.
+grep -rni "imageuri\|tcgplayer\|cardkingdom\|cardmarket" src/
+grep -rn "mcp__plugin\|Manabase:" src/          # comments only
+grep -rn "mcp__plugin\|Manabase:" skills/       # this half must print nothing
 
 # 3) build honesty — Slice 11's gate, run before CI runs it for you
 npm run build
@@ -513,9 +601,12 @@ claude plugin validate . --strict
 ## References
 
 - [`docs/MCP-PRD.md`](../MCP-PRD.md) [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) — all fourteen
-  criteria, the two paging bullets, the near-miss opt-in bullet, and the empty-decklist bullet.
-  Read criterion 10's own explanation of why it is separate from criterion 8 before writing the
-  cap.
+  criteria, the byte-budget bullet, the offset-paging bullet, the pages-upstream-versus-caps-after
+  bullet, the near-miss opt-in bullet, and the empty-decklist bullet. Read criterion 10's own
+  explanation of why it is separate from criterion 8 before writing the paging.
+- `src/tools/combo-search.ts` and `tests/tools/combo-search.test.ts` — the shipped byte budget,
+  `fillPage`'s oversized-combo guard, `normalizeOffset`, `outOfRangeFailure` and the note wording.
+  **The contract under load lives there, not in this document.**
 - [`docs/MCP-PRD.md`](../MCP-PRD.md) [§4.4](../MCP-PRD.md#44-commander-spellbook) — the three
   behaviours that decide this tool's shape (the `limit` trap, the silently-ignored name, the
   loud 400), the no-deck `GET` addendum, the six-bucket structure, and the 2026-08-24 probe
