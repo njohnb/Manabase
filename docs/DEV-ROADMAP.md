@@ -5,9 +5,12 @@
 > by section. If this document and a PRD ever disagree, **the PRD wins** — fix this file.
 > The boundary rule in `PLUGIN-PRD.md` [§1](./PLUGIN-PRD.md#1-overview) still governs which PRD owns which question.
 
-**Document status:** created 2026-08-03; **Track A closed 2026-08-04**. Covers Phase 1 of both
-PRDs as 13 slices, plus unscheduled slice packs for everything queued. Update slice statuses in
-place as work lands.
+**Document status:** created 2026-08-03; **Track A closed 2026-08-04** — and reopened twice since,
+by [Slice 14](./slices/TrackA-Slice14.md) and [Slice 15](./slices/TrackA-Slice15.md). Covers
+Phase 1 of both PRDs as **14** slices (1–14; the count read 13 until
+[Slice 14](./slices/TrackA-Slice14.md) was added 2026-08-10) plus Phase 2's three in
+[§7](#7-phase-2-slices--combo-discovery), **17 in all**, and unscheduled slice packs for everything
+queued. Update slice statuses in place as work lands.
 
 ---
 
@@ -262,6 +265,37 @@ current. **Nothing in Phase 1 moved:** no
 [12](./slices/TrackC-Slice12.md) is still the open gate, and
 [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in both halves.
 
+**[Slice 15](./slices/TrackA-Slice15.md) landed 2026-08-25 — Phase 2's first code, and none of the
+capability.** Commit `d08777b`: `src/http/client.ts` is
+[`src/scryfall/client.ts`](../src/scryfall/client.ts)'s transport lifted onto a plain-data source
+spec, that file drops to a spec plus a thin factory keeping every export,
+`src/spellbook/client.ts` gives Commander Spellbook its own lane at 500 ms, a **POST** verb this
+codebase did not have rides the same queue and 429 backoff, and
+[`src/config.ts`](../src/config.ts) gains `spellbookBaseUrl`.
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery) **criteria 11 and 12 are verified, and criterion 3
+in its client half only** — the handler half is [16](./slices/TrackA-Slice16.md)'s, so 3 is not
+verified outright. **That supersedes two claims in the paragraph above and nothing else in it:**
+`src/` has been touched, and the source-file and 27 suites / 101 tests figures are no longer
+current — the rows below carry today's. **That paragraph's "seven server source files" was already
+wrong when written**: the row it points at listed eight, and `src/` holds **ten** `.ts` files today.
+Count the row, not the prose. **The capability is still not built.**
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s `Status` is still `specified`, no tool is
+registered, [`src/index.ts`](../src/index.ts) and
+[`src/tools/register.ts`](../src/tools/register.ts) show no diff, and `spellbookBaseUrl` and
+`createSpellbookClient` are read by no production code until [16](./slices/TrackA-Slice16.md) —
+deliberately, the shape `cacheDir` has had since [Slice 1](./slices/TrackA-Slice1.md).
+**No open question was resolved**, and
+[OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is unmoved in
+particular: the 500 ms lane is
+[§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis)'s conservative
+strictest-lane rule applied, not a measured fit. No
+[CAP-01](./MCP-PRD.md#cap-01--card-search), [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status,
+[12](./slices/TrackC-Slice12.md) is still the open gate, and
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in both halves.
+Evidence: [`docs/slices/TrackA-Slice15-results.md`](./slices/TrackA-Slice15-results.md).
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -270,8 +304,8 @@ current. **Nothing in Phase 1 moved:** no
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)) |
 | README | install instructions in `owner/repo` form with the raw-URL trap warning ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), version floor, disclaimer |
-| Server source | `config.ts`, `index.ts`, `result.ts`, `scryfall/{client,prices,types}.ts`, `tools/{card-search,register}.ts` |
-| Tests | 27 suites, **101 tests, 101 passing**; `tsc --noEmit` clean — re-run 2026-08-10 ([Slice 14](./slices/TrackA-Slice14.md) took it from 21 suites and 73 tests). Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
+| Server source | `config.ts`, `index.ts`, `result.ts`, `http/client.ts`, `scryfall/{client,prices,types}.ts`, `spellbook/client.ts`, `tools/{card-search,register}.ts` — **ten** files since [Slice 15](./slices/TrackA-Slice15.md) (2026-08-25), which made `http/client.ts` **the one transport** and left `scryfall/client.ts` and `spellbook/client.ts` as source specs over it |
+| Tests | 39 suites, **150 tests, 150 passing**; `tsc --noEmit` clean — re-run 2026-08-25 ([Slice 15](./slices/TrackA-Slice15.md) took it from 27 suites and 101 tests, [Slice 14](./slices/TrackA-Slice14.md) from 21 and 73). **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so a change to a shared interface passes it and fails only `npm run typecheck`, which is how [Slice 15](./slices/TrackA-Slice15.md) found three test fakes broken by `ScryfallClient` becoming an alias. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
 | `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
 | CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` **ran for the first time 2026-08-10** on tag `v0.1.0` (run `31421682409`), after its `actions/checkout`, `setup-node` and `upload-artifact` pins were bumped to `@v7` — `upload-artifact@v6` is the first major on `node24`, so `@v5` still carried the Node-20 deprecation annotation that prompted the bump |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
@@ -1151,6 +1185,18 @@ claim is that `tests/scryfall/client.test.ts` passes with one edit and `npm run 
 stays 13/13. Folding it into [16](./slices/TrackA-Slice16.md) would put that claim in the same
 diff as new behaviour and make it unfalsifiable. Keep them separate commits even if they land
 in one session.
+
+**Superseded 2026-08-25: [Slice 15](./slices/TrackA-Slice15.md) has landed, so the unblocked set
+is [12](./slices/TrackC-Slice12.md) and [16](./slices/TrackA-Slice16.md).** Phase 1's remaining
+path is unchanged at 12 → 13 and no Phase 1 status moved; what moved is the Phase 2 chain, where
+[16](./slices/TrackA-Slice16.md) needed [15](./slices/TrackA-Slice15.md)'s transport and now has
+it — including the **POST** verb [17](./slices/TrackA-Slice17.md) needs for
+[§4.1.2](./MCP-PRD.md#412-batch-resolution) batch resolution, which is why that verb was built one
+slice before anything calls it. The constraint the paragraph above states was honoured:
+[15](./slices/TrackA-Slice15.md) landed as its own commit (`d08777b`) carrying no new behaviour,
+so its claim stayed falsifiable — `tests/scryfall/client.test.ts` passes with one changed line and
+`npm run acceptance` is 13/13.
+
 ## 6. Beyond Phase 1 — queued slice packs
 
 Both PRDs deliberately refuse to schedule anything past Phase 1 (`MCP-PRD.md` [§6](./MCP-PRD.md#6-phases),
@@ -1208,7 +1254,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 
 | # | Slice | Track | Status |
 |---|---|---|---|
-| 15 | Transport generalization & the POST verb | A — server | ☐ |
+| 15 | Transport generalization & the POST verb | A — server | ☑ |
 | 16 | `combo_search` | A — server | ☐ |
 | 17 | `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) | A — server | ☐ |
 
@@ -1224,11 +1270,14 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   [`src/scryfall/client.ts`](../src/scryfall/client.ts) to that spec plus a thin factory; add
   `src/spellbook/client.ts` at one 500 ms lane; add `spellbookBaseUrl` to
   [`src/config.ts`](../src/config.ts).
-- **Done when:** ☐ `tests/scryfall/client.test.ts` passes with **one** changed line · ☐
-  `npm run acceptance` is 13/13 · ☐ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 11 and
-  12 and the client half of 3 are verified · ☐
+- **Done when:** ☑ `tests/scryfall/client.test.ts` passes with **one** changed line · ☑
+  `npm run acceptance` is 13/13 · ☑ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 11 and
+  12 and the client half of 3 are verified · ☑
   [`src/index.ts`](../src/index.ts) and [`src/tools/register.ts`](../src/tools/register.ts) show
-  no diff · ☐ `dist/` rebuilt in the same commit.
+  no diff · ☑ `dist/` rebuilt in the same commit.
+- **Done 2026-08-25.** Results: [`TrackA-Slice15-results.md`](./slices/TrackA-Slice15-results.md).
+  `npm test` 27 suites / 101 tests → 39 / 150. Three fake clients in `tests/tools/` needed a `post`
+  stub the spec did not list, because `ScryfallClient` became an alias of `HttpClient`.
 - **Binding refs:** [D-16](./MCP-PRD.md#d-16--no-npm-commander-spellbook-client-dependency) (why
   one transport and not two, and the lane machinery that must not change),
   [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance),

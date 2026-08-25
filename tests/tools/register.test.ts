@@ -29,6 +29,10 @@ function makeFakeClient(result: Result<unknown>): { client: ScryfallClient; call
       calls.push({ path, query });
       return Promise.resolve(result);
     },
+    // `card_search` reaches Scryfall by GET only. `post` exists because Slice 15 made
+    // `ScryfallClient` the shared `HttpClient`; it rejects so an accidental POST fails loudly.
+    post: (path: string) =>
+      Promise.reject(new Error(`fake client: card_search must not POST (${path})`)),
   };
   return { client, calls };
 }

@@ -87,3 +87,20 @@ describe("resolveConfig — scryfallBaseUrl", () => {
     assert.equal(config.scryfallBaseUrl, "https://api.scryfall.com");
   });
 });
+
+describe("resolveConfig — spellbookBaseUrl", () => {
+  test("is the production Commander Spellbook backend on every platform branch", () => {
+    for (const platform of ["win32", "darwin", "linux", undefined]) {
+      const config = resolveConfig({}, platform);
+      assert.equal(config.spellbookBaseUrl, "https://backend.commanderspellbook.com");
+    }
+  });
+
+  test("no env var overrides it — the value is a hard-coded local (D-03)", () => {
+    const config = resolveConfig(
+      { SPELLBOOK_BASE_URL: "https://evil.test", CLAUDE_PLUGIN_DATA: "/plugin-data" },
+      "linux",
+    );
+    assert.equal(config.spellbookBaseUrl, "https://backend.commanderspellbook.com");
+  });
+});

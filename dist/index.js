@@ -15486,10 +15486,12 @@ var APP_VERSION = "0.0.0";
 function resolveConfig(env, platform) {
   const userAgent = `manabase-mtg/${APP_VERSION} (+https://github.com/njohnb/manabase)`;
   const scryfallBaseUrl = "https://api.scryfall.com";
+  const spellbookBaseUrl = "https://backend.commanderspellbook.com";
   return {
     userAgent,
     cacheDir: resolveCacheDir(env, platform),
-    scryfallBaseUrl
+    scryfallBaseUrl,
+    spellbookBaseUrl
   };
 }
 function resolveCacheDir(env, platform) {
@@ -15513,11 +15515,7 @@ function resolveCacheDir(env, platform) {
   return `${homedir()}/.cache/manabase`;
 }
 
-// src/scryfall/client.ts
-var CARD_PATH_PREFIXES = ["/cards/search", "/cards/named", "/cards/random", "/cards/collection"];
-function isCardPath(path) {
-  return CARD_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
-}
+// src/http/client.ts
 function describe2(err) {
   return err instanceof Error ? err.message : String(err);
 }
@@ -15537,66 +15535,77 @@ function fail(code, message, status, details) {
   if (details !== void 0) error2.details = details;
   return { ok: false, error: error2 };
 }
-function rateLimitedFailure(details) {
+function rateLimitedFailure(sourceName, details) {
   return fail(
     "rate_limited",
-    "Scryfall rate limit persisted after a 30 second backoff; wait at least 30 seconds before retrying.",
+    `${sourceName} rate limit persisted after a 30 second backoff; wait at least 30 seconds before retrying.`,
     429,
     details
   );
 }
-function detailsFrom(text) {
-  try {
-    const body = JSON.parse(text);
-    return typeof body.details === "string" ? body.details : void 0;
-  } catch {
-    return void 0;
-  }
-}
-async function mapResponse(response) {
+async function mapResponse(spec, response) {
   const status = response.status;
   const text = await response.text();
+  const name = spec.sourceName;
   if (status >= 200 && status < 300) {
     try {
       return { ok: true, value: JSON.parse(text) };
     } catch {
-      return fail("unexpected", `Scryfall returned a non-JSON success body (status ${status}).`, status);
+      return fail("unexpected", `${name} returned a non-JSON success body (status ${status}).`, status);
     }
   }
-  const details = detailsFrom(text);
-  if (status === 400) return fail("bad_request", "Scryfall rejected the request as malformed.", status, details);
-  if (status === 404) return fail("not_found", "Scryfall found no match for the request.", status, details);
+  const details = spec.detailsFrom(text);
+  if (status === 400) return fail("bad_request", `${name} rejected the request as malformed.`, status, details);
+  if (status === 404) return fail("not_found", `${name} found no match for the request.`, status, details);
   if (status >= 500 && status <= 599) {
-    return fail("upstream_unavailable", "Scryfall is currently unavailable.", status, details);
+    return fail("upstream_unavailable", `${name} is currently unavailable.`, status, details);
   }
-  return fail("unexpected", `Scryfall returned an unexpected status ${status}.`, status, details);
+  return fail("unexpected", `${name} returned an unexpected status ${status}.`, status, details);
 }
-function createScryfallClient(config3, deps) {
+function createHttpClient(spec, deps) {
   const fetchImpl = deps?.fetchImpl ?? globalThis.fetch;
   const now = deps?.now ?? Date.now;
   const sleep = deps?.sleep ?? ((ms) => new Promise((r) => {
     setTimeout(r, ms);
   }));
-  const lanes = {
-    card: { tail: Promise.resolve(), nextAllowedAt: 0 },
-    other: { tail: Promise.resolve(), nextAllowedAt: 0 }
-  };
-  async function attemptOnce(url) {
+  const lanes = Object.entries(spec.lanes).map(([key, laneSpec]) => ({
+    key,
+    runtime: {
+      state: { tail: Promise.resolve(), nextAllowedAt: 0 },
+      spacingMs: laneSpec.spacingMs,
+      pathPrefixes: laneSpec.pathPrefixes ?? []
+    }
+  }));
+  const declaredFallback = lanes.find((lane) => lane.key === spec.defaultLane)?.runtime;
+  if (declaredFallback === void 0) {
+    throw new Error(`createHttpClient: defaultLane "${spec.defaultLane}" is not a key of lanes.`);
+  }
+  const fallback = declaredFallback;
+  function selectLane(path) {
+    for (const lane of lanes) {
+      if (lane.runtime.pathPrefixes.some((prefix) => path.startsWith(prefix))) return lane.runtime;
+    }
+    return fallback;
+  }
+  function baseHeaders() {
+    return { "User-Agent": spec.userAgent, "Accept": "application/json" };
+  }
+  async function attemptOnce(url, init) {
     let response;
     try {
-      response = await fetchImpl(url, {
-        headers: { "User-Agent": config3.userAgent, "Accept": "application/json" }
-      });
+      response = await fetchImpl(url, init);
     } catch (err) {
-      return { throttled: false, result: fail("network", `Could not reach Scryfall: ${describe2(err)}`) };
+      return {
+        throttled: false,
+        result: fail("network", `Could not reach ${spec.sourceName}: ${describe2(err)}`)
+      };
     }
     if (response.status === 429) return { throttled: true, response };
-    return { throttled: false, result: await mapResponse(response) };
+    return { throttled: false, result: await mapResponse(spec, response) };
   }
-  async function run(path, query) {
-    const url = buildUrl(config3.scryfallBaseUrl, path, query);
-    const lane = isCardPath(path) ? lanes.card : lanes.other;
-    const spacingMs = lane === lanes.card ? 500 : 100;
+  async function run(path, init, query) {
+    const url = buildUrl(spec.baseUrl, path, query);
+    const { state: lane, spacingMs } = selectLane(path);
     const previous = lane.tail;
     let release = () => {
     };
@@ -15608,15 +15617,15 @@ function createScryfallClient(config3, deps) {
       const wait = lane.nextAllowedAt - now();
       if (wait > 0) await sleep(wait);
       lane.nextAllowedAt = now() + spacingMs;
-      let attempt = await attemptOnce(url);
+      let attempt = await attemptOnce(url, init);
       if (attempt.throttled) {
         await sleep(3e4);
         lane.nextAllowedAt = now() + spacingMs;
-        attempt = await attemptOnce(url);
+        attempt = await attemptOnce(url, init);
         if (attempt.throttled) {
           lane.nextAllowedAt = now() + 3e4;
           const text = await attempt.response.text().catch(() => "");
-          return rateLimitedFailure(detailsFrom(text));
+          return rateLimitedFailure(spec.sourceName, spec.detailsFrom(text));
         }
       }
       return attempt.result;
@@ -15624,14 +15633,55 @@ function createScryfallClient(config3, deps) {
       release();
     }
   }
-  async function get(path, query) {
+  async function guarded(work) {
     try {
-      return await run(path, query);
+      return await work();
     } catch (err) {
-      return fail("unexpected", `Unexpected failure in Scryfall client: ${describe2(err)}`);
+      return fail("unexpected", `Unexpected failure in ${spec.sourceName} client: ${describe2(err)}`);
     }
   }
-  return { get };
+  function get(path, query) {
+    return guarded(() => run(path, { headers: baseHeaders() }, query));
+  }
+  function post(path, body, query) {
+    return guarded(
+      () => run(
+        path,
+        {
+          method: "POST",
+          headers: { ...baseHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        },
+        query
+      )
+    );
+  }
+  return { get, post };
+}
+
+// src/scryfall/client.ts
+var CARD_PATH_PREFIXES = ["/cards/search", "/cards/named", "/cards/random", "/cards/collection"];
+function detailsFrom(text) {
+  try {
+    const body = JSON.parse(text);
+    return typeof body.details === "string" ? body.details : void 0;
+  } catch {
+    return void 0;
+  }
+}
+function createScryfallClient(config3, deps) {
+  const spec = {
+    sourceName: "Scryfall",
+    baseUrl: config3.scryfallBaseUrl,
+    userAgent: config3.userAgent,
+    lanes: {
+      card: { spacingMs: 500, pathPrefixes: CARD_PATH_PREFIXES },
+      other: { spacingMs: 100 }
+    },
+    defaultLane: "other",
+    detailsFrom
+  };
+  return createHttpClient(spec, deps);
 }
 
 // src/scryfall/prices.ts

@@ -7,6 +7,7 @@ const config: Config = {
   userAgent: "manabase-mtg/0.0.0 (+https://github.com/njohnb/manabase)",
   cacheDir: "unused",
   scryfallBaseUrl: "https://scryfall.test",
+  spellbookBaseUrl: "https://spellbook.test",
 };
 
 const jsonResponse = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
