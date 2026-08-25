@@ -55,7 +55,7 @@ manufactured.
 | File | Action |
 |---|---|
 | `src/http/client.ts` | **new** — `createHttpClient(spec, deps)`, `HttpClient`, `SourceSpec`, `LaneSpec`, `ClientDeps` |
-| [`src/scryfall/client.ts`](../../src/scryfall/client.ts) | 162 → 43 lines: a `SourceSpec` plus a thin factory. Every export kept |
+| [`src/scryfall/client.ts`](../../src/scryfall/client.ts) | 162 → 44 lines: a `SourceSpec` plus a thin factory. Every export kept |
 | `src/spellbook/client.ts` | **new** — `createSpellbookClient(config, deps)`, one lane at 500 ms |
 | [`src/config.ts`](../../src/config.ts) | `spellbookBaseUrl` added |
 | `tests/http/client.test.ts` | **new** — 7 suites / 32 tests |
@@ -71,6 +71,23 @@ Every timing rule moved character-for-character: the synchronous `lane.tail` pre
 `finally` holding the lane across the whole request including the backoff.
 [D-16](../MCP-PRD.md#d-16--no-npm-commander-spellbook-client-dependency) calls this the subtlest code
 in the repo; moving it was the risk, and the 21 pinned tests are what says it survived.
+
+**Checked mechanically as well as by test.** Diffing the old `run()` against the new one, only six
+lines differ and every one of them is an intended change — the signature gains `init`, `url` and the
+lane come from the spec, `attemptOnce` takes `init`, and `rateLimitedFailure`/`detailsFrom` are
+spec-parameterized:
+
+```
+-  async function run(path: string, query?: …)          +  async function run(path, init, query?)
+-  const url = buildUrl(config.scryfallBaseUrl, …)      +  const url = buildUrl(spec.baseUrl, …)
+-  const lane = isCardPath(path) ? lanes.card : …       +  const { state: lane, spacingMs } = selectLane(path)
+-  const spacingMs = lane === lanes.card ? 500 : 100
+-  attempt = await attemptOnce(url)                     +  attempt = await attemptOnce(url, init)
+-  return rateLimitedFailure(detailsFrom(text))         +  return rateLimitedFailure(spec.sourceName, spec.detailsFrom(text))
+```
+
+Every line requirement 3 names — the synchronous prefix, `if (wait > 0)`, both stamps, the lockout,
+the `finally` — is byte-identical, comment included.
 
 ## 3. Three things became data
 

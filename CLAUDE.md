@@ -13,7 +13,7 @@ Three documents in `docs/`, and they outrank this file and the code:
 |---|---|
 | `docs/MCP-PRD.md` | What the server does — tools, data sources, capability behavior, acceptance criteria. Decisions `D-01`…`D-12`, capabilities `CAP-0N`, open questions `OQ-0N`. |
 | `docs/PLUGIN-PRD.md` | What the user installs — packaging, install, config, skills. Decisions `P-01`…`P-13`, components `PC-0N`, open questions `PQ-0N`. |
-| `docs/DEV-ROADMAP.md` | Sequencing **only** — 14 slices, dependency graph, status. If it disagrees with a PRD, the PRD wins; fix the roadmap. |
+| `docs/DEV-ROADMAP.md` | Sequencing **only** — 17 slices (Phase 1's 1–14, Phase 2's 15–17), dependency graph, status. If it disagrees with a PRD, the PRD wins; fix the roadmap. |
 
 **The boundary rule** (PLUGIN-PRD §1, reproduced verbatim there and paraphrased nowhere):
 MCP-PRD owns what the server can do; PLUGIN-PRD owns what the user installs and experiences. A
@@ -42,7 +42,7 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (101 tests, 27 suites)
+npm test            # node --experimental-strip-types --test  (150 tests, 39 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
@@ -56,9 +56,12 @@ stay that way — see the rate-limit rule below.
 
 ```
 src/index.ts            entry point — the ONLY module that may read process.env/process.platform
-src/config.ts           resolveConfig(env, platform) — User-Agent, cacheDir, base URL
+src/config.ts           resolveConfig(env, platform) — User-Agent, cacheDir, the two base URLs
 src/result.ts           Result<T> = Success<T> | Failure; FailureCode union
-src/scryfall/client.ts  the one HTTP module: headers, two rate-limit lanes, 429 backoff
+src/http/client.ts      the one HTTP module: createHttpClient(spec, deps) — headers, lanes,
+                        429 backoff, GET and POST. Everything below is a SourceSpec over it
+src/scryfall/client.ts  spec: two lanes (500/100 ms), Scryfall's details reader. Thin factory
+src/spellbook/client.ts spec: one 500 ms lane, the Django-REST field-error details reader
 src/scryfall/prices.ts  resolvePrice() — the three price traps
 src/scryfall/types.ts   minimal wire shapes; only fields actually read
 src/tools/card-search.ts  cardSearch() — query in, shaped CardSearchData out
@@ -163,7 +166,7 @@ present — that test reports "absent" on a surface where the tool works.
 Tests use `node:test` + `node:assert/strict`, and load fixtures with `readFileSync` rather than
 importing JSON, so they behave identically under type stripping and under the bundle.
 
-## Current state (2026-08-11)
+## Current state (2026-08-25)
 
 Track A is complete: Slices 1–6 shipped as PRs #2–#7 and `CAP-01` (card search) is **delivered
 against criteria 1–14**. Criteria 1–12 were verified 2026-08-03, nine live against real Scryfall;
@@ -552,6 +555,35 @@ specified would display nothing. And two more questions came with it — `PQ-11`
 command versus §8's `bin/` rejection, recorded and answered *no for now*) and `PQ-12` (whether a
 non-required defaulted `userConfig` boolean prompts at enable time, which would cost `PC-02`
 criterion 2 and is settleable with one scratch plugin on a cold profile).
+
+**Slice 15 (transport generalization and the POST verb) landed 2026-08-25 as commit `d08777b` on
+`feat/slice15-transport-and-post`** — Phase 2's first code and none of the capability.
+`src/http/client.ts` is the old Scryfall client with three things lifted onto a plain-data
+`SourceSpec` — `sourceName`, the lane table, `detailsFrom` — with every timing rule moved
+character-for-character; `src/scryfall/client.ts` is 44 lines of spec plus a thin factory keeping
+every export; `src/spellbook/client.ts` gives Commander Spellbook one 500 ms lane; `config.ts`
+gained a hard-coded `spellbookBaseUrl`. **`CAP-02` criteria 11 and 12 are verified, and criterion
+3's client half only — never record 3 as verified outright**, because its handler half is Slice
+16's. `CAP-02` stays `specified`: `index.ts` and `tools/register.ts` have an empty diff,
+`tools/list` still reports one tool, and `spellbookBaseUrl` and `createSpellbookClient` are read by
+no production code until Slice 16 — deliberately, the shape `cacheDir` has had since Slice 1. **No
+open question moved and `OQ-05` is explicitly unmoved** — the 500 ms lane is §3.7's conservative
+strictest-lane rule applied, not a measured fit. No `CAP-01`, `PC-01`, `PC-02` or `PC-03` criterion
+changed status and `PQ-06` did not move in either half. Tests 101 → 150, suites 27 → 39;
+`npm run acceptance` 13/13 live, no 429. Evidence: `docs/slices/TrackA-Slice15-results.md`.
+
+Three traps from that slice. **Lane selection is first-prefix-match in declaration order, not
+most-specific-prefix** — the `lane === lanes.card` identity comparison is gone, and a spec
+declaring `/cards` at 700 ms before `/cards/search` at 50 ms routes `/cards/search` to 700.
+**`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking
+them, so making `ScryfallClient` an alias of `HttpClient` left three fakes in `tests/tools/` broken
+with `npm test` still green; any change to a shared interface must be checked with
+`npm run typecheck`. And the Commander Spellbook `detailsFrom` accepts `string` and `string[]` and
+**drops `details` entirely for any other shape**, rather than reporting a half-understood error
+body. One thing that is *not* a trap: the live acceptance pass took three attempts, both failures a
+first-call `fetch` rejection ~10.7 s into a freshly spawned server, investigated to an intermittent
+connection failure **not attributable to the refactor** — §7 of that results doc records it, and it
+is not a defect in the transport.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
