@@ -5,14 +5,17 @@
 > capability template; adding a capability means appending a CAP block and updating
 > sections 6, 7, and 9. Nothing else.
 
-**Document status:** foundation established 2026-07-29. One capability specified
-([CAP-01](#cap-01--card-search)) and **delivered against criteria 1–14** ([§9](#9-revision-log)):
+**Document status:** foundation established 2026-07-29. **Two capabilities specified, one of them
+built.** The first ([CAP-01](#cap-01--card-search)) is
+**delivered against criteria 1–14** ([§9](#9-revision-log)):
 1–12 on 2026-08-03, then criterion 13 (the `legalities` trim) and a new criterion 14 (the page cap)
 on 2026-08-10, when [Slice 14](./slices/TrackA-Slice14.md) implemented both of
 [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s levers and closed that question. **A
 criterion 15 was added 2026-08-11 and is not implemented** — opt-in card images, answering
 [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost); the block therefore
-carries fifteen criteria and is delivered against fourteen. Ten capabilities
+carries fifteen criteria and is delivered against fourteen. **A second capability was specified
+2026-08-24 and is not built** — [CAP-02](#cap-02--combo-discovery), combo discovery, assigned
+Phase 2. Nine capabilities
 queued and unassigned — two of them added 2026-08-07 when Moxfield joined Archidekt as a deck
 platform ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second), [§4.8](#48-moxfield)).
 
@@ -66,6 +69,7 @@ the reasoning instead of re-deriving it.
 | [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) | Deck platform order: Archidekt first, Moxfield second. Both are in scope; neither blocks the other's spec | 2026-08-07 |
 | [D-14](#d-14--no-npm-moxfield-api-dependency) | No dependency on the npm `moxfield-api` package. Use plain HTTP | 2026-08-07 |
 | [D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last) | Moxfield writes are blocked upstream, not merely last. They stay queued and unspecified until Moxfield has a working third-party authentication path | 2026-08-07 |
+| [D-16](#d-16--no-npm-commander-spellbook-client-dependency) | No dependency on the npm `@space-cow-media/spellbook-client` package. Use the in-house HTTP client | 2026-08-24 |
 
 ### D-01 — Distribution: local package over stdio
 
@@ -304,6 +308,76 @@ will use, and saying "last" would imply otherwise to a future session reading th
 granting this application credentials that work. Any of those reopens this decision. Until then
 the [§6](#6-phases) queue carries it as blocked with this ID attached, and no plugin-side credential is
 declared for it ([`docs/PLUGIN-PRD.md` P-13](./PLUGIN-PRD.md#p-13--no-user-configuration-in-phase-1)).
+
+### D-16 — No npm Commander Spellbook client dependency
+
+**Decided 2026-08-24.**
+
+**No dependency on the npm `@space-cow-media/spellbook-client` package.** Use the in-house HTTP
+client, the same as [D-12](#d-12--no-npm-archidekt-dependency) and
+[D-14](#d-14--no-npm-moxfield-api-dependency) decided for Archidekt and Moxfield — **but for
+different reasons, and this package clears bars those two failed.** It is recorded as a decision
+precisely because it is the strongest third-party client this project has evaluated, and a future
+session reading the npm page alone would reasonably reach for it.
+
+**What it clears. [verified 2026-08-24]** v6.2.6, **first-party** — published by SpaceCowMedia
+from `SpaceCowMedia/commander-spellbook-backend`, generated from Commander Spellbook's own OpenAPI
+schema. MIT, **zero runtime dependencies and zero peer dependencies**, version-locked to the live
+API (the package version matches the API version exactly), 152 versions with the latest published
+2026-08-23. Its `Configuration` accepts **`headers`**, so the app-naming `User-Agent`
+[§3.7](#37-undocumented-and-bot-protected-third-party-apis) requires can be set — the one thing
+[D-14](#d-14--no-npm-moxfield-api-dependency) found `moxfield-api` could not do — and accepts an
+injectable **`fetchApi`**, which satisfies [D-03](#d-03--testability-handlers-callable-as-plain-functions)
+directly. **Four of [D-14](#d-14--no-npm-moxfield-api-dependency)'s five objections do not apply.**
+
+It still does not earn the dependency, on grounds particular to this codebase:
+
+- **It would not replace the in-house client; it would add a second idiom beside it.** This is the
+  decisive reason and it is structural rather than stylistic.
+  [CAP-02](#cap-02--combo-discovery) resolves card names through
+  [§4.1.2](#412-batch-resolution) on Scryfall, which no Commander Spellbook package serves, so the
+  in-house transport is built regardless — and Archidekt ([§4.5](#45-archidekt)) and Moxfield
+  ([§4.8](#48-moxfield)) have no first-party package at all. Adopting it means one source of three
+  speaking a different error model, a different throttle, and a different test harness,
+  permanently.
+- **[§3.4](#34-rate-limits-are-hard-constraints-not-guidance)'s rate-limit lane cannot be reused
+  through it.** The lane is not a per-request delay but a queue with an enqueue-before-await
+  prefix, a stamp-before-fetch rule, a restamp-after-backoff rule, and a 30-second lockout written
+  into shared state on a persisted 429. Rebuilding that inside the package's `middleware` hook is
+  a second copy of the subtlest code in this repo; injecting the existing client through
+  `fetchApi` inverts the layering, wrapping a returning client inside a throwing one.
+- **Its error model is the opposite of [D-10](#d-10--tool-handlers-never-throw)'s**, exactly as
+  [D-14](#d-14--no-npm-moxfield-api-dependency) found. It throws `ResponseError` on any non-2xx,
+  and that error carries the **raw unread `Response`** — so recovering Commander Spellbook's
+  positional 400 text ([§4.4](#44-commander-spellbook)) means an `await` on the body inside a
+  catch, with its own failure mode when the body is unparseable.
+- **Its generated variant type declares the fields
+  [CAP-02](#cap-02--combo-discovery) is forbidden to return.** The hand-written shapes omit
+  `prices` and every `imageUri*` field, which makes criteria 6 and 7 unviolatable at compile time
+  rather than merely tested — the same discipline that keeps `eur_etched` out of
+  [§4.1.3](#413-price-fields--three-verified-traps)'s model. A generated type carries all of them,
+  because it is generated from a schema that has them. **This also rules out the one genuinely
+  attractive middle path**: adopting the package as a *type-only* devDependency, which under
+  `verbatimModuleSyntax` would cost zero bundle bytes and no runtime dependency, and which neither
+  [D-12](#d-12--no-npm-archidekt-dependency) nor [D-14](#d-14--no-npm-moxfield-api-dependency) had
+  available.
+- **Bundle cost was not measured.** 1,434,296 bytes across 562 files, generated for all 32 API
+  paths where two are used. esbuild tree-shakes ESM and it may shake down to very little — that is
+  **recorded as unmeasured rather than asserted in either direction**. What makes the unknown
+  expensive is the asymmetry already in this project: `dist/index.js` is 562,952 bytes and the
+  released bundle 113,631, the MCP SDK is deliberately a devDependency to keep it small, and
+  [`docs/PLUGIN-PRD.md` PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) records
+  that a released bundle never self-updates — so a regression ships and every install carries it
+  until someone reinstalls. **The other four objections carry this decision on their own; this
+  fifth one is stated as open.**
+
+Its genuine value, exactly as with the other two packages, is as **documentation of request and
+response shapes** — and that is transcribed into [§4.4](#44-commander-spellbook) and
+[§4.4.1](#441-the-combo-payload-is-enormous--measured) so the package can be ignored entirely.
+
+**What would reopen this.** The package returning results instead of throwing, or a second
+Commander Spellbook capability large enough that 32 generated endpoints stop being surface area
+and start being coverage.
 
 > **Note on [D-07](#d-07--three-way-cache-split).** This revises the decision as originally stated. The original rationale is
 > preserved above and still holds. The change is in scope of what bulk data is used *for*,
@@ -879,6 +953,240 @@ disappears, combo discovery has no equivalent replacement — EDHREC consumes th
 than producing it. Because the backend is MIT and open source, a worst case could be
 self-hosted, which is a meaningfully better position than a closed API.
 
+**Addendum — the API is on version 6.2.6, and the endpoint shapes are recorded for the first
+time. [verified 2026-08-24]** Researched for [CAP-02](#cap-02--combo-discovery). The 2026-07-29
+record above is accurate for its date and its conclusions are unchanged — anonymous access works,
+`/find-my-combos` is the discovery primitive, `variants.json` stays rejected at 606 MB. What it
+does not carry is any request or response shape, and a capability cannot be specified against a
+list of endpoint names.
+
+`/schema/` reports **API version 6.2.6** against the 5.7.5 recorded above, and **32 paths**
+against 31. Three are new to this record: `/card-list-from-text`, `/explain-query`, and
+`/properties/`. **[verified]**
+
+**`/find-my-combos` accepts both `GET` and `POST`.** The `POST` body is a `DeckRequest` —
+`{ main: [{ card, quantity }], commanders: [{ card, quantity }] }`, capped at **600 main and 12
+commanders** — as `application/json`, or a plain decklist as `text/plain`. Query parameters are
+`count`, `limit`, `offset`, `ordering`, `q`, `groupByCombo`, `variant`. **[verified]**
+
+**The response's `results` is an object of six buckets, not a list.** `included`,
+`includedByChangingCommanders`, `almostIncluded`, `almostIncludedByAddingColors`,
+`almostIncludedByChangingCommanders`, `almostIncludedByAddingColorsAndChangingCommanders`, plus a
+top-level `identity`. Only the first two name combos the deck actually contains; the other four
+are near-misses. **[verified]** What that costs is [§4.4.1](#441-the-combo-payload-is-enormous--measured).
+
+**Addendum — three behaviors that decide the shape of any combo capability.
+[verified 2026-08-24]** Two of them are new members of the silent-wrong-answer family this
+document already carries in [§4.1.1](#411-search-endpoint) — the dropped invalid term, the `\A`
+zero-match regex, the negated numeric comparison. The third is the opposite, and is the reason
+this source is pleasanter to build against than Scryfall.
+
+| Behavior | Observed |
+|---|---|
+| `limit` on `/find-my-combos` | **Does not prioritize `included`.** At `limit=5`, 4 `included` + 1 `almostIncluded`; the same request twice, byte-identical. The full result's first eight flattened entries are all `included`, and at `limit=20` all eight appear. So a capped upstream request **omits combos the deck contains in favour of near-misses**, and reports nothing |
+| An unrecognized card name in a submitted decklist | **Silently ignored.** HTTP 200, no warning, no unresolved list, no echo of the input. A three-card deck carrying one invented name returned the two-card combo among the real cards as though nothing were missing |
+| An invalid search operator on `/variants/` | **HTTP 400** with `{"q":["Invalid search query: unexpected character : at position 34."]}` — loud, positional, and correctable |
+
+**The name behavior has no server-side remedy.** `/card-list-from-text` is a *pure text parser*:
+handed `1 Zzzz Not A Real Card 9999` it returns that string back as a `main` entry, resolving
+nothing. **[verified]** No Commander Spellbook endpoint reports that a submitted name matched no
+card, so a decklist with one typo returns fewer combos than the deck really has, with no signal
+anywhere. [CAP-02](#cap-02--combo-discovery) resolves names through
+[§4.1.2](#412-batch-resolution) before submitting for exactly this reason.
+
+**The 400 is worth stating positively, because a reader will assume parity with Scryfall and be
+wrong.** [§4.1.1](#411-search-endpoint) records that Scryfall silently drops an unrecognized term
+whenever a recognized one remains; Commander Spellbook rejects the whole query and names the
+offending character's position. A malformed combo query is therefore loudly correctable, which is
+precisely the self-correction contract [D-10](#d-10--tool-handlers-never-throw) is built on.
+
+**Addendum — a `GET /find-my-combos` with no deck returns HTTP 200 and a meaningless answer.
+[verified 2026-08-24]** `identity: "C"`, `included: []`, and the **entire combo corpus**
+paginated into `almostIncludedByAddingColors`. It is not an error and does not present as one — a
+caller that omits the body gets a well-formed result describing every combo in Magic as one the
+deck could almost reach. Recorded because the `GET` form is the one a session reaching for
+`curl` will try first.
+
+**Addendum — supporting fields that constrain what a capability may surface.
+[verified 2026-08-24]**
+
+- **`Variant.prices` carries `tcgplayer`, `cardkingdom`, and `cardmarket`.** This is a second
+  price source inside a payload this project consumes, and
+  [D-06](#d-06--pricing-from-scryfall) makes Scryfall the price source. It must never be
+  surfaced as a price — the same treatment [§4.8.1](#481-the-deck-payload-is-enormous--measured)
+  gives Moxfield's embedded `prices`.
+- **`Variant.legalities` carries 16 keys, and the names differ from Scryfall's 23** — including
+  `pauperCommanderMain`, `pauperCommander`, `standardBrawl`, and `competitiveBrawl`, none of
+  which appear in the list [§4.1.1](#411-search-endpoint) recorded 2026-08-07. It is also a
+  *combo-level* judgement rather than a card-level one. A consumer must not assume
+  [CAP-01](#cap-01--card-search)'s key set.
+- **`Variant.uses[].card` embeds `oracleId`**, which is the join back to Scryfall, alongside ten
+  `imageUri*` fields whose cost is measured in [§4.4.1](#441-the-combo-payload-is-enormous--measured).
+- **`/card-list-from-url?url=` resolves a deck URL to a `Deck`**, returning 400
+  `InvalidUrlResponse` on one it cannot parse. Recorded as available and **deliberately not
+  used** — see [CAP-02](#cap-02--combo-discovery), which takes a card list so that deck-URL
+  resolution stays with [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)'s `deck_read` rather than being served twice.
+- **`/explain-query?q=` validates and explains a query server-side**, returning a
+  `QueryExplanation` or a 400 `QueryExplanationValidationError`. Not consumed by
+  [CAP-02](#cap-02--combo-discovery); recorded against
+  [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model).
+- **Card names are matched against Scryfall's canonical names.** **[inferred — every name
+  submitted during this research was already a canonical Scryfall name, so a divergent form was
+  never tested.]**
+
+**Addendum — there is a gzipped bulk file, and the "606 MB" framing above is incomplete.
+[verified 2026-08-24]** `https://json.commanderspellbook.com/variants.json.gz` is **27,390,889
+bytes (26.1 MB)** against the uncompressed file's 635,565,491 bytes. Both carry an `ETag` and a
+`Last-Modified` and are served via CloudFront. **26.1 MB is directly comparable to
+[§4.2](#42-scryfall-bulk-data)'s `oracle_cards` at 24.4 MB**, which this document already treats as
+ordinary viable bulk data — so size alone is not a reason to avoid it, and the "Avoid … 606 MB"
+line above must not be read as one. That line is left as written, per this section's append-only
+handling; this addendum is the correction.
+
+**It is nonetheless evaluated and not used, for reasons that survive the size correction.**
+`/find-my-combos` performs deck matching **server-side** — that is computation, not lookup.
+Reproducing it locally means reimplementing Commander Spellbook's matcher *including the exact
+semantics of its six buckets*, and [§8](#8-out-of-scope) rejects precisely this one source over,
+for Scryfall's search engine. The argument is stronger here than there: `includedByChangingCommanders`
+and `almostIncludedByChangingCommanders` differ by one word and mean opposite things, so a
+divergence would surface as a correctly-shaped, **wrongly-labelled** result — the silent-wrong-answer
+class this document keeps paying for, rather than a visible gap. `combo_search` passes a
+server-evaluated query string, which is the same argument one step down, and `/explain-query`
+existing at all is evidence the language is non-trivial enough that its own authors ship an
+explainer for it.
+
+**The handling story is materially worse than [§4.2](#42-scryfall-bulk-data)'s precedent, which
+inverts the size comparison.** The file is a **single JSON object, not JSONL**: it opens
+`{"timestamp": …, "version": "6.2.6", "variants": […`. **[verified]**
+[§4.2](#42-scryfall-bulk-data)'s files are gzipped **JSONL** and stream line-by-line with no parser
+and no library; this one needs a streaming JSON parser — a runtime dependency, and this project
+currently has zero — or 606 MB resident. So 26.1 MB compressed is comparable and 606 MB resident is
+not, and the two facts belong in the same sentence or neither does.
+
+**One thing it is genuinely good for.** The `timestamp` and `version` sit in the **first ~100
+bytes**, so a `HEAD` or a `Range: bytes=0-199` GET is a **sub-kilobyte staleness check** without
+downloading 26 MB — and because that `version` mirrors the live API version, the same read doubles
+as an API-version drift check. Recorded against
+[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s still-open
+refresh-trigger half. [CAP-02](#cap-02--combo-discovery) introduces no persistence and does not use
+it.
+
+**Addendum — there is a first-party npm client, and it is rejected by
+[D-16](#d-16--no-npm-commander-spellbook-client-dependency). [verified 2026-08-24]**
+`@space-cow-media/spellbook-client` v6.2.6, published by SpaceCowMedia from the Commander Spellbook
+backend repository and generated from the OpenAPI schema this section describes. MIT, zero runtime
+dependencies, version-locked to the API, actively maintained. It sets a configurable `User-Agent`
+and accepts an injectable fetch, so it clears four of
+[D-14](#d-14--no-npm-moxfield-api-dependency)'s five objections to the Moxfield package. It is
+rejected anyway, on grounds recorded in full at
+[D-16](#d-16--no-npm-commander-spellbook-client-dependency). Noted here — the same treatment
+[§4.8.2](#482-the-npm-moxfield-api-package) gives `moxfield-api` — so a session researching this API
+finds the verdict beside the endpoint documentation rather than re-evaluating the package from its
+npm page, where it looks like a better fit than it is.
+
+**Rate limits, re-checked.** No `X-RateLimit`, `Retry-After`, or throttling header of any kind on
+any of the nine responses taken this date. **[verified absent — meaning unknown, not unlimited,
+exactly as recorded 2026-07-29.]** [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is unmoved.
+
+**Method.** Nine requests, spaced by hand, with the app-naming `User-Agent` and an `Accept`
+header ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)): one schema fetch, five
+`GET /variants/`, and three `POST /find-my-combos`. No authentication was attempted and no
+challenge was encountered. No 429.
+
+**Addendum — four probes taken to settle the paging path and two mapping questions.
+[verified 2026-08-24]** Taken after
+[CAP-02](#cap-02--combo-discovery) was specified, because three of its bullets rest on behaviour
+nothing above establishes. Five requests — four `GET /variants/` and one Scryfall
+`POST /cards/collection` — 1.2 seconds apart, with the app-naming `User-Agent` and an `Accept`
+header. No 429. The captures are in
+[`tests/fixtures/spellbook/`](../tests/fixtures/spellbook/README.md), which records which of them
+are verbatim and which are truncated.
+
+1. **`/variants/` ordering is stable across calls.** `card:"Thassa's Oracle"` at
+   `limit=40&offset=0` and then `limit=40&offset=40` returned 40 ids each, **zero overlap and no
+   gap** — 80 distinct ids in 80 slots, `count` 96 on both. Page 1's `next` was exactly the URL
+   page 2 was fetched by. **[verified]** This is the check
+   [CAP-02](#cap-02--combo-discovery)'s third cap bullet gates the upstream-paging path on, so
+   that path ships as specified and neither fallback — an explicit `ordering` parameter, or one
+   fetch and a client-side slice — is needed.
+
+2. **A valid query with no matches is HTTP 200 carrying `{"count":0,"next":null,"previous":null,
+   "results":[]}`, not a 404.** **[verified]** This is the **opposite** of Scryfall, which answers
+   zero matches with a 404 that [CAP-01](#cap-01--card-search) deliberately maps to a successful
+   empty result ([§4.1.1](#411-search-endpoint)). A consumer that ports that mapping here gains
+   nothing and loses a real signal: a 404 from this host means a bad path, not an empty answer.
+   Recorded because assuming parity is the standing hazard of this section — the HTTP 400 above is
+   the other half of the same warning, in the other direction.
+
+3. **`count` is `null` unless the request sends `count=true`.** The key is **always present**, so
+   a missing total does not announce itself as missing — it reads as a total of nothing. `next` is
+   populated either way and cannot substitute, since it names the following page rather than a
+   size. **[verified]** The OpenAPI schema declares `count` with `default: false`, so this is the
+   documented behaviour rather than a surprise; it is recorded because every capture taken on
+   2026-07-29 and earlier this date happened to carry `count=true`, which makes the field look
+   unconditional. Any call whose response must state a total sends `count=true`.
+
+4. **Scryfall's `POST /cards/collection` reports a miss in `not_found` as the identifier object
+   submitted, not as a bare string.** Three names, one invented, returned
+   `{ object, not_found, data }` with `not_found: [{"name":"Zzzz Not A Real Card 9999"}]` and the
+   two real cards in `data`. **[verified]** This is the mechanism
+   [§4.1.2](#412-batch-resolution) supplies and the only way a caller learns that a submitted
+   name matched nothing — Commander Spellbook itself will never say so.
+
+#### 4.4.1 The combo payload is enormous — measured
+
+This is the finding that shapes the capability, and it was measured rather than estimated. It is
+the same situation [§4.8.1](#481-the-deck-payload-is-enormous--measured) records for Moxfield,
+arriving before the spec rather than after delivery.
+
+**One 94-card Commander deck through `POST /find-my-combos` returned 640,684 characters.**
+**[verified 2026-08-24]** The deck holds 93 main cards and one commander, and the response
+carries 164 variants across the six buckets.
+
+| Bucket | Variants | Chars | Share |
+|---|---|---|---|
+| `included` — combos the deck actually contains | 8 | 34,645 | **5.4%** |
+| `almostIncluded` | 106 | 413,309 | **64.5%** |
+| `almostIncludedByAddingColors` | 49 | 189,148 | 29.5% |
+| `almostIncludedByChangingCommanders` | 1 | 3,323 | 0.5% |
+| `includedByChangingCommanders`, `…ByAddingColorsAndChangingCommanders` | 0 | 4 | 0.0% |
+
+**The two numbers that matter more than the total.** First, **the answer to the question asked is
+5.4% of the response** — 156 of the 164 variants returned are combos the deck does *not* contain.
+Second, **the ten `imageUri*` fields inside `uses[].card` are 268,676 characters, 41.9% of the
+whole payload**, which is the single largest lever and the exact counterpart of Moxfield's twelve
+vendor and affiliate URL fields. Average variant: 3,904 characters.
+
+**A single card's combos are unbounded, and `/variants/` applies no default page cap.**
+`card:"Thassa's Oracle"` returned **all 96 variants in one response, 533,840 characters, with
+`next: null`**. **[verified]** Popularity scales it without limit: Sol Ring appears in **129**
+combos, Basalt Monolith **287**, and **Dockside Extortionist 476** — which projects past 2.6 MB
+for one card at the measured per-variant cost.
+
+**Set both against the ceiling this project has already hit.**
+[OQ-02](#oq-02--how-verbose-should-a-search-result-be) records a
+[CAP-01](#cap-01--card-search) response of 116,626 characters that **exceeded a harness
+tool-result ceiling** (issue #25). The deck read is **5.5×** that and one popular card's combos
+**4.6×**. A passthrough is not on the table at any deck size or for any card worth asking about.
+
+**The trim was measured on the same payloads, not projected: 76–78% smaller, at 930–1,236
+characters per combo.** **[verified 2026-08-24]** Shaping each variant to combo id, the cards it
+uses (name, `oracleId`, quantity, zone, commander flag), what it produces, colour identity, mana
+needed, popularity, bracket tag, prerequisites and description:
+
+| Payload | Raw | Trimmed | Per combo |
+|---|---|---|---|
+| The 8 `included` combos | 34,645 | **8,461** | 1,058 |
+| The 156 near-miss combos | 605,778 | **145,132** | 930 |
+| `card:"Thassa's Oracle"`, 96 variants | 533,789 | **118,682** | 1,236 |
+
+Per-combo cost varies with how many cards a combo uses, so a budget derived from one query is an
+estimate and not a constant — the same warning [§4.1.1](#411-search-endpoint) attaches to its own
+per-card figure. **`description` is ~40% of the *trimmed* form** and is deliberately kept: it is
+the step-by-step line explaining how the combo executes, which is what the model reasons from,
+and the argument for keeping it is the one
+[OQ-02](#oq-02--how-verbose-should-a-search-result-be) used to keep `oracle_text`.
+
 ### 4.5 Archidekt
 
 **Date verified:** 2026-07-29
@@ -1339,6 +1647,179 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
 
 ---
 
+### CAP-02 — Combo discovery
+
+- **Status:** specified (2026-08-24)
+- **Phase:** 2
+- **User need:** I want to know what combos a card is part of, and what combos are already
+  sitting in a deck I have built — including the ones I am one card away from, because that is
+  the interesting answer. I do not want to read Commander Spellbook's site and cross-reference it
+  against my list by hand.
+- **Behavior:**
+  - **Two tools, because the two questions take different inputs.** `combo_search` takes a
+    Commander Spellbook query string; `combo_find_deck` takes a decklist. A single tool with
+    mutually exclusive parameters was rejected: tool schemas are **deferred** on the Claude Code
+    surface and cost 0 resident tokens ([`docs/PLUGIN-PRD.md` PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports)),
+    so a second tool is nearly free while a one-of schema is a standing invitation to set both or
+    neither. This is a different answer from
+    [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)'s
+    one-tool `deck_read` and does not disturb it: there, two platforms answered the *same*
+    question over the same input, and here two inputs answer different questions.
+  - **`combo_search` passes its query through unmodified.** The full Commander Spellbook search
+    syntax is supported because Commander Spellbook evaluates it — this capability does not
+    parse, validate, or reimplement it, exactly as [CAP-01](#cap-01--card-search) does not for
+    Scryfall. "Combos involving a given card" is `card:"…"` and is the common case, but nothing
+    narrows the query to that.
+  - **A malformed query is loudly correctable here, which is not true of
+    [CAP-01](#cap-01--card-search).** Commander Spellbook rejects an unrecognized operator with
+    HTTP 400 naming the offending character's position, where Scryfall silently drops the term
+    and answers from fewer constraints ([§4.1.1](#411-search-endpoint),
+    [§4.4](#44-commander-spellbook)). The verbatim `details` is passed through
+    ([D-10](#d-10--tool-handlers-never-throw)), so the model self-corrects on the next call.
+    Stated explicitly because a reader who knows [CAP-01](#cap-01--card-search) will assume
+    parity and be wrong in the safe direction.
+  - **`combo_find_deck` takes a list of card names plus commanders, never a deck URL.** It
+    composes with [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)'s
+    `deck_read` when that capability lands, and works today against a list the user pasted, so it
+    has **no dependency on deck reading**. Commander Spellbook's own
+    `/card-list-from-url` would resolve an Archidekt or Moxfield URL directly
+    ([§4.4](#44-commander-spellbook)) and is deliberately not used: it routes the user's deck URL
+    through a third party and would serve deck resolution twice, once here and once in the
+    capability [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second) already orders.
+  - **Every submitted card name is resolved through
+    [§4.1.2](#412-batch-resolution) before the combo call**, and any name Scryfall does not
+    resolve is **reported in the response**. This is the guard against the trap in
+    [§4.4](#44-commander-spellbook): Commander Spellbook ignores an unrecognized name silently,
+    returns HTTP 200, and no endpoint it serves will say a name matched nothing — so a decklist
+    with one typo yields fewer combos than the deck really holds, with no signal. Batch
+    resolution costs **2 requests for a 100-card deck** at 75 identifiers each, never a loop over
+    `/cards/named`. It is the only reason this capability touches Scryfall at all.
+  - **Near-misses are behind an opt-in and are absent by default.**
+    `include: "matched" | "matched+near"`, defaulting to `"matched"`. Combos the deck contains
+    are 5.4% of the upstream payload and the near-misses 94.6%
+    ([§4.4.1](#441-the-combo-payload-is-enormous--measured)), so the default answers the question
+    asked and the opt-in buys the "add one card and you have a combo" answer deliberately. The
+    parameter is additive and defaults to cheap, which is the direction
+    [OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost) established is
+    safe: forgetting it returns a smaller true answer rather than failing a call invisibly, which
+    is what [OQ-02](#oq-02--how-verbose-should-a-search-result-be) rejected a subtractive
+    parameter for.
+  - **Each returned combo states which bucket it came from**, so a near-miss is never presented
+    as a combo the deck contains. The six upstream buckets
+    ([§4.4](#44-commander-spellbook)) are reported rather than flattened away, for the same
+    reason `legalities_included` exists on [CAP-01](#cap-01--card-search): an unlabelled result
+    invites a wrong reading ([§3.6](#36-error-surface)).
+  - **A page carries at most 40 combos, and where the cap is applied differs by tool.** At the
+    worst measured per-combo cost of 1,236 characters a full page is under 50,000 — inside
+    [CAP-01](#cap-01--card-search)'s delivered band and well under the 116,626 that breached a
+    harness tool-result ceiling. **[CAP-01](#cap-01--card-search)'s 88-card arithmetic does not
+    transfer**: Commander Spellbook exposes a true `offset`, so page *n* is `offset = (n-1) * 40`
+    with no half-page trick and every combo reachable.
+  - **`combo_search` pages upstream; `combo_find_deck` must not.** The distinction is the whole
+    point and collapsing it breaks one tool or the other. `/variants/` returns **one flat list**,
+    so `limit` and `offset` cannot drop the answer to the question asked and are sent upstream —
+    which matters because that endpoint applies **no default page cap** and one popular card's
+    combos measure 533,840 characters, with 476-combo cards projecting past 2.6 MB
+    ([§4.4.1](#441-the-combo-payload-is-enormous--measured)). `/find-my-combos` classifies into six
+    buckets, and its `limit` **does not prioritize the combos the deck contains** — a capped
+    upstream request drops them in favour of near-misses and reports nothing
+    ([§4.4](#44-commander-spellbook)) — so that tool fetches the full result, classifies, and caps
+    **after**. Criterion 10 tests the second half; criterion 8 tests both.
+  - **Upstream paging rests on `/variants/` ordering being stable across calls, which is not yet
+    verified.** Nothing in [§4.4](#44-commander-spellbook) establishes it, and if it drifts then
+    page 2 can repeat or skip combos silently. The implementing slice confirms it live — page 1 and
+    page 2 of one query, zero overlap and no gap — before the upstream-paging path ships, and falls
+    back to an explicit `ordering` parameter or to one fetch and a client-side slice if it does
+    not hold.
+  - **The wire budget and the model budget are different budgets.** `combo_find_deck` fetches the
+    full upstream result — 640,684 characters in 1.66 seconds on the measured deck — and trims
+    before returning. The ceiling this capability is designed around constrains what reaches the
+    model, not what crosses the network, and conflating the two is what would push the cap
+    upstream and break the previous bullet.
+  - **No Commander Spellbook price is ever returned.** `Variant.prices` carries `tcgplayer`,
+    `cardkingdom` and `cardmarket`, and [D-06](#d-06--pricing-from-scryfall) makes Scryfall the
+    price source — the same treatment [§4.8.1](#481-the-deck-payload-is-enormous--measured)
+    prescribes for Moxfield's embedded copy. **No `imageUri*` field is returned either**, at
+    41.9% of the upstream payload ([§4.4.1](#441-the-combo-payload-is-enormous--measured)).
+  - **Combo legality is reported for one format**, named by a `format` parameter defaulting to
+    `"commander"`, with the format actually applied stated once per response — an absent key must
+    never read as "not legal" ([§3.6](#36-error-surface)), which is the discipline
+    [CAP-01](#cap-01--card-search)'s `legalities_mode` established. Commander Spellbook returns
+    **16 legality keys whose names differ from Scryfall's 23** and judges the *combo* rather than
+    a card, so a consumer must not reuse [CAP-01](#cap-01--card-search)'s key set
+    ([§4.4](#44-commander-spellbook)).
+  - **Commander Spellbook is self-throttled to the strictest lane in
+    [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) — 2 per second — because it
+    publishes no limit** ([§3.7](#37-undocumented-and-bot-protected-third-party-apis),
+    [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits)). It is a different
+    host from Scryfall and gets its own lane rather than sharing one; the Scryfall lanes are
+    sized against Scryfall's published numbers and mean nothing here.
+  - **A missing or empty decklist is a structured failure, not a request.** A `GET` to
+    `/find-my-combos` with no deck returns HTTP 200 carrying the entire combo corpus as
+    near-misses ([§4.4](#44-commander-spellbook)), which is a well-formed meaningless answer of
+    the kind this document keeps paying for. The handler refuses before the call.
+- **Depends on:** Commander Spellbook ([§4.4](#44-commander-spellbook)) — `GET /variants/` and
+  `POST /find-my-combos`. Plus Scryfall `POST /cards/collection` ([§4.1.2](#412-batch-resolution))
+  for name validation only, never for combo data. **No other CAP**, and specifically not deck
+  reading: the decklist arrives as card names, so
+  [D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)'s platform ordering does not
+  gate this.
+- **Serves via:** `combo_search` and `combo_find_deck`. Both satisfy
+  [D-11](#d-11--tool-naming-convention).
+- **Acceptance criteria:**
+  1. Both handler functions are invoked directly in a test with no MCP server started and no
+     transport constructed ([D-03](#d-03--testability-handlers-callable-as-plain-functions)).
+  2. `combo_search` sends its query string upstream byte-identically, verified against a fake
+     client — including a query carrying an operator this server has never heard of.
+  3. An invalid query returns a structured failure carrying Commander Spellbook's verbatim
+     message and does not throw ([D-10](#d-10--tool-handlers-never-throw)). Observed
+     2026-08-24: `nonsenseop:foo` returns HTTP 400, "Invalid search query: unexpected character
+     : at position 34."
+  4. A decklist containing Demonic Consultation and Thassa's Oracle returns that combo, labelled
+     as one the deck contains.
+  5. **A card name Scryfall does not resolve is reported and not silently dropped.** Checked with
+     a deliberately invented name in an otherwise valid decklist — the failure this addresses is
+     that the upstream API returns HTTP 200 and says nothing
+     ([§4.4](#44-commander-spellbook)).
+  6. No response carries a Commander Spellbook price field
+     ([D-06](#d-06--pricing-from-scryfall)).
+  7. No response carries a Commander Spellbook `imageUri*` field.
+  8. A response reports at most 40 combos, states the total and whether more exist, and page 2
+     returns the next 40 via `offset` — so every combo is reachable by some page.
+  9. **`include` defaults to `"matched"`**, and no near-miss combo appears in a response that did
+     not ask for one. A call setting `"matched+near"` returns near-misses, each labelled with the
+     bucket it came from.
+  10. **The cap is never sent upstream as `limit` on `/find-my-combos`.** Verified against a
+      fixture whose first five upstream entries classify as four matched and one near: all
+      matched combos are returned. Kept separate from criterion 8 because the two fail
+      differently — a broken cap returns too much, and a cap pushed upstream returns a plausible
+      answer that is missing the combos the user actually has.
+  11. Every outbound request carries a `User-Agent` naming this application and an `Accept`
+      header ([§3.4](#34-rate-limits-are-hard-constraints-not-guidance),
+      [§3.7](#37-undocumented-and-bot-protected-third-party-apis)).
+  12. Two Commander Spellbook requests issued back to back do not exceed 2 requests/second, and
+      the Scryfall lanes are not shared with them.
+  13. An empty or missing decklist returns a structured failure and issues no upstream combo
+      request.
+  14. Combo legality is returned for the format named by `format`, that format is stated in the
+      response, and no other format's legality appears.
+- **Open questions:** [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) (no
+  documented rate limit — unknown rather than unlimited, so the 2/second lane above is a
+  conservative guess and not a measured fit),
+  [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) (the
+  backend is MIT; the combo *data* carries no stated license), and
+  [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) (how the
+  Commander Spellbook query syntax reaches the model). **None of the three blocks this spec**, and
+  that is a deliberate reading rather than an omission: [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits)
+  and [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) both
+  resolve only when a third party replies, and
+  [§3.7](#37-undocumented-and-bot-protected-third-party-apis) already states the standing rule for
+  a source that has not; [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+  is the [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) question one source
+  over, and [CAP-01](#cap-01--card-search) shipped with that one open.
+
+---
+
 ## 6. Phases
 
 **Phase 1 — Card search.** [CAP-01](#cap-01--card-search) alone. **Delivered 2026-08-03.**
@@ -1373,12 +1854,31 @@ recording: the component cannot ship before this does, so a plan that schedules
 [PC-04](./PLUGIN-PRD.md#pc-04--card-viewer) without scheduling criterion 15 first has the
 dependency backwards.
 
-**Ten capabilities are queued and unassigned.** Phase assignment happens in the sessions
+**Phase 2 — Combo discovery.** [CAP-02](#cap-02--combo-discovery) alone. **Specified 2026-08-24,
+not built.**
+
+Assigned here rather than left unassigned because the session that specified it is the session
+this document says owns the call, and because the dependency graph makes the answer unusually
+clear. It needs **no credential, no local persistence, and no other capability** — the decklist
+arrives as card names, so it does not wait on
+[D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)'s deck-platform ordering, and
+it introduces no bulk data, so it does not touch
+[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced). Its only
+Scryfall use is [§4.1.2](#412-batch-resolution) batch name resolution, which
+[CAP-01](#cap-01--card-search) already established the client and the rate-limit discipline for.
+That makes it the cheapest capability in the queue to build next and the only one that could have
+been built first instead of [CAP-01](#cap-01--card-search).
+
+**This reorders nothing.** No other queued capability's position changes, no phase is renumbered,
+and Phase 1 is untouched — it stays complete against
+[CAP-01](#cap-01--card-search)'s criteria 1–14, and criterion 15 stays unscheduled for the
+reasons stated above. Phase 2 is a new phase appended, not a resequencing of the table below.
+
+**Nine capabilities are queued and unassigned.** Phase assignment happens in the sessions
 that specify them, not here. They are, with the dependencies already visible from [§4](#4-external-dependencies):
 
 | Queued capability | Primary source | Notes from research |
 |---|---|---|
-| Combo discovery | Commander Spellbook `/find-my-combos`, `/variants/` ([§4.4](#44-commander-spellbook)) | the primitive already exists and is anonymous |
 | Archidekt deck reading | Archidekt `GET /api/decks/{id}/` ([§4.5](#45-archidekt)) | works unauth; must handle the 404 masking. **First of the two platforms** ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)) |
 | Moxfield deck reading | Moxfield `GET /v3/decks/all/{id}` ([§4.8](#48-moxfield)) | works unauth; **second** ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second)). Payload measured at 1.63 MB, so trimming is part of the spec, not a refinement ([§4.8.1](#481-the-deck-payload-is-enormous--measured)). Shares the normalized shape — [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two) |
 | Arena-format decklist export | none beyond [CAP-01](#cap-01--card-search) / deck reading | pure transformation |
@@ -1878,6 +2378,46 @@ measurement — and, separately,
 [`docs/PLUGIN-PRD.md` PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost)
 recording this answer on its own side, which is that document's to do and not this one's.
 
+### OQ-14 — How should Commander Spellbook query syntax be surfaced to the model?
+
+Opened 2026-08-24 by [CAP-02](#cap-02--combo-discovery). `combo_search` takes a Commander
+Spellbook query string and passes it through unevaluated, which means the model has to write one —
+and this project has surfaced exactly one query language before. This is
+[OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) one source over, and the
+candidates are the same: a long tool description, a separate syntax tool, an MCP resource, or a
+plugin skill.
+
+**It does not block [CAP-02](#cap-02--combo-discovery), and the reason is a measured difference
+from [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) rather than optimism.**
+Scryfall **silently drops** an unrecognized term and answers from fewer constraints
+([§4.1.1](#411-search-endpoint)), so a model guessing at its syntax produces a wrong answer that
+looks right — which is what made [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+urgent. Commander Spellbook returns **HTTP 400 naming the offending character's position**
+([§4.4](#44-commander-spellbook)), so a guess fails loudly and the model retries against a real
+error message. The cost of leaving this unanswered is therefore wasted calls, not wrong answers,
+and [CAP-01](#cap-01--card-search) shipped with
+[OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) open on strictly worse terms.
+
+Two things already known that a session answering this should not re-derive. Commander Spellbook
+publishes a syntax guide at `commanderspellbook.com/syntax-guide/`, and **`/explain-query?q=`
+validates and explains a query server-side** ([§4.4](#44-commander-spellbook)) — which is a third
+option [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) never had: the source
+itself will tell you whether a query means what you intended, before you spend a call on it.
+Whether that is worth a tool of its own is part of this question.
+
+**There is a plugin-side half this document does not own.**
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) teaches Scryfall syntax, and a second query
+language is either a second reference file inside that skill or a second skill — a choice that
+belongs to [`docs/PLUGIN-PRD.md`](./PLUGIN-PRD.md) and costs context budget measured there, not
+here. Recorded so that whoever answers this half does not discover the other one late.
+*Resolves by:* the same method
+[OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) used and this document should
+reuse — build the tool description first, measure whether Claude writes valid combo queries from
+plain-English requests **against a baseline with no syntax help**, and add teaching only where the
+measurement shows a gap. That measurement cannot run until
+[CAP-02](#cap-02--combo-discovery) is built, so this question waits on the build slice rather than
+on a decision.
+
 ---
 
 ## 8. Out of scope
@@ -1927,6 +2467,25 @@ from the one above — this package is actively maintained. It covers one endpoi
 `User-Agent`, throws where [D-10](#d-10--tool-handlers-never-throw) requires a returned failure, and brings `zod` for one call.
 [§4.8.2](#482-the-npm-moxfield-api-package) records it so a future session does not re-evaluate it from the package page alone,
 where it looks like a much better fit than it is.
+
+**The npm `@space-cow-media/spellbook-client` package as a dependency.** Rejected by
+[D-16](#d-16--no-npm-commander-spellbook-client-dependency) — and on the weakest grounds of the
+three, because it is the **strongest** package this project has evaluated: first-party, MIT, zero
+runtime dependencies, version-locked to the API, and it sets a configurable `User-Agent`, which is
+the requirement [D-14](#d-14--no-npm-moxfield-api-dependency) found the Moxfield package could not
+meet. It is listed here anyway, and the reason to read
+[D-16](#d-16--no-npm-commander-spellbook-client-dependency) rather than this line is that "rejected"
+means something narrower here than in the two entries above: it would not *replace* the in-house
+client but sit beside it, since Scryfall name resolution, Archidekt and Moxfield all still need
+one. Its bundle cost is recorded as **unmeasured**, not as disqualifying.
+
+**Reimplementing Commander Spellbook's combo matcher from bulk data.** Rejected for the same
+reason as the Scryfall entry above, one source over. There is a gzipped bulk file at a perfectly
+ordinary 26.1 MB ([§4.4](#44-commander-spellbook)), so the tempting reading is that the old "606 MB"
+objection was simply wrong — it was incomplete, and the real objection is different: matching a
+decklist is **computation**, and its six output buckets carry distinctions
+[CAP-02](#cap-02--combo-discovery) depends on being exactly right. A local divergence would produce
+a correctly-shaped, wrongly-labelled answer rather than a visible failure.
 
 **Any technique for defeating a third party's bot protection.** Rejected by [§3.7](#37-undocumented-and-bot-protected-third-party-apis): no
 Cloudflare-challenge solver, no `cloudscraper`, no headless browser, no browser-impersonating or
@@ -1991,6 +2550,12 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-08 | **The twelve-versus-thirteen discrepancy raised by the 2026-08-07 [OQ-02](#oq-02--how-verbose-should-a-search-result-be) row is settled — by propagation, not by a new decision.** [CAP-01](#cap-01--card-search)'s own **Delivery-note addendum (2026-08-07)** had already stated the substance plainly — delivered against criteria 1–12, criterion 13 added 2026-08-04 and not implemented — but four summaries elsewhere still read "all twelve acceptance criteria are verified" with no mention of a thirteenth: this document's status header, [`docs/DEV-ROADMAP.md`](../docs/DEV-ROADMAP.md) §2, [`README.md`](../README.md), and [`CLAUDE.md`](../CLAUDE.md). All four now say **1–12** and name criterion 13 as outstanding. **Nothing dated was rewritten** — the 2026-08-03 delivery note and the 2026-08-07 addendum are untouched — **no criterion changed status, and [§5](#5-capabilities) is unedited.** Whether criterion 13 is widened to cover [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s page cap, or a fourteenth added, still belongs to the slice that implements the trim. | The addendum was correct and invisible. A reader who opens a header, a roadmap, or a README — which is most readers, and every new session — got "all twelve verified" with nothing to suggest a thirteenth existed, so the resolution lived only in the one place a reader already deep in the block would find. That is the same shape as this project's other silent failures: the record was right and the thing anyone actually reads was wrong. Propagating it costs nothing and removes the last surface that can teach a future session the wrong count. Recorded as its own row rather than folded into a slice, because it is documentation hygiene across two documents and belongs to neither. |
 | 2026-08-10 | **[OQ-02](#oq-02--how-verbose-should-a-search-result-be) is closed — both levers implemented, and issue #25 is fixed.** Track A [Slice 14](./slices/TrackA-Slice14.md). `legalities: "queried" \| "default" \| "all"` defaulting to `"queried"`, over a **scan** of `q` that never parses or rewrites it ([D-07](#d-07--three-way-cache-split)) and degrades to the seven paper formats on any miss, so the map is **never empty**; plus a server-enforced page cap. **The cap is 88, not the ~120 this question estimated** — Scryfall's `page` is in units of 175 with no offset, so a 120-cap would strand cards 121–175 behind no `page` value at all; half an upstream page keeps every card reachable at one upstream request per call. `has_more` is now ours to compute, and two new fields (`legalities_mode`, `legalities_included`) report the scope so an absent key never reads as "not legal" ([§3.6](#36-error-surface)). **[CAP-01](#cap-01--card-search) criterion 13 verified and a criterion 14 added and verified — delivered against 1–14.** Live: **116,626 → 53,043 characters** on issue #25's exact query, all 111 cards reachable across 2 pages, `npm run acceptance` 13/13 with no 429. Three live findings in [§4.1.1](#411-search-endpoint): `format:` and `legal:` are real format operators, `f:edh` is an accepted value that is not a legality key, and a page past the end is HTTP **422**, not 404. No new `D-`; [§2](#2-locked-decisions)/[§3](#3-constraints) untouched. | The trim alone was already measured and refuted as sufficient, so shipping half of this would have closed nothing — 88,953 characters against a ceiling 116,626 had breached. Two independently falsifiable criteria rather than one widened criterion 13, because the levers were decided three days apart and fail differently: a broken trim returns wrong legality scope, a broken cap strands cards, and one criterion covering both can half-pass. The page size is the one place this slice overrode its own decision record, and it is recorded as a correctness fix rather than a tightening: "near 120" was an estimate of a byte budget, made before anyone had checked that 120 is unreachable in a 175-unit paging scheme. The alias and 422 findings both belong to the family this project keeps paying for — a normal-looking response carrying a wrong answer — and both are now guarded in code rather than remembered. |
 | 2026-08-11 | **[OQ-13](#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost) opened and answered: [CAP-01](#cap-01--card-search) gains `images: "none" \| "normal"`, defaulting to `"none"`, returning an array of Scryfall `normal` URIs — one per face.** [CAP-01](#cap-01--card-search)'s behavior gains two bullets (the parameter, and a stated no-artist-field decision) and an **acceptance criterion 15**. New [§4.1.4](#414-card-image-uris) records the image research live. **Nothing is implemented, no criterion changed status, and [CAP-01](#cap-01--card-search) remains delivered against criteria 1–14** — a delivery-note addendum says so, because the 2026-08-08 row exists entirely because a criterion count went stale in four places at once. [§6](#6-phases) records that no phase moved and that criterion 15 is unscheduled rather than queued. **No `D-` decision was added or amended; [§2](#2-locked-decisions), [§3](#3-constraints) and [§8](#8-out-of-scope) are untouched**, and no existing CAP block other than [CAP-01](#cap-01--card-search) was edited. | Raised from outside this document by [`docs/PLUGIN-PRD.md` PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost), which is blocking [PC-04](./PLUGIN-PRD.md#pc-04--card-viewer) and refused to specify around a server gap — [CAP-01](#cap-01--card-search) returns no per-card handle at all, so a viewer cannot be built against what this document promises. The measurement is the substance: page 1 is 45,754 characters and the image array costs **+9,888, +21.6%**, landing an opted-in page near 55,600 against the 116,626 that breached a harness ceiling and the 53,043 that replaced it. **A bare `id` is less than half the bytes (+3,872, +8.5%) and was rejected anyway**, on [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) grounds rather than byte grounds: exchanging an id for a URL is a `/cards/{id}` call on the **2/second** lane from a client outside this server's two lanes, which is two independently throttled callers in one application, whereas `cards.scryfall.io` is rated unlimited. The opt-in had to answer [OQ-02](#oq-02--how-verbose-should-a-search-result-be)'s recorded distrust of model-set parameters rather than ignore it, and the answer is **direction** — that one was subtractive and defaulted to expensive, so forgetting it failed a call invisibly; this one is additive and defaults to cheap, so forgetting it shows no picture and is recoverable on the next call. An **array** rather than one URI because [§4.1.4](#414-card-image-uris) verifies a transform card has no top-level `image_uris` at all, which would have made a single field silently wrong on 6 of the 175 cards sampled. The two facts [PQ-10](./PLUGIN-PRD.md#pq-10--does-cap-01-gain-an-image-uri-and-what-does-that-cost) carried as `[inferred]` are now verified — the 403 was on `scryfall.com`'s docs pages, and the API itself answered normally. |
+| 2026-08-24 | **[§4.4](#44-commander-spellbook) gains four dated addenda and a new [§4.4.1](#441-the-combo-payload-is-enormous--measured), from nine spaced live calls.** The API is on **version 6.2.6 / 32 paths** against the 5.7.5 / 31 recorded 2026-07-29, and the request and response shapes are recorded for the first time: `/find-my-combos` takes a `DeckRequest` of up to 600 main and 12 commanders, and its `results` is an **object of six buckets**, only two of which name combos a deck contains. Three behaviors decide the capability's shape — **`limit` does not prioritize `included`** (at `limit=5`, four matched and one near-miss, reproducible, while the full result's first eight are all matched); **an unrecognized card name is silently ignored** with no endpoint anywhere reporting it, `/card-list-from-text` being a pure text parser; and **an invalid operator is a loud HTTP 400 naming the character position**. A `GET` with no deck returns HTTP 200 carrying the whole corpus as near-misses. [§4.4.1](#441-the-combo-payload-is-enormous--measured) measures **640,684 characters for one 94-card deck** — `included` **5.4%**, `almostIncluded` **64.5%**, `imageUri*` fields **41.9%** — and **533,840 characters for one card's 96 combos** with `next: null`, `/variants/` having no default page cap; Dockside Extortionist is in **476** combos. The trim was measured on the same payloads at **76–78% smaller, 930–1,236 characters per combo**. No rate-limit header on any of the nine responses, re-confirming [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits)'s *verified absent, meaning unknown*. **Nothing already in [§4.4](#44-commander-spellbook) was edited**, and no [§2](#2-locked-decisions)/[§3](#3-constraints)/[§8](#8-out-of-scope) text changed. | The 2026-07-29 record was conclusive about the *mechanism* and silent about every shape and every byte, which is enough to queue a capability and not enough to specify one. The payload figures are the substance: this is [§4.8.1](#481-the-deck-payload-is-enormous--measured)'s situation a second time — a source whose natural response is multiples of a ceiling this project has already breached (issue #25, 116,626 characters) — except that here it was measured **before** the spec rather than after delivery, which is the whole difference between a trim that is load-bearing from line one and one that arrives as a bug report. The `limit` finding is the one most likely to be lost: it is invisible at any large limit, it reproduces exactly, and acting on the obvious reading of it would ship a tool that quietly omits the combos a user actually has. Appended as dated addenda plus a child subsection, per [§4](#4-external-dependencies)'s every-claim-is-dated property and because numbering [§4.4.1](#441-the-combo-payload-is-enormous--measured) under [§4.4](#44-commander-spellbook) renames no existing heading. |
+| 2026-08-24 | **[CAP-02](#cap-02--combo-discovery) (combo discovery) specified and assigned Phase 2.** `Status: specified`, fourteen acceptance criteria, served by **two tools — `combo_search` and `combo_find_deck`**. `combo_search` passes a Commander Spellbook query through unevaluated, exactly as [CAP-01](#cap-01--card-search) does for Scryfall; `combo_find_deck` takes a card-name list and commanders, **never a deck URL**. Near-misses sit behind `include: "matched" \| "matched+near"` defaulting to `"matched"`; a page carries at most **40** combos; card names are resolved through [§4.1.2](#412-batch-resolution) before the combo call so an unrecognized one is reported rather than dropped; Commander Spellbook prices and `imageUri*` fields are never returned; Commander Spellbook gets its **own** 2/second lane. [§6](#6-phases) gains a Phase 2 entry, the queued table loses its Combo discovery row, and **ten queued capabilities become nine**; the document status header moves from one specified capability to two. **No `D-` decision was minted, [§2](#2-locked-decisions), [§3](#3-constraints) and [§8](#8-out-of-scope) are untouched, no existing CAP block was edited, and no [CAP-01](#cap-01--card-search) criterion changed status.** Nothing is implemented. | Requested directly, using [`docs/prompts/02-add-capability-prompt.md`](./prompts/02-add-capability-prompt.md). Four design choices were put to this document's owner and all four were taken. **Two tools rather than one** departs from [OQ-12](#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)'s one-tool `deck_read` and does not disturb it — there, two platforms answered the *same* question over the same input; here two inputs answer different questions, and [`docs/PLUGIN-PRD.md` PQ-01](./PLUGIN-PRD.md#pq-01--do-an-mcp-servers-tool-schemas-count-toward-the-always-on-cost-that-claude-plugin-details-reports) measured a second schema at 0 resident tokens, so the only real cost of one tool would have been a one-of schema the model can get wrong in two directions. **Scryfall pre-validation** is the session's least obvious decision and the one the measurements forced: it puts two requests on the 2/second lane into a capability that otherwise never touches Scryfall, bought purely to convert a silent omission into a reported one. **The cap is 40 and is applied after classification**, which is where [CAP-01](#cap-01--card-search)'s 88-card arithmetic explicitly does *not* transfer — Commander Spellbook has a true `offset`, so no half-page trick is needed, while pushing the cap upstream as `limit` would reintroduce the exact ordering trap recorded in the row above. Phase 2 was assigned here rather than deferred because [§6](#6-phases) says the specifying session owns that call and the graph is unambiguous: no credential, no persistence, no dependent capability, and specifically **no dependency on deck reading**, since the decklist arrives as card names. |
+| 2026-08-24 | **[OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) opened — how Commander Spellbook query syntax reaches the model.** The [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) question one source over, raised by `combo_search` exposing a second query language. Recorded as **not blocking** [CAP-02](#cap-02--combo-discovery), with a plugin-side half ([PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) teaches one syntax already) named as belonging to [`docs/PLUGIN-PRD.md`](./PLUGIN-PRD.md) rather than answered here. A row was added to [`OPEN-QUESTIONS.md`](../OPEN-QUESTIONS.md) and its intro counts moved from 26 to 27 and from 13 `OQ-` to 14. | It does not block because the failure mode is measurably milder than the one that made [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) urgent: Scryfall silently drops an unrecognized term and returns a confident wrong answer, whereas Commander Spellbook returns HTTP 400 naming the character position, so a bad guess costs a call and teaches the model rather than misinforming the user. Stating that reasoning matters more than the verdict — a future session reading two open syntax questions side by side would otherwise treat them as the same risk and prioritize wrongly. It also cannot be answered yet by the method [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) established, which is measurement against a no-help baseline, and there is nothing to measure until the tool exists. |
+| 2026-08-24 | **[D-16](#d-16--no-npm-commander-spellbook-client-dependency) minted — no npm `@space-cow-media/spellbook-client` dependency**, with matching entries in [§8](#8-out-of-scope) and a pointer addendum in [§4.4](#44-commander-spellbook). This is the **strongest** third-party client this project has evaluated and it clears four of [D-14](#d-14--no-npm-moxfield-api-dependency)'s five objections: first-party (published by SpaceCowMedia from the Commander Spellbook backend repo, generated from its OpenAPI schema), MIT, **zero runtime and peer dependencies**, version-locked to API 6.2.6, 152 versions with the latest published 2026-08-23, and a `Configuration` accepting both **`headers`** — the app-naming `User-Agent` requirement `moxfield-api` failed — and an injectable **`fetchApi`**. Rejected on four grounds particular to this codebase, of which one decides it: **it would not replace the in-house client, it would add a second idiom beside it**, since Scryfall name resolution ([§4.1.2](#412-batch-resolution)), Archidekt and Moxfield all need the in-house transport regardless. Plus [§3.4](#34-rate-limits-are-hard-constraints-not-guidance)'s lane not being reusable through its `middleware` hook, its throwing error model against [D-10](#d-10--tool-handlers-never-throw), and its generated variant type declaring the `prices` and `imageUri*` fields [CAP-02](#cap-02--combo-discovery) is forbidden to return. **Bundle cost is recorded as unmeasured, in those words** ([`dist/index.js`](../dist/index.js) is 562,952 bytes and the released bundle 113,631 today). | Recorded as a decision rather than left implicit because the package is good enough that a future session reading its npm page will reach for it and deserves a verdict rather than silence — the failure [§4.8.2](#482-the-npm-moxfield-api-package) exists to prevent for `moxfield-api`, and sharper here because this package genuinely looks right. The generated-type ground is the one worth carrying forward: hand-written wire shapes make [CAP-02](#cap-02--combo-discovery) criteria 6 and 7 **unviolatable at compile time**, where generated ones downgrade them to a test somebody must remember to run — and that is also what rules out the otherwise-attractive middle path of adopting the package as a *type-only* devDependency, which under `verbatimModuleSyntax` would have cost zero bundle bytes. The bundle figure was deliberately not guessed: esbuild tree-shakes ESM and the true delta may be negligible, but a released bundle never self-updates, so asserting an unmeasured number would be the wrong kind of confidence in the one artifact that cannot be recalled. |
+| 2026-08-24 | **[§4.4](#44-commander-spellbook) gains a bulk-endpoint addendum correcting its own "606 MB" framing, and [§8](#8-out-of-scope) gains a matching rejection.** `variants.json.gz` is **27,390,889 bytes (26.1 MB)**, directly comparable to [§4.2](#42-scryfall-bulk-data)'s `oracle_cards` at 24.4 MB — so **size is not the reason to avoid it** and the original line must not be read as saying so. The real reasons: `/find-my-combos` performs deck matching **server-side**, so local use means reimplementing a matcher whose six buckets carry distinctions [CAP-02](#cap-02--combo-discovery) depends on; and the file is a **single JSON object, not JSONL**, needing a streaming parser or 606 MB resident where [§4.2](#42-scryfall-bulk-data)'s gzipped JSONL streams with neither. Recorded as useful for one thing: `timestamp` and `version` sit in the first ~100 bytes, so a ranged GET is a **sub-kilobyte staleness and API-version-drift check** — filed against [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s open refresh-trigger half. The 2026-07-29 line is **left as written**. | A rejection resting on a wrong reason is worse than no rejection, because [§8](#8-out-of-scope) is written to be trusted as current: a session that finds the 26.1 MB file would correctly conclude the stated objection had been overtaken and might reasonably re-open the whole approach. Replacing the reason rather than the verdict is what makes the entry survive the next person who checks it. Appended rather than edited, per [§4](#4-external-dependencies)'s every-claim-is-dated property — the original observation was true, and only its sufficiency as an argument was not. |
+| 2026-08-24 | **[CAP-02](#cap-02--combo-discovery)'s page-cap bullet corrected — it contradicted itself on upstream paging.** As first written it opened "the cap is never passed upstream", then noted Commander Spellbook exposes a true `offset`, then scoped the after-classification rule to `combo_find_deck` alone. Now split into two bullets stating the rule per tool: **`combo_search` sends `limit`/`offset` upstream** because `/variants/` returns one flat list where they cannot drop the answer asked for — and must, since that endpoint applies no default cap and one card's combos measure 533,840 characters with 476-combo cards projecting past 2.6 MB — while **`combo_find_deck` fetches the full result and caps after classification**, because its `limit` does not prioritize the combos a deck contains. A third bullet records that upstream paging **rests on `/variants/` ordering being stable across calls, which is unverified**, and binds the implementing slice to confirm it live before that path ships. No acceptance criterion changed: 8 already covered both tools and 10 was already scoped to `/find-my-combos`. | The contradiction was introduced the same day, in this document, and would have been read by whoever built it — most likely as a blanket prohibition, which would have meant a 533 KB transfer on every popular-card query against a source with no published rate limit that [§3.7](#37-undocumented-and-bot-protected-third-party-apis) tells this project to treat as fragile. Caught by the implementation-planning pass rather than by review, which is the argument for planning against a spec before building to it. The ordering caveat is recorded because upstream paging is only correct if the sequence is stable, and a drifting one repeats or skips combos **silently** — the same failure class as the `limit` trap the bullet above it exists to avoid. |
 
 ---
 

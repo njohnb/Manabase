@@ -244,6 +244,24 @@ moved:** no [CAP-01](./MCP-PRD.md#cap-01--card-search),
 [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in both halves.
 Evidence: [`docs/slices/TrackC-Slice13-results.md`](./slices/TrackC-Slice13-results.md).
 
+**Phase 2 opened 2026-08-24 — specification and scoping only, nothing built.**
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery), combo discovery, is specified against **fourteen**
+acceptance criteria and served by two tools, `combo_search` and `combo_find_deck`;
+[D-16](./MCP-PRD.md#d-16--no-npm-commander-spellbook-client-dependency) and
+[OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+came with it. Four live probes on the same date discharged
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s unverified-ordering caveat and landed the
+Commander Spellbook fixtures. [§7](#7-phase-2-slices--combo-discovery) scopes the three build
+slices, [15](./slices/TrackA-Slice15.md)–[17](./slices/TrackA-Slice17.md). **No `src/` file has
+been touched and no [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criterion is verified** — the
+row below still lists seven server source files and 27 suites / 101 tests, and both figures are
+current. **Nothing in Phase 1 moved:** no
+[CAP-01](./MCP-PRD.md#cap-01--card-search), [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status,
+[12](./slices/TrackC-Slice12.md) is still the open gate, and
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in both halves.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -1004,6 +1022,7 @@ graph LR
   S9 --> S12[12 docs and dry run]
   S10 --> S12 --> S13[13 release gate]
   S11 --> S13
+  S2 --> S15[15 transport] --> S16[16 combo_search] --> S17[17 combo_find_deck]
 ```
 
 The critical path is 1 → 2 → 3 → 4 → 5 → 7 → 9 → 12 → 13. [Slice 8](./slices/TrackB-Slice8.md) (skill authoring) is the
@@ -1115,6 +1134,23 @@ sequencing consequences are real anyway, and both attach to work already in the 
   [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) into the Phase 1 dependency graph
   — it still serves a surface rather than a capability, and nothing in Phase 1 blocks on it.
 
+**Superseded 2026-08-24: Phase 2 exists and three slices are scoped.**
+[`MCP-PRD.md` CAP-02](./MCP-PRD.md#cap-02--combo-discovery) was specified that day and assigned
+Phase 2, and [§7](#7-phase-2-slices--combo-discovery) below carries
+[Slices 15](./slices/TrackA-Slice15.md), [16](./slices/TrackA-Slice16.md) and
+[17](./slices/TrackA-Slice17.md). **This reorders nothing in Phase 1.** The chain hangs off
+[Slice 2](./slices/TrackA-Slice2.md) — [15](./slices/TrackA-Slice15.md) generalizes the client
+that slice built — and touches neither the `12 → 13` remaining path nor any Phase 1 status. The
+two are genuinely parallel: nothing in Phase 2 blocks on
+[12](./slices/TrackC-Slice12.md)'s second dry run, and nothing in
+[13](./slices/TrackC-Slice13.md) blocks on Phase 2.
+
+**One sequencing constraint inside the chain is strict and worth stating.**
+[15](./slices/TrackA-Slice15.md) is a behaviour-preserving refactor whose whole correctness
+claim is that `tests/scryfall/client.test.ts` passes with one edit and `npm run acceptance`
+stays 13/13. Folding it into [16](./slices/TrackA-Slice16.md) would put that claim in the same
+diff as new behaviour and make it unfalsifiable. Keep them separate commits even if they land
+in one session.
 ## 6. Beyond Phase 1 — queued slice packs
 
 Both PRDs deliberately refuse to schedule anything past Phase 1 (`MCP-PRD.md` [§6](./MCP-PRD.md#6-phases),
@@ -1125,7 +1161,7 @@ happens in those spec sessions.
 
 | Pack | First slice (spec/research) | Blocking questions | Sequencing constraints |
 |---|---|---|---|
-| Combo discovery | Verify `/find-my-combos` and `/variants/` live; ask Commander Spellbook admins about rate limits and data licensing via their Discord | [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) | Anonymous, stateless — a natural early pick |
+| Combo discovery | **Superseded 2026-08-24 — this pack left the queue.** Its spec slice happened: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) is specified and assigned Phase 2, `/variants/` and `/find-my-combos` are verified live, and the build slices are scoped in [§7](#7-phase-2-slices--combo-discovery). **The Discord message is still outstanding** and is the only part of the original row not discharged | [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) — **both still open**, and [Slice 17](./slices/TrackA-Slice17.md) ships the capability with them open by explicit decision | Anonymous, stateless — a natural early pick, and it was: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) needs no credential, no persistence and no other CAP |
 | Archidekt deck reading | Read decks containing tokens, custom cards, spoilers to answer [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read); draft the three-way-ambiguous 404 error text per [§3.6](./MCP-PRD.md#36-error-surface) | [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read) | **First of the two deck platforms** ([D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)). Prerequisite for deck analysis, Arena export, and deck pricing workflows. **Owns [OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)** — it sets the normalized deck shape both platforms return, so its spec must check each field against the Moxfield record in [§4.8.1](./MCP-PRD.md#481-the-deck-payload-is-enormous--measured) rather than design for Archidekt alone |
 | Moxfield deck reading | Read a public deck and **decide the trim** — [§4.8.1](./MCP-PRD.md#481-the-deck-payload-is-enormous--measured) measured 1.63 MB for one deck, ~14× the payload that already broke a harness tool-result ceiling, so a passthrough is not on the table. Read the author's own public, unlisted and private decks anonymously to answer [OQ-11](./MCP-PRD.md#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id) (three requests). Contact Moxfield support per [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms) **before** shipping, not after — [§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis) makes asking part of the spec work | [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms), [OQ-11](./MCP-PRD.md#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id) | **Second** ([D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)), and it *consumes* [OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)'s answer rather than setting it. Neither blocks the other's spec: if Archidekt stalls on [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read), this is not held hostage to it. No credential, no npm dependency ([D-14](./MCP-PRD.md#d-14--no-npm-moxfield-api-dependency)) |
 | Decklist pricing | Spec against `POST /cards/collection` (75/batch); inherits every [§4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps) price trap | — | Pairs naturally with deck reading |
@@ -1150,3 +1186,107 @@ Added 2026-08-07: **any pack touching Archidekt or Moxfield is bound by `MCP-PRD
 technique that defeats bot protection, and a block treated as an answer rather than an obstacle.
 That rule binds the *research* half of these slices as much as the code: a live probe is a real
 request against someone else's infrastructure, so keep it to single spaced calls.
+
+## 7. Phase 2 slices — combo discovery
+
+Added 2026-08-24. [`MCP-PRD.md` §6](./MCP-PRD.md#6-phases) assigned
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery) to Phase 2 in the session that specified it, on the
+grounds that it needs **no credential, no local persistence and no other capability** — the
+decklist arrives as card names, so it does not wait on
+[D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)'s deck-platform
+ordering, and it introduces no bulk data, so it does not touch
+[OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced). Its
+only Scryfall use is [§4.1.2](./MCP-PRD.md#412-batch-resolution) batch name resolution, which
+[CAP-01](./MCP-PRD.md#cap-01--card-search) already established the client and the rate-limit
+discipline for.
+
+**This section owns sequencing only.** The capability, its two tools and its fourteen acceptance
+criteria live in [CAP-02](./MCP-PRD.md#cap-02--combo-discovery); if this document and the PRD ever
+disagree, the PRD wins and this document is the one to fix.
+
+Status legend: ☐ not started · ◐ in progress · ☑ done
+
+| # | Slice | Track | Status |
+|---|---|---|---|
+| 15 | Transport generalization & the POST verb | A — server | ☐ |
+| 16 | `combo_search` | A — server | ☐ |
+| 17 | `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) | A — server | ☐ |
+
+---
+
+#### Slice 15 — Transport generalization & the POST verb
+
+- **Goal:** point the existing HTTP client at a second host without copying it, and add the
+  **POST** verb the codebase does not have at all. Infrastructure only — no capability, no tool,
+  no wiring. Spec: [`TrackA-Slice15.md`](./slices/TrackA-Slice15.md).
+- **Work:** extract `src/http/client.ts` parameterized by a plain-data `SourceSpec`
+  (`sourceName`, `baseUrl`, `userAgent`, a lane table, `detailsFrom`); reduce
+  [`src/scryfall/client.ts`](../src/scryfall/client.ts) to that spec plus a thin factory; add
+  `src/spellbook/client.ts` at one 500 ms lane; add `spellbookBaseUrl` to
+  [`src/config.ts`](../src/config.ts).
+- **Done when:** ☐ `tests/scryfall/client.test.ts` passes with **one** changed line · ☐
+  `npm run acceptance` is 13/13 · ☐ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 11 and
+  12 and the client half of 3 are verified · ☐
+  [`src/index.ts`](../src/index.ts) and [`src/tools/register.ts`](../src/tools/register.ts) show
+  no diff · ☐ `dist/` rebuilt in the same commit.
+- **Binding refs:** [D-16](./MCP-PRD.md#d-16--no-npm-commander-spellbook-client-dependency) (why
+  one transport and not two, and the lane machinery that must not change),
+  [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance),
+  [§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis),
+  [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript).
+- **Why it is its own slice.** Its correctness claim is *nothing observable changed*. Landing it
+  in the same diff as a new tool makes that claim unfalsifiable.
+
+#### Slice 16 — `combo_search`
+
+- **Goal:** the query-string half of [CAP-02](./MCP-PRD.md#cap-02--combo-discovery), and the slice
+  that **sets the normalized combo shape** every later consumer reads. Spec:
+  [`TrackA-Slice16.md`](./slices/TrackA-Slice16.md).
+- **Work:** `src/spellbook/types.ts` (wire shapes that **omit** `prices` and every `imageUri*`
+  field, which is what makes criteria 6 and 7 compile-time facts), `src/spellbook/combos.ts`,
+  `src/tools/combo-search.ts`; a `Clients` bundle in
+  [`src/tools/register.ts`](../src/tools/register.ts).
+- **Done when:** ☐ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 2, 3, 6, 7, 8 and 14's
+  `combo_search` half verified · ☐ upstream paging sends `limit=40`, `offset=(page-1)*40` and
+  `count=true` · ☐ an unknown `format` is refused before any call · ☐ `dist/` rebuilt in the same
+  commit · ☐ one [§9](./MCP-PRD.md#9-revision-log) row and **no criterion marked delivered**.
+- **Binding refs:** [CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s two paging bullets,
+  [§4.4.1](./MCP-PRD.md#441-the-combo-payload-is-enormous--measured) (the trim this implements),
+  [D-06](./MCP-PRD.md#d-06--pricing-from-scryfall),
+  [D-07](./MCP-PRD.md#d-07--three-way-cache-split),
+  [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key) (never write a scoped tool name into a
+  description).
+- **The trap.** [Slice 14](./slices/TrackA-Slice14.md)'s 88-card half-page arithmetic **does not
+  transfer** — Commander Spellbook exposes a true `offset`, so `ceil(total / 40)` is simply correct
+  here where its analogue was wrong there. And zero matches is an HTTP **200**, not a 404, so
+  [CAP-01](./MCP-PRD.md#cap-01--card-search)'s deliberate 404-as-empty mapping must not be ported.
+
+#### Slice 17 — `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery)
+
+- **Goal:** the decklist half, and the capability's closeout. Spec:
+  [`TrackA-Slice17.md`](./slices/TrackA-Slice17.md).
+- **Work:** `src/scryfall/collection.ts` (75-identifier batching over `POST /cards/collection`),
+  `src/tools/combo-find-deck.ts`; the dated delivery note,
+  [§6](./MCP-PRD.md#6-phases) update, one [§9](./MCP-PRD.md#9-revision-log) row, dated paragraphs
+  on [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits),
+  [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
+  and [OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model),
+  then `doc-sync`.
+- **Done when:** ☐ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 1, 4, 5, 9, 10, 13 and
+  the remainder of 8 and 14 verified · ☐ one live run of a real decklist carrying a deliberately
+  invented name, with the shaped character count recorded beside the 640,684 raw figure · ☐
+  `dist/` rebuilt in the same commit · ☐ `doc-sync` dispatched **and its diff reviewed** before
+  committing.
+- **Binding refs:** [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 5, 10 and 13,
+  [§4.4](./MCP-PRD.md#44-commander-spellbook) (the `limit` trap, the silently-ignored card name,
+  the no-deck `GET`), [§4.1.2](./MCP-PRD.md#412-batch-resolution),
+  [§3.6](./MCP-PRD.md#36-error-surface).
+- **The three traps.** Upstream `limit` on `/find-my-combos` **does not prioritize the combos the
+  deck contains** — at `limit=5` the response was 4 matched and 1 near while the true first eight
+  were all matched — so the cap is applied **after** classification, never sent upstream. An
+  unrecognized card name is **silently ignored** with an HTTP 200 and no signal from any endpoint,
+  which is the only reason this capability touches Scryfall at all. And `identity` sits **inside**
+  `results`, not at the envelope top level.
+- **Not in this slice:** no tag, no `.mcpb` release, no
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover — that is
+  [13](./slices/TrackC-Slice13.md)'s and still waits on [12](./slices/TrackC-Slice12.md).
