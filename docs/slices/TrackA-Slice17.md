@@ -575,7 +575,7 @@ npm run typecheck
 #    register.ts has carried the scoped tool name in a P-12 comment since the first tool.
 #    Every hit must be a COMMENT. A hit on a property read, a type member or a string
 #    literal is the defect these steps exist to catch.
-grep -rn "imageUri\|tcgplayer\|cardkingdom\|cardmarket" src/
+grep -rni "imageuri\|tcgplayer\|cardkingdom\|cardmarket" src/
 grep -rn "mcp__plugin\|Manabase:" src/          # comments only
 grep -rn "mcp__plugin\|Manabase:" skills/       # this half must print nothing
 

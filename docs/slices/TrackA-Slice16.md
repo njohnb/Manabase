@@ -16,6 +16,18 @@ shape and never a Commander Spellbook payload. Getting it wrong here is expensiv
 why the wire types and the summary type are two separate things and the wire types are deliberately
 incomplete.
 
+> **Superseded in part, 2026-08-25 — this document's paging shape is not what shipped.** Every
+> mention below of a **40-combo page**, a defensive `slice(0, 40)`, a 1-based `page` parameter or
+> `offset=(page-1)*40` describes the spec as written, not the tool. During the same slice the cap
+> was re-sized 40 → 20 on a sampled distribution and then replaced outright by a **50,000-character
+> byte budget paged by `offset` / `next_offset`**, because per-combo cost spans 547–4,421
+> characters. What shipped is `src/tools/combo-search.ts`; why it changed is
+> [`TrackA-Slice16-results.md`](./TrackA-Slice16-results.md) §2a and §2b, the
+> [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) page-cap and offset-paging bullets, and
+> [§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured)'s three dated addenda.
+> **The 40-cap text is left as written** — it is the record of what this slice was asked to build.
+> [Slice 17](./TrackA-Slice17.md)'s spec carries the current shape.
+
 ## Preconditions (deliverables of [Slice 15](./TrackA-Slice15.md))
 
 - `src/http/client.ts` with `createHttpClient(spec, deps)`, the `HttpClient` interface carrying
@@ -389,10 +401,21 @@ the moment it matters.
 7. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion 14, `combo_search` half]** A
    response states the format applied, each combo carries a single `legal` boolean, and no other
    format's legality appears anywhere in the serialized result.
-8. **[requirement 7]** `format: "historic"`, `format: "standardbrawl"` and `format: "notaformat"`
-   each return a `bad_request` naming the valid keys, with **no upstream call made** — asserted by
-   counting calls on the fake client. `format: "EDH"` and `format: "Commander"` both resolve to
-   `commander` and do call upstream.
+8. **[requirement 7]** `format: "historic"` and `format: "notaformat"` each return a `bad_request`
+   naming the valid keys, with **no upstream call made** — asserted by counting calls on the fake
+   client. `format: "EDH"`, `format: "Commander"` and `format: "standardbrawl"` all **resolve** —
+   to `commander`, `commander` and `standardBrawl` — and do call upstream.
+
+   **Corrected 2026-08-25: this criterion listed `standardbrawl` among the values to refuse, and
+   contradicted its own requirement 7.** Requirement 7's rule is "lowercase the input and match
+   case-insensitively against those 16", which **resolves** `standardbrawl` to the canonical
+   `standardBrawl` — the case difference is precisely what case-insensitive matching exists to
+   absorb. Refusing it is reachable only by matching case-sensitively, and would refuse a question
+   this source answers perfectly well. **Requirement 7 wins and the implementation follows it**;
+   what is refused is `historic`, `notaformat`, and every Scryfall-only key (`timeless`, `penny`,
+   `duel`, `future`, `gladiator`, `oldschool`, `tlr`). Tests pin both halves. This is this
+   document's own text — no [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion was
+   affected ([`TrackA-Slice16-results.md`](./TrackA-Slice16-results.md) §9).
 9. **[requirement 5]** `variants-empty.json` returns `ok: true` with `combos: []`,
    `total_combos: 0`, `has_more: false`. A **404** from the client stays a failure and is not
    converted to an empty success.
@@ -466,11 +489,22 @@ local step — never wired into CI
 npm test                       # record suite/test counts for the results doc
 npm run typecheck              # the compile-time guard for criteria 6 and 7 lives here
 
-# 2) the omission is real, not just untested
-grep -ri "imageuri\|tcgplayer\|cardkingdom\|cardmarket" src/     # must print nothing
+# 2) the omission is real, not just untested — READ the hits; silence is not the pass condition.
+#    Corrected 2026-08-25: this step said "must print nothing" and could not pass, because
+#    requirement 1 REQUIRES the header comment in src/spellbook/types.ts to name these exact
+#    fields and say why they are absent. The intent is "no CODE reads them", and in that form
+#    it passes: 0 hits outside comment lines. Every hit must be a comment.
+grep -rni "imageuri\|tcgplayer\|cardkingdom\|cardmarket" src/
 
-# 3) the scoped tool name is nowhere in the description
-grep -rn "mcp__plugin\|Manabase:" src/ skills/                   # must print nothing
+# 3) the scoped tool name is nowhere in a tool DESCRIPTION
+#    Corrected 2026-08-25: "must print nothing" could never have passed, on this slice or any
+#    other — src/tools/register.ts has carried a comment naming
+#    mcp__plugin_manabase_mtg__card_search (PLUGIN-PRD P-12) since the tool was first
+#    registered. The claim being reached for is asserted mechanically by
+#    tests/tools/register.test.ts over every tool definition, in both the mcp__plugin and
+#    Manabase: forms. Here, read the hits: comments only under src/, nothing under skills/.
+grep -rn "mcp__plugin\|Manabase:" src/          # comments only
+grep -rn "mcp__plugin\|Manabase:" skills/       # this half must print nothing
 
 # 4) build honesty — Slice 11's gate, run before CI runs it for you
 npm run build
