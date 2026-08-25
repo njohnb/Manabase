@@ -15684,6 +15684,40 @@ function createScryfallClient(config3, deps) {
   return createHttpClient(spec, deps);
 }
 
+// src/spellbook/client.ts
+function detailsFrom2(text) {
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return void 0;
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return void 0;
+  const parts = [];
+  for (const [field, value] of Object.entries(body)) {
+    const messages = Array.isArray(value) ? value : [value];
+    if (messages.length === 0) return void 0;
+    if (!messages.every((message) => typeof message === "string")) return void 0;
+    parts.push(`${field}: ${messages.join(" ")}`);
+  }
+  return parts.length > 0 ? parts.join("; ") : void 0;
+}
+function createSpellbookClient(config3, deps) {
+  const spec = {
+    sourceName: "Commander Spellbook",
+    baseUrl: config3.spellbookBaseUrl,
+    userAgent: config3.userAgent,
+    // (MCP-PRD §3.7) Commander Spellbook publishes no limit and exposes no rate-limit header
+    // (§4.4, OQ-05), so it takes §3.4's strictest lane until told otherwise. One host, one lane,
+    // and its own state — Scryfall's lanes are sized against Scryfall's published numbers and
+    // mean nothing here.
+    lanes: { default: { spacingMs: 500 } },
+    defaultLane: "default",
+    detailsFrom: detailsFrom2
+  };
+  return createHttpClient(spec, deps);
+}
+
 // src/scryfall/prices.ts
 function resolvePrice(card) {
   if (card.digital || !card.games.includes("paper")) {
@@ -15848,12 +15882,12 @@ function toCardSummary(card, keepLegalities) {
     price: resolvePrice(card)
   };
 }
-async function cardSearch(client2, params) {
+async function cardSearch(client, params) {
   const unique = params.unique ?? "cards";
   const page = normalizePage(params.page);
   const slot = pageSlot(page);
   const scope = resolveLegalityScope(params.legalities ?? "queried", params.q);
-  const result = await client2.get("/cards/search", {
+  const result = await client.get("/cards/search", {
     q: params.q,
     unique,
     order: params.order,
@@ -15901,6 +15935,184 @@ async function cardSearch(client2, params) {
   return { ok: true, value: data };
 }
 
+// src/spellbook/combos.ts
+var SPELLBOOK_LEGALITY_KEYS = [
+  "alchemy",
+  "brawl",
+  "commander",
+  "competitiveBrawl",
+  "legacy",
+  "modern",
+  "oathbreaker",
+  "pauper",
+  "pauperCommander",
+  "pauperCommanderMain",
+  "pioneer",
+  "predh",
+  "premodern",
+  "standard",
+  "standardBrawl",
+  "vintage"
+];
+var KEY_BY_LOWERCASE = new Map(SPELLBOOK_LEGALITY_KEYS.map((key) => [key.toLowerCase(), key]));
+var FORMAT_ALIASES = { edh: "commander" };
+function resolveFormat(requested) {
+  if (requested === void 0) return "commander";
+  const normalized = requested.trim().toLowerCase();
+  return KEY_BY_LOWERCASE.get(FORMAT_ALIASES[normalized] ?? normalized);
+}
+function joinPrerequisites(variant) {
+  const parts = [variant.easyPrerequisites, variant.notablePrerequisites].filter((p) => p !== "");
+  return parts.length > 0 ? parts.join("\n") : void 0;
+}
+function toComboSummary(variant, formatKey, bucket) {
+  const prerequisites = joinPrerequisites(variant);
+  return {
+    id: variant.id,
+    ...bucket !== void 0 ? { bucket } : {},
+    uses: variant.uses.map((use) => ({
+      name: use.card.name,
+      oracle_id: use.card.oracleId,
+      quantity: use.quantity,
+      zones: use.zoneLocations,
+      must_be_commander: use.mustBeCommander
+    })),
+    // Templates are components the combo genuinely needs and cannot be folded into `uses`.
+    // Cheap to keep: 13.5 characters per variant on average across the 260 captured, with only
+    // 39 of 260 carrying one at all (MCP-PRD §4.4.1 / Slice 16 requirement 10).
+    ...variant.requires.length > 0 ? {
+      requires: variant.requires.map((required2) => ({
+        template: required2.template.name,
+        quantity: required2.quantity,
+        zones: required2.zoneLocations
+      }))
+    } : {},
+    produces: variant.produces.map((produced) => produced.feature.name),
+    color_identity: variant.identity,
+    mana_needed: variant.manaNeeded,
+    mana_value_needed: variant.manaValueNeeded,
+    ...variant.popularity !== null ? { popularity: variant.popularity } : {},
+    bracket_tag: variant.bracketTag,
+    ...prerequisites !== void 0 ? { prerequisites } : {},
+    description: variant.description,
+    // One boolean for one format, never a map of 16 (MCP-PRD §3.6). `=== true` rather than a
+    // cast because `noUncheckedIndexedAccess` types this read as `boolean | undefined`; the
+    // handler checks the key is actually present before shaping, so a missing key is reported
+    // as a failure rather than silently reading as "not legal" here.
+    legal: variant.legalities[formatKey] === true
+  };
+}
+
+// src/tools/combo-search.ts
+var PAGE_SIZE2 = 40;
+function pageCount(total) {
+  return total <= 0 ? 0 : Math.ceil(total / PAGE_SIZE2);
+}
+function normalizePage2(raw) {
+  if (raw === void 0 || !Number.isFinite(raw)) return 1;
+  const truncated = Math.trunc(raw);
+  return truncated >= 1 ? truncated : 1;
+}
+function unknownFormatFailure(requested) {
+  return {
+    ok: false,
+    error: {
+      code: "bad_request",
+      message: `Commander Spellbook cannot judge the format "${requested}". It reports legality for these 16 formats only: ${SPELLBOOK_LEGALITY_KEYS.join(", ")} (plus the alias "edh" for commander). These names are NOT Scryfall's \u2014 note the capital in "standardBrawl", and that historic, timeless, penny, duel, future, gladiator, oldschool and tlr do not exist here at all. Request one of the listed formats.`
+    }
+  };
+}
+function outOfRangeFailure2(page, total) {
+  const pages = pageCount(total);
+  return {
+    ok: false,
+    error: {
+      // No `status`: our determination from a 200 body, not an HTTP outcome.
+      code: "bad_request",
+      message: `Page ${page} is past the end of this result: ${total} combos match, which is ${pages} page${pages === 1 ? "" : "s"} of ${PAGE_SIZE2} (valid pages 1-${pages}). This is an out-of-range page, not a query that matched nothing.`
+    }
+  };
+}
+function missingLegalityFailure(formatKey) {
+  return {
+    ok: false,
+    error: {
+      code: "unexpected",
+      message: `Commander Spellbook returned no "${formatKey}" legality on these combos, so legality cannot be reported for the format requested. Reporting false here would claim the combos are illegal, which is not what an absent key means.`
+    }
+  };
+}
+function unexpectedBodyFailure() {
+  return {
+    ok: false,
+    error: {
+      code: "unexpected",
+      message: "Commander Spellbook returned a body that is not a variant list: no `results` array. Nothing was shaped from it."
+    }
+  };
+}
+function asVariantList(value) {
+  if (typeof value !== "object" || value === null) return void 0;
+  const body = value;
+  return Array.isArray(body.results) ? value : void 0;
+}
+function rangeNote2(page, offset, shown, total) {
+  return `${total} combos match; showing combos ${offset + 1}-${offset + shown} (page ${page} of ${pageCount(total)}). Narrow the query or request a specific page.`;
+}
+var DERIVED_TOTAL_NOTE = "Commander Spellbook did not report a total (`count` was absent or non-numeric), so `total_combos` is derived from this page and may understate the true number; `has_more` reflects upstream's own next-page link.";
+async function comboSearch(client, params) {
+  const formatKey = resolveFormat(params.format);
+  if (formatKey === void 0) return unknownFormatFailure(params.format ?? "");
+  const page = normalizePage2(params.page);
+  const offset = (page - 1) * PAGE_SIZE2;
+  let result;
+  try {
+    result = await client.get("/variants/", {
+      q: params.q,
+      // byte-identical; encoding is the transport's job
+      limit: String(PAGE_SIZE2),
+      offset: String(offset),
+      // Without this, `count` comes back null with the key PRESENT — a missing total that does
+      // not announce itself (MCP-PRD §4.4, verified 2026-08-24). Criterion 8 needs the total.
+      count: "true"
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: "unexpected",
+        message: `Unexpected failure searching Commander Spellbook: ${err instanceof Error ? err.message : String(err)}`
+      }
+    };
+  }
+  if (!result.ok) return result;
+  const list = asVariantList(result.value);
+  if (list === void 0) return unexpectedBodyFailure();
+  const countIsUsable = typeof list.count === "number" && Number.isFinite(list.count);
+  const shown = list.results.slice(0, PAGE_SIZE2);
+  const total = countIsUsable ? list.count : offset + shown.length;
+  if (shown.length === 0 && total > 0) return outOfRangeFailure2(page, total);
+  const first = shown[0];
+  if (first !== void 0 && typeof first.legalities[formatKey] !== "boolean") {
+    return missingLegalityFailure(formatKey);
+  }
+  const combos = shown.map((variant) => toComboSummary(variant, formatKey));
+  const has_more = list.next !== null || offset + combos.length < total;
+  const data = {
+    combos,
+    total_combos: total,
+    page,
+    has_more,
+    format: formatKey
+  };
+  if (!countIsUsable) {
+    data.note = DERIVED_TOTAL_NOTE;
+  } else if (has_more || pageCount(total) > 1) {
+    data.note = rangeNote2(page, offset, combos.length, total);
+  }
+  return { ok: true, value: data };
+}
+
 // src/tools/register.ts
 var CARD_SEARCH_DESCRIPTION = "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall itself \u2014 supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, `art:`, and regex (`o:/\u2026/`). Returns per-card gameplay fields, format legalities, and a USD price with finish. 88 cards per page; the response reports `total_cards` and `has_more`. Legalities are trimmed to the format the query names (`legalities` to widen); formats absent from `legalities_included` were not returned and are not claims about legality.";
 var CARD_SEARCH_INPUT_SCHEMA = {
@@ -15915,12 +16127,28 @@ var CARD_SEARCH_INPUT_SCHEMA = {
   },
   required: ["q"]
 };
+var COMBO_SEARCH_DESCRIPTION = "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by Commander Spellbook itself \u2014 `card:\"Thassa's Oracle\"` is the common case. Returns each combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. 40 combos per page; the response reports `total_combos` and `has_more`. `format` names the single format legality is judged for (default `commander`); these format names are not Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns Commander Spellbook's error text verbatim \u2014 correct it and retry.";
+var COMBO_SEARCH_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    q: { type: "string", description: "Commander Spellbook query string. Evaluated server-side; sent unmodified." },
+    page: { type: "integer", minimum: 1, description: "1-based page; 40 combos per page." },
+    format: { type: "string", description: "Format legality is judged for. Default: commander. Unknown values are refused." }
+  },
+  required: ["q"]
+};
 var CARD_SEARCH_TOOL_NAME = "card_search";
+var COMBO_SEARCH_TOOL_NAME = "combo_search";
 var toolDefinitions = [
   {
     name: CARD_SEARCH_TOOL_NAME,
     description: CARD_SEARCH_DESCRIPTION,
     inputSchema: CARD_SEARCH_INPUT_SCHEMA
+  },
+  {
+    name: COMBO_SEARCH_TOOL_NAME,
+    description: COMBO_SEARCH_DESCRIPTION,
+    inputSchema: COMBO_SEARCH_INPUT_SCHEMA
   }
 ];
 var UNIQUE_VALUES = ["cards", "prints", "art"];
@@ -15932,15 +16160,17 @@ function asEnum(allowed, value) {
 function errorResult(body) {
   return { isError: true, content: [{ type: "text", text: JSON.stringify(body) }] };
 }
-async function dispatchToolCall(client2, name, args) {
-  if (name !== CARD_SEARCH_TOOL_NAME) {
-    throw new Error(`Unknown tool: ${name}`);
-  }
+async function dispatchToolCall(clients2, name, args) {
+  if (name === CARD_SEARCH_TOOL_NAME) return dispatchCardSearch(clients2.scryfall, args);
+  if (name === COMBO_SEARCH_TOOL_NAME) return dispatchComboSearch(clients2.spellbook, args);
+  throw new Error(`Unknown tool: ${name}`);
+}
+function readQuery(args, language) {
   if (typeof args !== "object" || args === null || Array.isArray(args)) {
     return errorResult({
       error: {
         code: "bad_request",
-        message: "Tool arguments must be an object with a string `q` (a Scryfall query)."
+        message: `Tool arguments must be an object with a string \`q\` (a ${language} query).`
       }
     });
   }
@@ -15949,32 +16179,49 @@ async function dispatchToolCall(client2, name, args) {
     return errorResult({
       error: {
         code: "bad_request",
-        message: "Missing required argument `q`: a Scryfall query string."
+        message: `Missing required argument \`q\`: a ${language} query string.`
       }
     });
   }
+  return raw.q;
+}
+function toolResult(result) {
+  if (!result.ok) return errorResult({ error: result.error });
+  return { content: [{ type: "text", text: JSON.stringify(result.value) }] };
+}
+async function dispatchCardSearch(client, args) {
+  const q = readQuery(args, "Scryfall");
+  if (typeof q !== "string") return q;
+  const raw = args;
   const unique = asEnum(UNIQUE_VALUES, raw.unique);
   const dir = asEnum(DIR_VALUES, raw.dir);
   const legalities = asEnum(LEGALITIES_VALUES, raw.legalities);
   const params = {
-    q: raw.q,
+    q,
     ...unique !== void 0 ? { unique } : {},
     ...typeof raw.order === "string" ? { order: raw.order } : {},
     ...dir !== void 0 ? { dir } : {},
     ...typeof raw.page === "number" && Number.isInteger(raw.page) ? { page: raw.page } : {},
     ...legalities !== void 0 ? { legalities } : {}
   };
-  const result = await cardSearch(client2, params);
-  if (!result.ok) {
-    return errorResult({ error: result.error });
-  }
-  return { content: [{ type: "text", text: JSON.stringify(result.value) }] };
+  return toolResult(await cardSearch(client, params));
 }
-function registerTools(server2, client2) {
+async function dispatchComboSearch(client, args) {
+  const q = readQuery(args, "Commander Spellbook");
+  if (typeof q !== "string") return q;
+  const raw = args;
+  const params = {
+    q,
+    ...typeof raw.page === "number" && Number.isInteger(raw.page) ? { page: raw.page } : {},
+    ...typeof raw.format === "string" ? { format: raw.format } : {}
+  };
+  return toolResult(await comboSearch(client, params));
+}
+function registerTools(server2, clients2) {
   server2.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolDefinitions }));
   server2.setRequestHandler(
     CallToolRequestSchema,
-    async (request) => dispatchToolCall(client2, request.params.name, request.params.arguments)
+    async (request) => dispatchToolCall(clients2, request.params.name, request.params.arguments)
   );
 }
 
@@ -15984,6 +16231,9 @@ var server = new Server(
   { name: "manabase-mtg", version: APP_VERSION },
   { capabilities: { tools: {} } }
 );
-var client = createScryfallClient(config2);
-registerTools(server, client);
+var clients = {
+  scryfall: createScryfallClient(config2),
+  spellbook: createSpellbookClient(config2)
+};
+registerTools(server, clients);
 await server.connect(new StdioServerTransport());
