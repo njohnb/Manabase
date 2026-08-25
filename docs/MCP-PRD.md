@@ -17,7 +17,11 @@ carries fifteen criteria and is delivered against fourteen. **A second capabilit
 2026-08-24 and is not built** — [CAP-02](#cap-02--combo-discovery), combo discovery, assigned
 Phase 2. **Its first build slice landed 2026-08-25** ([Slice 15](./slices/TrackA-Slice15.md)): the
 shared transport and a POST verb, no tool — criteria 11 and 12 and the client half of 3 are
-verified, and the capability is still not built. Nine capabilities
+verified, and the capability is still not built. **Its second landed the same day**
+([Slice 16](./slices/TrackA-Slice16.md)): the `combo_search` tool and the normalized combo shape,
+adding criteria 2, 6 and 7, criterion 3's handler half, and the `combo_search` half of 1, 8 and 14
+— **`Status` is still `specified` and no criterion is marked delivered**, because the capability is
+delivered when [Slice 17](./slices/TrackA-Slice17.md) lands `combo_find_deck`. Nine capabilities
 queued and unassigned — two of them added 2026-08-07 when Moxfield joined Archidekt as a deck
 platform ([D-13](#d-13--deck-platform-order-archidekt-first-moxfield-second), [§4.8](#48-moxfield)).
 
@@ -1189,6 +1193,31 @@ the step-by-step line explaining how the combo executes, which is what the model
 and the argument for keeping it is the one
 [OQ-02](#oq-02--how-verbose-should-a-search-result-be) used to keep `oracle_text`.
 
+**Addendum 2026-08-25 — the warning above came true, and one measured page is above the band.**
+**[verified 2026-08-25]** [Slice 16](./slices/TrackA-Slice16.md) shipped the trim and measured it
+live through the delivered shaper. **The rows above stand as written**; these are additional
+measurements, not corrections.
+
+| Payload | Raw | Shaped | Per combo |
+|---|---|---|---|
+| `variants-page1.json`, 40 variants (fixture) | 173,135 | 40,096 | 1,001 |
+| `card:"Thassa's Oracle"` page 1, live | — | 40,202 | 1,005 |
+| `card:"Thassa's Oracle"` page 2, live | — | **63,688** | **1,592** |
+
+The fixture page is the only one of the three with a raw figure beside it, and it shapes 173,135 to
+40,096 — a **76.8%** reduction, inside the 76–78% band measured 2026-08-24. `description` is
+**36.5%** of the trimmed form, consistent with the ~40% this section already records, and it is
+kept. **Page 2 is the finding.** At 1,592 characters per combo it is above the
+930–1,236 band measured 2026-08-24, and its 63,688-character page is above the "under 50,000" page
+budget [CAP-02](#cap-02--combo-discovery)'s page-cap bullet derives from the 1,236 figure. Nothing
+is broken by it — 63,688 is 55% of the 116,626 that breached a harness tool-result ceiling
+(issue #25) — but **that budget is an estimate from one query and is not a guarantee**, which is
+this section's own "per-combo cost varies with how many cards a combo uses" arriving as a
+measurement. The cause is visible in the fixtures: `variants-page1.json`'s 40 variants average 2.9
+cards per combo at a 1,000-character mean, while the eight verbatim variants in the derived
+`variants-page2.json` average 3.4 cards at a **1,340** mean, min 897 and max 1,838. Evidence:
+[`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md).
+
 ### 4.5 Archidekt
 
 **Date verified:** 2026-07-29
@@ -1727,12 +1756,16 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
     upstream request drops them in favour of near-misses and reports nothing
     ([§4.4](#44-commander-spellbook)) — so that tool fetches the full result, classifies, and caps
     **after**. Criterion 10 tests the second half; criterion 8 tests both.
-  - **Upstream paging rests on `/variants/` ordering being stable across calls, which is not yet
-    verified.** Nothing in [§4.4](#44-commander-spellbook) establishes it, and if it drifts then
-    page 2 can repeat or skip combos silently. The implementing slice confirms it live — page 1 and
-    page 2 of one query, zero overlap and no gap — before the upstream-paging path ships, and falls
-    back to an explicit `ordering` parameter or to one fetch and a client-side slice if it does
-    not hold.
+  - **Upstream paging rests on `/variants/` ordering being stable across calls — verified
+    2026-08-25.** Nothing in [§4.4](#44-commander-spellbook) establishes it, and if it drifts then
+    page 2 can repeat or skip combos silently, so the implementing slice was bound to confirm it
+    live before the upstream-paging path shipped.
+    [Slice 16](./slices/TrackA-Slice16.md) did: pages 1 and 2 of `card:"Thassa's Oracle"` through
+    the shipped client on its own lane returned **80 distinct ids in 80 slots, zero overlap and no
+    duplicate within a page**
+    ([`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md)). **Neither
+    fallback was needed** — no explicit `ordering` parameter, and no single fetch with a
+    client-side slice. Both stay recorded as the recovery if the ordering ever drifts.
   - **The wire budget and the model budget are different budgets.** `combo_find_deck` fetches the
     full upstream result — 640,684 characters in 1.66 seconds on the measured deck — and trims
     before returning. The ceiling this capability is designed around constrains what reaches the
@@ -1840,6 +1873,39 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   the lane is [§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s conservative
   strictest-lane rule applied, not a measured fit. Evidence:
   [`docs/slices/TrackA-Slice15-results.md`](./slices/TrackA-Slice15-results.md).
+- **Progress note (2026-08-25, second entry).** Track A
+  [Slice 16](./slices/TrackA-Slice16.md) landed `combo_search` and the normalized combo shape —
+  **half the capability, and `Status` stays `specified`.** `src/spellbook/types.ts` declares
+  hand-written wire shapes that omit `prices` and every `imageUri*` field, so
+  **criteria 6 and 7 are compile-time facts** rather than tests somebody must remember to run
+  ([D-16](#d-16--no-npm-commander-spellbook-client-dependency)'s fourth rejection ground stated as
+  code); `src/spellbook/combos.ts` carries the shape every later consumer reads plus format
+  resolution over Commander Spellbook's 16 legality keys; `src/tools/combo-search.ts` issues
+  exactly one upstream request per call at `limit=40`, `offset=(page-1)*40` and `count=true`.
+  **Verified: criteria 2, 6 and 7 in full, criterion 3's handler half — so 3 is now verified in
+  both halves, the client half having been [Slice 15](./slices/TrackA-Slice15.md)'s — and the
+  `combo_search` half of criteria 1, 8 and 14.** Criterion 10 is entirely
+  [Slice 17](./slices/TrackA-Slice17.md)'s and is untouched, and **no criterion is marked
+  delivered**: the capability is delivered when `combo_find_deck` lands. The third cap bullet above
+  is discharged by the live ordering probe recorded there. **One measured figure contradicts the
+  page-budget bullet above and is recorded rather than smoothed:** a live page 2 measured **63,688
+  characters at 1,592 per combo**, above [§4.4.1](#441-the-combo-payload-is-enormous--measured)'s
+  930–1,236 band and above that bullet's stated "under 50,000" — nothing is broken by it, at 55% of
+  the 116,626 that breached a harness tool-result ceiling, but **the 50,000 figure is an estimate
+  derived from one query and must not be quoted as a guarantee**;
+  [§4.4.1](#441-the-combo-payload-is-enormous--measured)'s dated addendum of the same date carries
+  the measurement and the cause. Three behaviors are deliberately the **opposite** of
+  [CAP-01](#cap-01--card-search)'s and are easy to port by mistake: zero matches is HTTP **200**
+  and a successful empty result while a **404 stays a failure**;
+  [Slice 14](./slices/TrackA-Slice14.md)'s 88-card half-page arithmetic does not transfer, `ceil`
+  over a true `offset` being simply correct here; and `format` always names the format requested,
+  so there is no applied-versus-requested gap of the kind `legalities_mode` has. **No open question
+  moved** — [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) and
+  [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) are both
+  still open, the latter now *concrete* rather than answered, because the tool exists and the
+  measurement method [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+  established is available and was not run. Evidence:
+  [`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md).
 
 ---
 
@@ -2580,6 +2646,7 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-24 | **[§4.4](#44-commander-spellbook) gains a bulk-endpoint addendum correcting its own "606 MB" framing, and [§8](#8-out-of-scope) gains a matching rejection.** `variants.json.gz` is **27,390,889 bytes (26.1 MB)**, directly comparable to [§4.2](#42-scryfall-bulk-data)'s `oracle_cards` at 24.4 MB — so **size is not the reason to avoid it** and the original line must not be read as saying so. The real reasons: `/find-my-combos` performs deck matching **server-side**, so local use means reimplementing a matcher whose six buckets carry distinctions [CAP-02](#cap-02--combo-discovery) depends on; and the file is a **single JSON object, not JSONL**, needing a streaming parser or 606 MB resident where [§4.2](#42-scryfall-bulk-data)'s gzipped JSONL streams with neither. Recorded as useful for one thing: `timestamp` and `version` sit in the first ~100 bytes, so a ranged GET is a **sub-kilobyte staleness and API-version-drift check** — filed against [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s open refresh-trigger half. The 2026-07-29 line is **left as written**. | A rejection resting on a wrong reason is worse than no rejection, because [§8](#8-out-of-scope) is written to be trusted as current: a session that finds the 26.1 MB file would correctly conclude the stated objection had been overtaken and might reasonably re-open the whole approach. Replacing the reason rather than the verdict is what makes the entry survive the next person who checks it. Appended rather than edited, per [§4](#4-external-dependencies)'s every-claim-is-dated property — the original observation was true, and only its sufficiency as an argument was not. |
 | 2026-08-24 | **[CAP-02](#cap-02--combo-discovery)'s page-cap bullet corrected — it contradicted itself on upstream paging.** As first written it opened "the cap is never passed upstream", then noted Commander Spellbook exposes a true `offset`, then scoped the after-classification rule to `combo_find_deck` alone. Now split into two bullets stating the rule per tool: **`combo_search` sends `limit`/`offset` upstream** because `/variants/` returns one flat list where they cannot drop the answer asked for — and must, since that endpoint applies no default cap and one card's combos measure 533,840 characters with 476-combo cards projecting past 2.6 MB — while **`combo_find_deck` fetches the full result and caps after classification**, because its `limit` does not prioritize the combos a deck contains. A third bullet records that upstream paging **rests on `/variants/` ordering being stable across calls, which is unverified**, and binds the implementing slice to confirm it live before that path ships. No acceptance criterion changed: 8 already covered both tools and 10 was already scoped to `/find-my-combos`. | The contradiction was introduced the same day, in this document, and would have been read by whoever built it — most likely as a blanket prohibition, which would have meant a 533 KB transfer on every popular-card query against a source with no published rate limit that [§3.7](#37-undocumented-and-bot-protected-third-party-apis) tells this project to treat as fragile. Caught by the implementation-planning pass rather than by review, which is the argument for planning against a spec before building to it. The ordering caveat is recorded because upstream paging is only correct if the sequence is stable, and a drifting one repeats or skips combos **silently** — the same failure class as the `limit` trap the bullet above it exists to avoid. |
 | 2026-08-25 | **Track A [Slice 15](./slices/TrackA-Slice15.md) landed the transport [CAP-02](#cap-02--combo-discovery) needs and none of the capability** (`d08777b`). New `src/http/client.ts` — [CAP-01](#cap-01--card-search)'s client parameterized by a plain-data source spec carrying the source name, the lane table and the error-`details` reader; [`src/scryfall/client.ts`](../src/scryfall/client.ts) reduced to that spec plus a thin factory, every export kept; new `src/spellbook/client.ts` at **one 500 ms lane** with its own reader for Commander Spellbook's Django-REST field-error map; a **POST** verb on the same queue, spacing and 429 backoff; `spellbookBaseUrl` added to [`src/config.ts`](../src/config.ts). **[CAP-02](#cap-02--combo-discovery) criteria 11 and 12 verified, and criterion 3's *client half* only — 3 is not verified outright**, its handler half being [Slice 16](./slices/TrackA-Slice16.md)'s. A dated **Progress note** on the block records that and leaves `Status` at `specified`. **Nothing is wired:** no tool is registered, [`src/index.ts`](../src/index.ts) and [`src/tools/register.ts`](../src/tools/register.ts) show an empty diff, `tools/list` still reports one tool, [`src/result.ts`](../src/result.ts) gained no `FailureCode`, and no npm dependency was added. Lane selection is now **first prefix match in declaration order**, replacing a lane-identity comparison that could not survive generalization. `npm test` **27 suites / 101 tests → 39 / 150**; `npm run typecheck` clean; `npm run acceptance` 13/13 live with no 429. **No `D-` was minted, [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-external-dependencies) are untouched, no [CAP-01](#cap-01--card-search) criterion changed status, and no open question was resolved — [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is explicitly unmoved.** Evidence: [`docs/slices/TrackA-Slice15-results.md`](./slices/TrackA-Slice15-results.md). | [D-16](#d-16--no-npm-commander-spellbook-client-dependency) rejected the first-party npm client because it would not replace the in-house transport but sit beside it, leaving one source of three speaking a different error model, a different throttle and a different test harness — and a **hand-copied second client fails that test the same way**, so the only reading of that decision that survives contact with a second host is one transport pointed at two of them. Kept out of [Slice 16](./slices/TrackA-Slice16.md) because its correctness claim is *nothing observable changed*, which a diff carrying a new tool makes unfalsifiable: the evidence is [`tests/scryfall/client.test.ts`](../tests/scryfall/client.test.ts) passing with **one changed line** and all 101 pre-existing tests green against the extracted transport, run before a single new test was written. Three things are recorded because they are easy to get wrong later. **Lane selection is declaration order, not most-specific prefix** — a spec declaring `/cards` at 700 ms ahead of `/cards/search` at 50 ms routes `/cards/search` to 700, and a test pins it. **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so making `ScryfallClient` an alias of the generic client left three test fakes broken with `npm test` still green; `npm run typecheck` is the check for any shared-interface change. And the Commander Spellbook `details` reader accepts a `string` or a `string[]` value and **drops `details` entirely for any other shape**, rather than reporting a half-understood error body — a reader that threw would convert a clean `bad_request` into the [D-10](#d-10--tool-handlers-never-throw) backstop, which reads as a server fault and discourages the retry that fixes it. The live acceptance pass took three attempts, and the two failures are recorded in the results rather than re-run out of existence: both were a first-call `fetch` rejection ~10.7 s into a freshly spawned server, investigated to an intermittent connection failure **not attributable to the refactor**, whose GET path is byte-identical to what shipped. |
+| 2026-08-25 | **Track A [Slice 16](./slices/TrackA-Slice16.md) landed `combo_search` — half of [CAP-02](#cap-02--combo-discovery), whose `Status` stays `specified`** (`4bf697d`). Three new modules: `src/spellbook/types.ts`, whose hand-written wire shapes **omit** `prices` and every `imageUri*` field, making criteria 6 and 7 compile-time facts; `src/spellbook/combos.ts`, carrying the normalized combo shape every later consumer reads plus format resolution over Commander Spellbook's **16** legality keys, which are not Scryfall's 23; and `src/tools/combo-search.ts`, one upstream request per call at `limit=40`, `offset=(page-1)*40` and `count=true` with a defensive cap at 40. [`src/tools/register.ts`](../src/tools/register.ts) takes a `Clients` bundle and each handler still receives the one client it needs; `tools/list` reports **two** tools. **Criteria 2, 6 and 7 verified in full, criterion 3's handler half — so 3 is now verified in both halves — and the `combo_search` half of criteria 1, 8 and 14. No criterion is marked delivered**, and criterion 10 is entirely [Slice 17](./slices/TrackA-Slice17.md)'s. A second dated **Progress note** records that on the block; the **third cap bullet's ordering caveat is discharged** by a live probe — 80 distinct ids in 80 slots across pages 1 and 2, zero overlap, neither fallback needed; and [§4.4.1](#441-the-combo-payload-is-enormous--measured) gains a dated addendum measuring the shipped trim: page 1 at 40,202 characters live and 40,096 on the 40-variant fixture, whose 173,135 raw makes that a **76.8%** reduction inside the band already recorded, against **page 2 at 63,688 and 1,592 per combo** — above both the 930–1,236 band and the "under 50,000" page budget. `npm test` **39 suites / 150 tests → 56 / 210**; `npm run typecheck` clean; `npm run acceptance` 13/13 live with no 429. **No `D-` was minted, [§2](#2-locked-decisions) and [§3](#3-constraints) are untouched, no [CAP-01](#cap-01--card-search) criterion changed status, and no open question was resolved** — [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) and [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) both stay open. Evidence: [`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md). | Splitting the capability across two slices is what keeps each half's claim falsifiable, and the price of that is a block with partly ticked criteria — so the status is deliberately **not** moved: a half-built capability carrying a delivered status is the reporting failure this document has already paid to unpick once, in the 2026-08-08 row above. The page-budget contradiction is the most useful line here. [§4.4.1](#441-the-combo-payload-is-enormous--measured) already warned that per-combo cost tracks how many cards a combo uses, so a budget derived from one query was always an estimate; the honest record is therefore a dated measurement beside the original rather than a quietly corrected number, and **the page-cap bullet's own "under 50,000" text is left as written — whether to amend it in place is this document's owner's call, not a closeout edit.** Three inversions are recorded because porting [CAP-01](#cap-01--card-search)'s rules is the obvious mistake here: zero matches arrives as HTTP **200** while a **404 stays a failure**, so the deliberate 404-as-empty mapping must not be copied; [Slice 14](./slices/TrackA-Slice14.md)'s 88-card half-page arithmetic does not transfer where a true `offset` exists; and combo legality is **one boolean**, not a map and not Scryfall's `"legal"` strings — guarded so that a legality key upstream dropped returns a structured failure rather than reading as `false`, which [§3.6](#36-error-surface) forbids and which this capability exists partly to avoid. [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) is left open on purpose and is now *concrete* rather than answered: the tool exists, so [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)'s measurement-against-a-baseline method is finally available, and recording an impression in its place would spend the question without answering it. Two verification steps in [`docs/slices/TrackA-Slice16.md`](./slices/TrackA-Slice16.md) are wrong as written and its acceptance criterion 8 contradicts its own requirement 7 (requirement 7 wins, case-insensitive matching resolving `standardbrawl` rather than refusing it); all three are that document's text, and no [CAP-02](#cap-02--combo-discovery) criterion is affected. |
 
 ---
 
