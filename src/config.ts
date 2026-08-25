@@ -11,6 +11,8 @@ export interface Config {
   cacheDir: string;
   /** "https://api.scryfall.com" in production; overridable so tests never hit the network. */
   scryfallBaseUrl: string;
+  /** "https://backend.commanderspellbook.com"; read by nothing until CAP-02 ships. */
+  spellbookBaseUrl: string;
 }
 
 export function resolveConfig(
@@ -19,11 +21,13 @@ export function resolveConfig(
 ): Config {
   const userAgent = `manabase-mtg/${APP_VERSION} (+https://github.com/njohnb/manabase)`;
   const scryfallBaseUrl = "https://api.scryfall.com";
+  const spellbookBaseUrl = "https://backend.commanderspellbook.com";
 
   return {
     userAgent,
     cacheDir: resolveCacheDir(env, platform),
     scryfallBaseUrl,
+    spellbookBaseUrl,
   };
 }
 

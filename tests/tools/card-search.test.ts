@@ -27,6 +27,14 @@ interface RecordedCall {
   query: Record<string, string | undefined> | undefined;
 }
 
+/**
+ * `cardSearch` reaches Scryfall by GET only. `post` exists because Slice 15 made `ScryfallClient`
+ * the shared `HttpClient`; it rejects so an accidental POST fails the test loudly rather than
+ * returning something plausible.
+ */
+const refusePost = (path: string): Promise<never> =>
+  Promise.reject(new Error(`fake client: cardSearch must not POST (${path})`));
+
 /** Object-literal `ScryfallClient` that records its arguments and returns a canned Result. */
 function makeFakeClient(result: Result<unknown>): { client: ScryfallClient; calls: RecordedCall[] } {
   const calls: RecordedCall[] = [];
@@ -35,6 +43,7 @@ function makeFakeClient(result: Result<unknown>): { client: ScryfallClient; call
       calls.push({ path, query });
       return Promise.resolve(result);
     },
+    post: refusePost,
   };
   return { client, calls };
 }
@@ -64,6 +73,7 @@ function makeScriptedClient(script: Array<Result<unknown>>): {
       }
       return Promise.resolve(next);
     },
+    post: refusePost,
   };
   return { client, calls };
 }

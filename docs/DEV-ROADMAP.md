@@ -1208,7 +1208,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 
 | # | Slice | Track | Status |
 |---|---|---|---|
-| 15 | Transport generalization & the POST verb | A — server | ☐ |
+| 15 | Transport generalization & the POST verb | A — server | ☑ |
 | 16 | `combo_search` | A — server | ☐ |
 | 17 | `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) | A — server | ☐ |
 
@@ -1224,11 +1224,14 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   [`src/scryfall/client.ts`](../src/scryfall/client.ts) to that spec plus a thin factory; add
   `src/spellbook/client.ts` at one 500 ms lane; add `spellbookBaseUrl` to
   [`src/config.ts`](../src/config.ts).
-- **Done when:** ☐ `tests/scryfall/client.test.ts` passes with **one** changed line · ☐
-  `npm run acceptance` is 13/13 · ☐ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 11 and
-  12 and the client half of 3 are verified · ☐
+- **Done when:** ☑ `tests/scryfall/client.test.ts` passes with **one** changed line · ☑
+  `npm run acceptance` is 13/13 · ☑ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 11 and
+  12 and the client half of 3 are verified · ☑
   [`src/index.ts`](../src/index.ts) and [`src/tools/register.ts`](../src/tools/register.ts) show
-  no diff · ☐ `dist/` rebuilt in the same commit.
+  no diff · ☑ `dist/` rebuilt in the same commit.
+- **Done 2026-08-25.** Results: [`TrackA-Slice15-results.md`](./slices/TrackA-Slice15-results.md).
+  `npm test` 27 suites / 101 tests → 39 / 150. Three fake clients in `tests/tools/` needed a `post`
+  stub the spec did not list, because `ScryfallClient` became an alias of `HttpClient`.
 - **Binding refs:** [D-16](./MCP-PRD.md#d-16--no-npm-commander-spellbook-client-dependency) (why
   one transport and not two, and the lane machinery that must not change),
   [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance),
