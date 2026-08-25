@@ -395,6 +395,33 @@ cut** so [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is still
 The source-file, test and `dist/` rows below carry this slice's figures. Evidence:
 [`docs/slices/TrackA-Slice17-results.md`](./slices/TrackA-Slice17-results.md).
 
+**The Commander Spellbook admins replied 2026-08-25 — documentation only, nothing built. It
+supersedes the "one outstanding Discord message" in the paragraph above and nothing else in it.**
+The message outstanding since 2026-07-29 was answered, and
+[`MCP-PRD.md` §4.4](./MCP-PRD.md#44-commander-spellbook) carries the reply in full.
+[OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
+is **closed**, and closed as **permitted, not licensed**: explicit permission to consume the API,
+no licence text, no ToS page, MIT still covering the code alone — and permission to consume is not
+a grant to redistribute, so a later capability that stores or ships combo data needs its own ask.
+[OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is **answered
+for the Commander Spellbook third only and is NOT closed** — it covers three sources since the
+2026-08-07 widening, and Archidekt and Moxfield are unmoved. **No rate was given:** the reply is a
+usage *shape* rather than a figure — *"few http calls per user interaction"*, plus an explicit
+request to refrain from bulk-exporting through the paginated API, with the bulk JSON file named as
+the sanctioned route at that scale — so
+[§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis)'s conservative
+self-throttle is **not** discharged and the 500 ms lane **does not move**; what changed is that it
+is now a chosen conservatism against a known-friendly source rather than a default against silence.
+**No code changed** — [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) already satisfies that shape by
+construction, one upstream request per tool call with paging reported and never auto-resolved, so a
+decision taken for the model's context budget gains a second and independent reason to hold. The
+admins' recommendation of the npm client **does not reopen**
+[D-16](./MCP-PRD.md#d-16--no-npm-commander-spellbook-client-dependency), which sits in the locked
+[§2](./MCP-PRD.md#2-locked-decisions). [CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s `Status`
+stays `delivered` and **no criterion changed status**, no `D-` was minted, and
+[OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+is untouched and still open.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -1331,7 +1358,7 @@ happens in those spec sessions.
 
 | Pack | First slice (spec/research) | Blocking questions | Sequencing constraints |
 |---|---|---|---|
-| Combo discovery | **Superseded 2026-08-24 — this pack left the queue, and as of 2026-08-25 it is built.** Its spec slice happened: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) was specified and assigned Phase 2, `/variants/` and `/find-my-combos` were verified live, and the build slices were scoped in [§7](#7-phase-2-slices--combo-discovery) and **all three have landed** — [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) is `delivered` against all fourteen criteria. **The Discord message is still outstanding** and is the only part of the original row not discharged | [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) — **both still open**, and [Slice 17](./slices/TrackA-Slice17.md) shipped the capability with them open by explicit decision | Anonymous, stateless — a natural early pick, and it was: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) needs no credential, no persistence and no other CAP |
+| Combo discovery | **Superseded 2026-08-24 — this pack left the queue, and as of 2026-08-25 it is built.** Its spec slice happened: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) was specified and assigned Phase 2, `/variants/` and `/find-my-combos` were verified live, and the build slices were scoped in [§7](#7-phase-2-slices--combo-discovery) and **all three have landed** — [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) is `delivered` against all fourteen criteria. **The Discord message was answered 2026-08-25** — [§4.4](./MCP-PRD.md#44-commander-spellbook) carries the reply — so the last undischarged part of the original row is discharged | [Slice 17](./slices/TrackA-Slice17.md) shipped the capability with both open, and the admins answered 2026-08-25: [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) is **closed** — *permitted, not licensed*, so redistribution is still unasked — and [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is answered **for the Commander Spellbook third only**, still open for Archidekt and Moxfield. **No rate was given**, so the 500 ms lane does not move | Anonymous, stateless — a natural early pick, and it was: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) needs no credential, no persistence and no other CAP |
 | Archidekt deck reading | Read decks containing tokens, custom cards, spoilers to answer [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read); draft the three-way-ambiguous 404 error text per [§3.6](./MCP-PRD.md#36-error-surface) | [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read) | **First of the two deck platforms** ([D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)). Prerequisite for deck analysis, Arena export, and deck pricing workflows. **Owns [OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)** — it sets the normalized deck shape both platforms return, so its spec must check each field against the Moxfield record in [§4.8.1](./MCP-PRD.md#481-the-deck-payload-is-enormous--measured) rather than design for Archidekt alone |
 | Moxfield deck reading | Read a public deck and **decide the trim** — [§4.8.1](./MCP-PRD.md#481-the-deck-payload-is-enormous--measured) measured 1.63 MB for one deck, ~14× the payload that already broke a harness tool-result ceiling, so a passthrough is not on the table. Read the author's own public, unlisted and private decks anonymously to answer [OQ-11](./MCP-PRD.md#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id) (three requests). Contact Moxfield support per [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms) **before** shipping, not after — [§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis) makes asking part of the spec work | [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms), [OQ-11](./MCP-PRD.md#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id) | **Second** ([D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)), and it *consumes* [OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)'s answer rather than setting it. Neither blocks the other's spec: if Archidekt stalls on [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read), this is not held hostage to it. No credential, no npm dependency ([D-14](./MCP-PRD.md#d-14--no-npm-moxfield-api-dependency)) |
 | Decklist pricing | Spec against `POST /cards/collection` (75/batch); inherits every [§4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps) price trap | — | Pairs naturally with deck reading |
@@ -1491,6 +1518,21 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   [§4.4](./MCP-PRD.md#44-commander-spellbook)'s verified `DeckRequest` carries it and the PRD wins),
   an optional `extraReserve` on `fillPage`, an edit to `src/spellbook/types.ts` the deliverables
   table omits, and one clause added to the tool description after the live run.
+- **Post-slice, 2026-08-25 — the admins replied, and two of the three open questions moved.** The
+  Discord message the bullet above records as outstanding was answered later the same day, after
+  this slice had landed; that bullet stands as written and this one carries the change.
+  [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
+  is **closed** as *permitted, not licensed* — consuming the API is explicitly sanctioned, nothing
+  licenses the data and nothing grants redistribution.
+  [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is answered
+  **for the Commander Spellbook third only** and stays open for Archidekt and Moxfield, and **no
+  rate was given** — the reply is a usage shape in calls per user interaction, so the 500 ms lane
+  **does not move**.
+  [OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+  is untouched. **No code changed, no criterion moved and `Status` stays `delivered`** — this
+  slice's one-request-per-call, paging-reported shape already satisfies what the admins asked for.
+  The reply is at [§4.4](./MCP-PRD.md#44-commander-spellbook) and
+  [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) carries a dated open-question note.
 - **Binding refs:** [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 5, 10 and 13,
   [§4.4](./MCP-PRD.md#44-commander-spellbook) (the `limit` trap, the silently-ignored card name,
   the no-deck `GET`), [§4.1.2](./MCP-PRD.md#412-batch-resolution),

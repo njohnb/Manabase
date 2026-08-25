@@ -435,8 +435,11 @@ figure, decided 2026-08-07 and not yet built
 
 Combo data via [Commander Spellbook](https://commanderspellbook.com), reached by `combo_search` and
 `combo_find_deck` since 2026-08-25. No bulk file is downloaded and nothing is stored — every combo
-is fetched per call
-([OQ-06](./docs/MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)).
+is fetched per call. **The project explicitly permits consuming its API this way**, confirmed by its
+admins on 2026-08-25; they state no licence for the combo data, and permission to consume is not
+permission to redistribute, so nothing here republishes it
+([`docs/MCP-PRD.md` OQ-06](./docs/MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code),
+closed).
 
 **Planned sources**, for capabilities that are queued and unassigned — none of these are
 reached today: [Archidekt](https://archidekt.com) and [Moxfield](https://moxfield.com) for deck

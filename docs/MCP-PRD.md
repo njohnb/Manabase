@@ -1159,6 +1159,67 @@ are verbatim and which are truncated.
    [§4.1.2](#412-batch-resolution) supplies and the only way a caller learns that a submitted
    name matched nothing — Commander Spellbook itself will never say so.
 
+**Addendum — the admins answered, and the usage contract is SHAPE-based rather than a rate.
+[verified 2026-08-25]** The Discord message this section, [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits)
+and [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) have all
+been waiting on since 2026-07-29 was answered. This is the **first direct statement from the source
+owner** in this document; everything above it about this API's posture was observation or
+inference.
+
+What they published, in their own terms:
+
+- **Anonymous use is sanctioned outright** — "You can use the HTTP API to make unauthenticated
+  sparse requests."
+- **The guideline is per-interaction call count, not requests per second** — "with the general
+  guideline to have few http calls per user interaction with your tool."
+- **Bulk export over the paginated API is asked against, explicitly** — "Please refrain from using
+  it to bulk export data, consuming hundreds or more result pages every time using a ton of
+  resources. Use the bulk json file for that instead, and configure a periodic update task."
+- **The `User-Agent` requirement is confirmed as the source's own ask** — "To be a good citizen,
+  setup your http calls to have your service name (optionally with a version) as User Agent." This
+  is what [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) and
+  [§3.7](#37-undocumented-and-bot-protected-third-party-apis) already require of every source, and
+  it moves from inferred courtesy to a stated request here.
+- Endpoints re-confirmed, plus two this document had not recorded: `/schema/swagger` and
+  `/schema/redoc` beside `/schema`. Both bulk URLs and
+  `@space-cow-media/spellbook-client` were named as the recommended paths.
+
+**No number was given, and the absence is the finding rather than an omission to fill in.** There
+is still no published requests-per-second figure and still no rate-limit header
+([OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits)), so
+[§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s "self-throttle conservatively where no
+limit is published" is **not** discharged by this reply — what changed is that the lane is now a
+*chosen* conservatism against a known-friendly source rather than a default against an unknown one.
+The 500 ms lane stays.
+
+**The constraint that IS new is a shape this document must not violate later.** "Few http calls per
+user interaction" and "refrain from consuming hundreds or more result pages" bear directly on any
+future capability that would sweep a query to exhaustion. [CAP-02](#cap-02--combo-discovery) as
+delivered satisfies both by construction — one upstream request per tool call, paging reported and
+never auto-resolved — but that was a decision taken for the model's context budget, and it now has
+a second and independent reason to hold.
+
+**One tension inside that, recorded rather than glossed.** `combo_find_deck` holds no per-user state
+([D-03](#d-03--testability-handlers-callable-as-plain-functions)), so paging **re-fetches the whole
+upstream result each time**: walking the 229 near-misses of the deck measured in
+[§4.4.1](#441-the-combo-payload-is-enormous--measured)'s 2026-08-25 addendum costs six calls of
+roughly a megabyte apiece rather than one. That is well inside both stated limits — six pages is not
+"hundreds", and one deck is not a bulk export — and the responses are gzipped at ~12:1, so the wire
+cost is smaller than the character counts suggest. It is written down because the multiplier is
+invisible from the tool's interface and is the thing that would first push against *"few http calls
+per user interaction"* if a later capability paged more aggressively or auto-resolved pages.
+
+**Two things this reply does not do.** It does not license the data — see
+[OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code), where
+permission to consume is recorded as exactly that and not as a licence grant. And **the
+recommendation of `@space-cow-media/spellbook-client` does not reopen
+[D-16](#d-16--no-npm-commander-spellbook-client-dependency)**, which is in the locked
+[§2](#2-locked-decisions): that decision rejected the package on grounds about *this* codebase — a
+zero-runtime-dependency bundle, the wire types whose omissions are the price and image mechanism —
+and not on any doubt about the package's quality or provenance, which the admins' endorsement
+speaks to and D-16 never disputed. A session that wants to revisit it must do so as a deliberate
+[§2](#2-locked-decisions) amendment with the author, not as a consequence of this addendum.
+
 #### 4.4.1 The combo payload is enormous — measured
 
 This is the finding that shapes the capability, and it was measured rather than estimated. It is
@@ -2075,6 +2136,20 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   untouched, and no [`docs/PLUGIN-PRD.md`](./PLUGIN-PRD.md) criterion changed status. **All three
   open questions stay open by explicit decision** — see their dated paragraphs in
   [§7](#7-open-questions).
+- **Open-question note (2026-08-25, after delivery).** The Commander Spellbook admins replied to
+  the Discord message this capability shipped without
+  ([§4.4](#44-commander-spellbook)), and **two of the three open questions moved**.
+  [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) is
+  **closed**: explicit permission to consume, no licence text, and no redistribution grant.
+  [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is **answered for the
+  Commander Spellbook third only** and stays open for Archidekt and Moxfield; **no rate was given**,
+  so the 500 ms lane does not move.
+  [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) is
+  untouched. **No code changed** — the admins' stated shape is *few HTTP calls per user
+  interaction* and *do not sweep hundreds of result pages*, and this capability already issues one
+  upstream request per tool call and reports paging rather than resolving it. That was decided for
+  the model's context budget and now has a second, independent reason to hold. **No criterion
+  changed status and `Status` stays `delivered`.**
 
 ---
 
@@ -2409,6 +2484,34 @@ message, two questions. The cost of leaving it open is a slower sweep across man
 wrong answer, and [§3.7](#37-undocumented-and-bot-protected-third-party-apis) already states the
 standing rule for a source that has not answered.
 
+**Answered 2026-08-25 for the Commander Spellbook third only — the admins replied, and the answer
+is "no stated rate, but here is a usage shape."** The reply is recorded in full at
+[§4.4](#44-commander-spellbook). **Commander Spellbook imposes no published requests-per-second
+limit and exposes no rate-limit header**, which this document had already verified as absent; what
+the admins added is a contract in a different unit — *"few http calls per user interaction with
+your tool"*, and an explicit request to *"refrain from using it to bulk export data, consuming
+hundreds or more result pages"*, with the bulk JSON file plus a periodic update task named as the
+sanctioned route for anything at that scale.
+
+**The 500 ms lane does not move, and the reason is worth stating so a later session does not read
+this as permission.** A usage guideline in calls-per-interaction is not a rate, so there is no
+measured figure to loosen toward — [§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s
+"self-throttle conservatively where no limit is published" still applies on its own terms. What
+changed is the lane's standing: it was a default against a source that had said nothing, and it is
+now a deliberate conservatism against a source that has said it is friendly but unquantified.
+
+**[CAP-02](#cap-02--combo-discovery) already satisfies the stated shape, and did so before the
+reply arrived** — one upstream request per tool call, paging reported rather than resolved, no bulk
+file, no persistence. That was decided for the model's context budget; it now has a second,
+independent justification, and **no code changed as a result of this answer**.
+
+**The other two thirds of this question stay open.** The heading names Commander Spellbook and
+Archidekt, and the 2026-08-07 widening added Moxfield. **Archidekt and Moxfield have still said
+nothing** and are still `[verified absent — meaning unknown]` at [§4.5](#45-archidekt) and
+[§4.8](#48-moxfield). Moxfield's channel is
+[OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms).
+**Do not record this question as closed** — it covers three sources and one has answered.
+
 ### OQ-06 — Is Commander Spellbook's combo *data* licensed, as distinct from its code?
 
 The code is MIT; the data has no stated license and there is no ToS page ([§4.4](#44-commander-spellbook)).
@@ -2431,6 +2534,28 @@ stored. If the answer ever comes back restrictive, what has to change is a live 
 than a corpus already on disk. **One Discord message to the admins answers this and
 [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) together**, and it is still
 outstanding.
+
+**Answered and CLOSED 2026-08-25 — with a precise verdict, because the obvious summary of it is
+wrong.** The admins replied ([§4.4](#44-commander-spellbook)). **They granted explicit permission
+to consume, and they did not state a licence.** Those are different things, and this entry closes
+on the first without inventing the second: *"You can use the HTTP API to make unauthenticated
+sparse requests"*, with both bulk-file URLs offered by name as the sanctioned route for anything
+larger. The data still carries **no licence text**, there is still **no ToS page**, and the MIT
+licence still covers the code alone.
+
+**What that settles.** [§4.4](#44-commander-spellbook)'s working treatment — carried there as
+`[inferred]` since 2026-07-29 — is now the source owner's own position rather than this project's
+reading of the circumstances, and retiring that `[inferred]` is exactly what the reply does.
+Consuming the API and returning combos to a user is sanctioned by the people who run it. Credit the
+project, which every user-facing surface already does.
+
+**What it does not settle, and what a later capability must not read into it.** Permission to
+*consume* is not a grant to *redistribute*. Nothing in the reply says this project may republish the
+combo corpus, and the bulk file being offered for download is not that statement either. Any future
+capability that stores or ships combo data — as against fetching it per call, which is all
+[CAP-02](#cap-02--combo-discovery) does — falls outside what this answer covers and needs its own
+ask. That boundary is narrow enough to state now rather than rediscover later, and it is why this
+entry closes as **permitted** rather than as **licensed**.
 
 ### OQ-07 — How is `intentionallySkippedCardData` populated in Archidekt deck payloads, and what does its presence mean for a deck read?
 
@@ -2888,6 +3013,7 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-25 | **[CAP-02](#cap-02--combo-discovery)'s page cap amended from 40 combos to 20, on measurement, and criterion 8's number with it.** The 40 was derived from one query at 1,236 characters per combo. **577 combos sampled across 15 queries** — using Commander Spellbook's own `cards>N`, `steps>N`, `results>N` and `prerequisites>N` operators, all four confirmed real against `/explain-query` — put that near the **cheap** end: p50 **1,390**, p99 **2,530**, max **4,421**, sampled mean **1,393**, which is itself above the 930–1,236 band. Per-combo cost tracks how many cards a combo uses. At 40, the ordinary query `cards>5 steps>5` returned a measured **99,311**-character tool result, **85% of the 116,626** that breached a harness ceiling in issue #25; at 20 it returns **58,240**, and `card:"Thassa's Oracle"` returns **16,903**. [§4.4.1](#441-the-combo-payload-is-enormous--measured) gains a **second** dated addendum carrying the distribution and the before/after figures, and the first addendum stands as written. The [CAP-02](#cap-02--combo-discovery) page-cap bullet is **amended in place** rather than annotated, and a dated Progress-note addendum records why. **`Status` stays `specified`, no criterion changed verification state** — criterion 8 changed its *number*, not its kind, and is still verified in its `combo_search` half only. `PAGE_SIZE` in `src/tools/combo-search.ts`, the tool description and the input schema all move together; `npm test` stays 56 suites / 210 tests. | The bullet is amended in place rather than left with a dated correction beside it because, unlike [§4](#4-external-dependencies)'s research record, a [§5](#5-capabilities) capability bullet is **instruction to the implementer** — a reader who finds "at most 40 combos" there and a contradicting addendum elsewhere has to guess which binds, and the code can only implement one. The date-stamped reasoning survives in the bullet, the Progress note and [§4.4.1](#441-the-combo-payload-is-enormous--measured). Sizing is by **margin, not by target**: 116,626 is a value known to FAIL rather than the limit, and the true ceiling is unknown and lower, so the question asked was not "what fits 50,000" but "what still fits when every combo on the page is a 10-card one". That rejected 25, whose maximum-cost page reaches 95% of a known-bad figure, and it is why the realistic worst page at 20 (~58,000) is accepted despite exceeding the original 50,000 aspiration — a fixed count cap cannot honour that aspiration against 5.7× cost variance without going to 15 and tripling the page count. A **byte-aware** cap was considered and rejected for now: it adapts to the variance, but nothing may strand a combo behind no reachable page ([Slice 14](./slices/TrackA-Slice14.md)'s lesson), so it requires paging by explicit offset rather than page number — a contract change to the very shape [Slice 17](./slices/TrackA-Slice17.md) is about to consume. Re-sizing was **safe only because** Commander Spellbook exposes a true `offset`: the same change against Scryfall's offsetless `page` would have stranded cards, which is exactly why [Slice 14](./slices/TrackA-Slice14.md) could not simply pick a smaller number. |
 | 2026-08-25 | **[CAP-02](#cap-02--combo-discovery)'s page cap became a BYTE BUDGET and paging moved to offsets — this supersedes the 40 → 20 row above, which stands as the record of a step that really shipped.** A fixed count is the wrong instrument for a source whose per-combo cost spans **547 to 4,421** characters, a 5.7× spread: 40 was unsafe (`cards>5 steps>5` measured **99,311**) and 20 starved an ordinary `card:"…"` query of two thirds of the combos that would have fit. `combo_search` now fills a page to **50,000** characters, fetching **60** variants upstream, and reports **`next_offset`**; `ComboSearchParams.page` became `offset`. Two probes removed the objection recorded the same day: `/variants/` **ignores** `fields=`, `fields[]=`, `only=` and `omit=`, so over-fetching adds no waste this capability was not already paying, and responses are **gzipped at ~12:1** (20 variants 7.1 KB on the wire, 60 variants 20.4 KB), so fetching more *reduces* the request rate [§3.4](#34-rate-limits-are-hard-constraints-not-guidance) and [§3.7](#37-undocumented-and-bot-protected-third-party-apis) actually constrain — a 96-combo sweep went from 5 requests to **3**. Measured live through the shipped tool: `card:"Thassa's Oracle"` 96 combos in **3 pages of 47, 30 and 19**; `cards>5 steps>5` 41 in **3 pages of 16, 23 and 2**; largest page **49,473**; every combo reached exactly once. [§4.4.1](#441-the-combo-payload-is-enormous--measured) gains a **third** dated addendum and both earlier ones stand. The page-cap bullet is amended in place and criterion 8 reworded to name the budget and the offset contract. **`Status` stays `specified` and no criterion changed verification state.** `npm test` 56 suites / **215** tests. | Done now rather than later because [Slice 17](./slices/TrackA-Slice17.md) is about to consume this paging shape: changing it today touches one tool, changing it after 17 lands touches two plus both test suites. That inverts the usual ship-and-revisit instinct, and it is the whole reason the question was asked before the PR rather than after. The decisive evidence was **measuring instead of assuming**: the wire-traffic objection that deferred this in the row above was stated without checking whether responses were compressed, and they are — at 12:1 the objection is ~13 KB per call and points the other way once request *rate* is the thing being protected. Recorded because an argument retired by measurement is worth more than one that was never made. **Page size varying within a single query** — 47, then 30, then 19 as later combos use more cards — is the observation that makes a count indefensible rather than merely suboptimal. And one guard is load-bearing: a combo larger than the whole budget is **still returned**, because a page of zero leaves `next_offset` equal to `offset` and the caller pages forever; an oversized response is a bad page, a non-advancing offset is an infinite loop. |
 | 2026-08-25 | **Track A [Slice 17](./slices/TrackA-Slice17.md) landed `combo_find_deck` and [CAP-02](#cap-02--combo-discovery) is DELIVERED** — `Status` `specified` → `delivered`, all fourteen criteria verified, and [§6](#6-phases)'s Phase 2 entry updated from "not built". The capability gained a dated delivery note; [§4.1.2](#412-batch-resolution) gained a dated addendum recording that a `name` identifier **rejects the combined `Front // Back` form** of a double-faced card while accepting either face alone. [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) and [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) each gained a dated paragraph and **all three stay open**. No `D-` minted; [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | The three upstream behaviours this tool exists to defeat are all silent, so the shape follows from them rather than from taste: `limit` on `/find-my-combos` **does not prioritize the combos the deck contains**, so the cap is applied after classification and never sent upstream; an unrecognized card name is **ignored with an HTTP 200 and no signal from any endpoint**, which is the only reason the capability touches Scryfall at all; and a request with no deck returns the entire combo corpus as near-misses, so an empty decklist is refused before any call. **The live run substituted a different deck and measured its own raw figure beside its shaped one** rather than comparing a shaped number against [§4.4.1](#441-the-combo-payload-is-enormous--measured)'s 640,684 — the 94-card list there was not recoverable from a captured response, and a cross-deck ratio would have been a number that looks like evidence and is not. The three open questions are recorded as shipped-with-open rather than left silent, because two of them resolve only when a third party replies and the third needs an eval run that a build slice would take badly. |
+| 2026-08-25 | **The Commander Spellbook admins replied — [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) CLOSED, [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) answered for the Commander Spellbook third only, and no code changed.** [§4.4](#44-commander-spellbook) gains a dated addendum carrying the reply: anonymous use sanctioned, *"few http calls per user interaction"*, an explicit request to **refrain from bulk-exporting through the paginated API** with the bulk JSON file named as the sanctioned route instead, and the app-naming `User-Agent` confirmed as the source's own ask. [CAP-02](#cap-02--combo-discovery) gains a dated open-question note; `Status` stays `delivered` and no criterion moved. | **The reply is a usage SHAPE, not a rate, and conflating the two would be the mistake here.** No requests-per-second figure was given and no rate-limit header exists, so [§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s "self-throttle conservatively where no limit is published" is not discharged and **the 500 ms lane does not move** — what changed is that it is now a chosen conservatism against a source known to be friendly rather than a default against one that had said nothing. [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) covers **three** sources and one has answered, so it is not closed; Archidekt and Moxfield are unmoved. [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) closes as **permitted, not licensed**: permission to consume is not a grant to redistribute, and a later capability that stores or ships combo data needs its own ask. The admins recommending `@space-cow-media/spellbook-client` **does not reopen** [D-16](#d-16--no-npm-commander-spellbook-client-dependency) — that decision rested on this codebase's zero-runtime-dependency bundle and its deliberately incomplete wire types, never on doubt about the package, and [§2](#2-locked-decisions) is locked. |
 
 ---
 

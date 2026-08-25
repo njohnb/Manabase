@@ -109,8 +109,19 @@ top search result for Moxfield's API is a working `cloudscraper` proxy, and beca
 grants `User-Agent` whitelists through support — so identify honestly, and ask (`OQ-10`) rather
 than route around. Live probes during research obey the same rule: single spaced calls.
 
+**Commander Spellbook's stated usage limit is a SHAPE, not a rate** (MCP-PRD §4.4, from the admins
+2026-08-25). They sanction anonymous use, ask for "few http calls per user interaction", and ask
+explicitly that the paginated API not be used to bulk export — the bulk JSON file plus a periodic
+update task is the sanctioned route at that scale. So **never auto-page and never sweep a query to
+exhaustion**: `CAP-02` complies by construction with one upstream request per tool call and paging
+reported rather than resolved, and a capability that paged for the caller would violate a request
+from the source owner. **No rate was given**, so the 500 ms lane does not move and §3.7's
+conservative self-throttle still binds. `OQ-06` closed as **permitted, not licensed** — consuming is
+sanctioned, the data has no licence, and storing or redistributing combo data needs its own ask.
+
 **Every outbound request carries the app-naming `User-Agent` and an `Accept` header.** Default
-library agents are explicitly disallowed by Scryfall.
+library agents are explicitly disallowed by Scryfall, and Commander Spellbook's admins asked for
+the same thing in their own words.
 
 **Handlers never throw** (`D-10`). Every failure is a structured `Failure` carrying Scryfall's
 verbatim `details` so the model can fix a bad query and retry. The single deliberate exception is
@@ -710,6 +721,21 @@ Slice 13's and still gated on Slice 12's second cold run, and `v0.1.0` and `v0.1
 so nothing anyone has installed carries the combo tools. `CAP-01` is undisturbed and its criterion
 15 is still unimplemented and unscheduled. No caching, no persistence, no `deck_read`, no
 Archidekt, no Moxfield.
+
+**The Commander Spellbook admins replied 2026-08-25 — docs only, nothing built, and it supersedes
+the "one outstanding Discord message" above and nothing else in that paragraph.** `MCP-PRD.md` §4.4
+carries the reply in full and the rule above states the part that binds. Precisely: **`OQ-06` is
+closed as permitted, NOT licensed** — explicit permission to consume, no licence text, no ToS page,
+MIT still covering the code alone, and consuming is not redistributing. **`OQ-05` is NOT closed** —
+it covers three sources since the 2026-08-07 widening and only one answered; Archidekt and Moxfield
+are unmoved. **No rate was given**, so the 500 ms lane does not move and §3.7 is undischarged; the
+lane is now a chosen conservatism against a known-friendly source rather than a default against
+silence. **No code changed** — `CAP-02` already satisfied the stated shape, so a decision taken for
+the context budget gains a second independent reason to hold. The admins recommending
+`@space-cow-media/spellbook-client` **does not reopen `D-16`**, which rejected it on this codebase's
+zero-runtime-dependency bundle and its deliberately incomplete wire types, never on doubt about the
+package — and §2 is locked. `CAP-02` stays `delivered`, no criterion moved, no `D-` was minted, and
+`OQ-14` is untouched and still open.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
