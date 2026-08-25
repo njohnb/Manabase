@@ -138,10 +138,56 @@ reachable at any cap, so changing the number strands nothing — the same change
 offsetless `page` would have, which is precisely why [Slice 14](./TrackA-Slice14.md) could not
 simply pick a smaller number and had to use a half-page.
 
-A **byte-aware** cap — fill a page to a byte budget and report an explicit `next_offset` — was
-considered and **not taken**. It adapts to the variance properly, but it moves paging from page
-numbers to offsets, and that is the shape [Slice 17](./TrackA-Slice17.md) is about to consume.
-Recorded as the option to revisit if 20 proves wrong.
+A **byte-aware** cap was considered here and deferred on the grounds that it costs a contract
+change. **That decision was reversed the same day — see §2b**, which is why the cap of 20 above
+never reached a PR even though it was really committed.
+
+## 2b. The fixed cap was replaced by a byte budget, before Slice 17 could build on it
+
+Two probes retired the objection that deferred this in §2a.
+
+**`/variants/` ignores field selection.** `fields=`, `fields[]=`, `only=` and `omit=` are accepted
+and silently ignored; the variant always carries all 20 keys including `prices` and the ten
+`imageUri*`. So the 41.9% this tool discards **cannot be avoided by asking for less**, and
+fetching more variants adds no new class of waste.
+
+**Responses are gzipped**, which is the fact I failed to check when calling wire traffic a
+drawback:
+
+| variants fetched | raw | on the wire |
+|---|---|---|
+| 20 | 76,421 | **7.1 KB** |
+| 40 | 173,192 | 14.4 KB |
+| 60 | 249,561 | **20.4 KB** |
+
+At ~12:1, over-fetching costs **13 KB per call**, and it *reduces* the quantity
+[§3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) and
+[§3.7](../MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis) actually constrain —
+request **rate**. An argument retired by measurement is worth recording: the objection was stated
+without checking compression, and once checked it points the other way.
+
+**What shipped.** A page is filled to **50,000 characters**, fetching **60** variants upstream.
+`ComboSearchParams.page` became `offset`; `ComboSearchData` gained **`next_offset`**, absent on
+the last page. Measured live through the shipped bundle:
+
+| query | pages | combos per page | largest page |
+|---|---|---|---|
+| `card:"Thassa's Oracle"` (96 combos) | **3** (5 at cap 20) | 47, 30, 19 | 49,473 |
+| `cards>5 steps>5` (41 combos) | 3 | 16, 23, 2 | **49,366** (99,311 at cap 40) |
+
+Every combo reached exactly once, none repeated. **Page size varies within a single query** — 47,
+then 30, then 19, as later combos in the same result use more cards. That is the observation that
+makes a fixed count indefensible rather than merely suboptimal, and no count could have produced
+it.
+
+**One guard is load-bearing.** A combo larger than the whole budget is **still returned**. Return
+zero and `next_offset` equals `offset`, so the caller pages forever on an empty result: an
+oversized response is a bad page, a non-advancing offset is an infinite loop. A test drives it
+with a combo twice the budget.
+
+**Done now because [Slice 17](./TrackA-Slice17.md) had not yet built on the page-number shape.**
+Changing it today touched one tool; after 17 lands it would touch two plus both test suites. Its
+spec is updated so it builds the final shape rather than the retired one.
 
 ## 3. `requires` costs almost nothing, on the fixtures this repo holds
 
@@ -163,7 +209,7 @@ Four inversions, each pinned by a test:
   failure** — porting [CAP-01](../MCP-PRD.md#cap-01--card-search)'s 404-as-empty mapping would
   report "no combos match" for a bad path.
 - **[Slice 14](./TrackA-Slice14.md)'s 88-card half-page arithmetic does not transfer.**
-  `ceil(total / 20)` is simply correct here, and page *n* is a true `offset = (n-1) * 20`.
+  A true `offset` is what lets a page end wherever the byte budget runs out, stranding nothing.
 - **`format` always names the format requested.** Requirement 7 refuses anything this source cannot
   judge, so there is no applied-versus-requested gap of the kind
   [CAP-01](../MCP-PRD.md#cap-01--card-search)'s `legalities_mode` has. Nobody should add one.
@@ -256,7 +302,7 @@ and `tests/tools/register.test.ts` asserts exactly that, over every tool definit
 | 3 | Invalid query → structured failure, verbatim message, no throw | **met** |
 | 4 | No Commander Spellbook price field | **met** — sweep + typecheck, and live |
 | 5 | No `imageUri*` field | **met** — sweep + typecheck, and live |
-| 6 | ≤20 combos, states `total_combos` and `has_more`, page 2 sends `offset=20` | **met** |
+| 6 | page held to the byte budget, states `total_combos`/`has_more`/`next_offset` | **met** |
 | 7 | Format stated once, one `legal` boolean, no other format's legality | **met** |
 | 8 | `historic` / `standardbrawl` / `notaformat` refused with no upstream call; `EDH` and `Commander` resolve | **met, with one correction** — see below |
 | 9 | Empty 200 → successful empty result; 404 stays a failure | **met** |

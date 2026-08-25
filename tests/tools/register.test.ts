@@ -82,10 +82,12 @@ const EXPECTED_COMBO_DESCRIPTION =
   "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by " +
   "Commander Spellbook itself — `card:\"Thassa's Oracle\"` is the common case. Returns each " +
   "combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. " +
-  "20 combos per page; the response reports `total_combos` and `has_more`. `format` names the " +
-  "single format legality is judged for (default `commander`); these format names are not " +
-  "Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns " +
-  "Commander Spellbook's error text verbatim — correct it and retry.";
+  "Pages are sized by bytes, not by a fixed count, so combos per page varies; the response " +
+  "reports `total_combos`, `has_more` and `next_offset` — pass `next_offset` back as `offset` " +
+  "for the next page, never a computed one. `format` names the single format legality is judged " +
+  "for (default `commander`); these format names are not Scryfall's, and an unrecognized one is " +
+  "refused rather than guessed. An invalid query returns Commander Spellbook's error text " +
+  "verbatim — correct it and retry.";
 
 const parseBody = (result: { content: Array<{ type: "text"; text: string }> }): unknown =>
   JSON.parse(result.content[0]!.text);
@@ -117,7 +119,7 @@ describe("toolDefinitions", () => {
     }
   });
 
-  test("combo_search input schema requires q and declares page and format", () => {
+  test("combo_search input schema requires q and declares offset and format", () => {
     const schema = toolDefinitions[1]!.inputSchema as {
       type: string;
       required: string[];
@@ -126,10 +128,12 @@ describe("toolDefinitions", () => {
 
     assert.equal(schema.type, "object");
     assert.deepEqual(schema.required, ["q"]);
-    assert.deepEqual(Object.keys(schema.properties), ["q", "page", "format"]);
+    assert.deepEqual(Object.keys(schema.properties), ["q", "offset", "format"]);
     assert.equal(schema.properties.q!.type, "string");
-    assert.equal(schema.properties.page!.type, "integer");
-    assert.equal(schema.properties.page!.minimum, 1);
+    // 0-based and minimum 0, not a 1-based page: the page size is not constant, so a page number
+    // cannot express where the next page starts.
+    assert.equal(schema.properties.offset!.type, "integer");
+    assert.equal(schema.properties.offset!.minimum, 0);
     // A string, NOT a 16-value enum: sixteen values is a large resident cost for a parameter
     // almost nobody sets, and the handler's refusal names the valid set when it matters.
     assert.equal(schema.properties.format!.type, "string");
@@ -343,7 +347,7 @@ describe("dispatchToolCall — each tool reaches ONE source", () => {
     assert.equal(scryfallCalls.length, 0);
 
     const body = parseBody(result) as ComboSearchData;
-    assert.equal(body.combos.length, 20);
+    assert.equal(body.combos.length, 40); // the whole cheap fixture fits one byte-budgeted page
     assert.equal(body.total_combos, 96);
     assert.equal(body.format, "commander");
   });
@@ -373,37 +377,38 @@ describe("dispatchToolCall — combo_search argument handling", () => {
     }
   });
 
-  test("[requirement 13] a wrong-typed page or format is dropped and the default applies", async () => {
+  test("[requirement 13] a wrong-typed offset or format is dropped and the default applies", async () => {
     const { clients, spellbookCalls } = makeClients();
 
     const result = await dispatchToolCall(clients, "combo_search", {
       q: "x",
-      page: "3",        // string, not integer
+      offset: "3",      // string, not integer
       format: 42,       // not a string
       include: "near",  // unknown key — Slice 17's, and not accepted here
+      page: 2,          // the RETIRED parameter: silently ignored, never re-interpreted
     });
 
     assert.ok(!("isError" in result) || result.isError !== true);
     const body = parseBody(result) as ComboSearchData;
-    assert.equal(body.page, 1);
+    assert.equal(body.offset, 0);
     assert.equal(body.format, "commander");
     assert.equal(spellbookCalls[0]!.query!.offset, "0");
   });
 
-  test("[requirement 13] well-typed page and format reach the handler", async () => {
+  test("[requirement 13] well-typed offset and format reach the handler", async () => {
     const { clients, spellbookCalls } = makeClients();
 
     const result = await dispatchToolCall(clients, "combo_search", {
       q: "x",
-      page: 2,
+      offset: 40,
       format: "modern",
     });
 
     assert.ok(!("isError" in result) || result.isError !== true);
     assert.deepEqual(spellbookCalls[0]!.query, {
       q: "x",
-      limit: "20",
-      offset: "20",
+      limit: "60",
+      offset: "40",
       count: "true",
     });
     assert.equal((parseBody(result) as ComboSearchData).format, "modern");

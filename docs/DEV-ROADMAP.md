@@ -1339,7 +1339,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   `src/tools/combo-search.ts`; a `Clients` bundle in
   [`src/tools/register.ts`](../src/tools/register.ts).
 - **Done when:** ☑ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 2, 3, 6, 7, 8 and 14's
-  `combo_search` half verified · ☑ upstream paging sends `limit=20`, `offset=(page-1)*20` and
+  `combo_search` half verified · ☑ upstream paging sends `limit=60`, a pass-through `offset` and
   `count=true` · ☑ an unknown `format` is refused before any call · ☑ `dist/` rebuilt in the same
   commit · ☑ one [§9](./MCP-PRD.md#9-revision-log) row and **no criterion marked delivered**.
 - **Done 2026-08-25.** Results:
@@ -1365,8 +1365,8 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key) (never write a scoped tool name into a
   description).
 - **The trap.** [Slice 14](./slices/TrackA-Slice14.md)'s 88-card half-page arithmetic **does not
-  transfer** — Commander Spellbook exposes a true `offset`, so `ceil(total / 20)` is simply correct
-  here where its analogue was wrong there. And zero matches is an HTTP **200**, not a 404, so
+  transfer** — Commander Spellbook exposes a true `offset`, which is what lets a page end wherever
+  the byte budget runs out with nothing stranded behind it. And zero matches is an HTTP **200**, not a 404, so
   [CAP-01](./MCP-PRD.md#cap-01--card-search)'s deliberate 404-as-empty mapping must not be ported.
 
 #### Slice 17 — `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery)

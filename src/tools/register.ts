@@ -64,10 +64,12 @@ const COMBO_SEARCH_DESCRIPTION =
   "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by " +
   "Commander Spellbook itself — `card:\"Thassa's Oracle\"` is the common case. Returns each " +
   "combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. " +
-  "20 combos per page; the response reports `total_combos` and `has_more`. `format` names the " +
-  "single format legality is judged for (default `commander`); these format names are not " +
-  "Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns " +
-  "Commander Spellbook's error text verbatim — correct it and retry.";
+  "Pages are sized by bytes, not by a fixed count, so combos per page varies; the response " +
+  "reports `total_combos`, `has_more` and `next_offset` — pass `next_offset` back as `offset` " +
+  "for the next page, never a computed one. `format` names the single format legality is judged " +
+  "for (default `commander`); these format names are not Scryfall's, and an unrecognized one is " +
+  "refused rather than guessed. An invalid query returns Commander Spellbook's error text " +
+  "verbatim — correct it and retry.";
 
 // `format` is a string rather than a 16-value enum on purpose: sixteen values is a large schema
 // for a parameter almost nobody sets, and the handler's refusal already names the valid set at
@@ -76,7 +78,7 @@ const COMBO_SEARCH_INPUT_SCHEMA = {
   type: "object",
   properties: {
     q: { type: "string", description: "Commander Spellbook query string. Evaluated server-side; sent unmodified." },
-    page: { type: "integer", minimum: 1, description: "1-based page; 20 combos per page." },
+    offset: { type: "integer", minimum: 0, description: "0-based start, in combos. Omit for the first page; then pass the previous response's `next_offset`." },
     format: { type: "string", description: "Format legality is judged for. Default: commander. Unknown values are refused." },
   },
   required: ["q"],
@@ -203,13 +205,13 @@ async function dispatchComboSearch(client: HttpClient, args: unknown): Promise<T
 
   const raw = args as Record<string, unknown>;
 
-  // (MCP-PRD D-07) A wrong-typed `page` or `format` is silently dropped and the handler's default
-  // applies, exactly as `unique` and `legalities` are treated above. A missing or non-string `q`
-  // stays the one rejection. An unknown *format string* is a different matter and is refused by
-  // the handler, which is where the valid set is named.
+  // (MCP-PRD D-07) A wrong-typed `offset` or `format` is silently dropped and the handler's
+  // default applies, exactly as `unique` and `legalities` are treated above. A missing or
+  // non-string `q` stays the one rejection. An unknown *format string* is a different matter and
+  // is refused by the handler, which is where the valid set is named.
   const params: ComboSearchParams = {
     q,
-    ...(typeof raw.page === "number" && Number.isInteger(raw.page) ? { page: raw.page } : {}),
+    ...(typeof raw.offset === "number" && Number.isInteger(raw.offset) ? { offset: raw.offset } : {}),
     ...(typeof raw.format === "string" ? { format: raw.format } : {}),
   };
 

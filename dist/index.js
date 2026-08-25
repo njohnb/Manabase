@@ -16004,14 +16004,13 @@ function toComboSummary(variant, formatKey, bucket) {
 }
 
 // src/tools/combo-search.ts
-var PAGE_SIZE2 = 20;
-function pageCount(total) {
-  return total <= 0 ? 0 : Math.ceil(total / PAGE_SIZE2);
-}
-function normalizePage2(raw) {
-  if (raw === void 0 || !Number.isFinite(raw)) return 1;
+var BYTE_BUDGET = 5e4;
+var UPSTREAM_LIMIT = 60;
+var ENVELOPE_RESERVE = 400;
+function normalizeOffset(raw) {
+  if (raw === void 0 || !Number.isFinite(raw)) return 0;
   const truncated = Math.trunc(raw);
-  return truncated >= 1 ? truncated : 1;
+  return truncated >= 0 ? truncated : 0;
 }
 function unknownFormatFailure(requested) {
   return {
@@ -16022,14 +16021,13 @@ function unknownFormatFailure(requested) {
     }
   };
 }
-function outOfRangeFailure2(page, total) {
-  const pages = pageCount(total);
+function outOfRangeFailure2(offset, total) {
   return {
     ok: false,
     error: {
       // No `status`: our determination from a 200 body, not an HTTP outcome.
       code: "bad_request",
-      message: `Page ${page} is past the end of this result: ${total} combos match, which is ${pages} page${pages === 1 ? "" : "s"} of ${PAGE_SIZE2} (valid pages 1-${pages}). This is an out-of-range page, not a query that matched nothing.`
+      message: `Offset ${offset} is past the end of this result: ${total} combos match, so the valid offsets are 0-${total - 1}. This is an out-of-range offset, not a query that matched nothing. Start at offset 0 and follow \`next_offset\`.`
     }
   };
 }
@@ -16056,21 +16054,33 @@ function asVariantList(value) {
   const body = value;
   return Array.isArray(body.results) ? value : void 0;
 }
-function rangeNote2(page, offset, shown, total) {
-  return `${total} combos match; showing combos ${offset + 1}-${offset + shown} (page ${page} of ${pageCount(total)}). Narrow the query or request a specific page.`;
-}
 var DERIVED_TOTAL_NOTE = "Commander Spellbook did not report a total (`count` was absent or non-numeric), so `total_combos` is derived from this page and may understate the true number; `has_more` reflects upstream's own next-page link.";
+function fillPage(list, formatKey) {
+  const kept = [];
+  let bytes = ENVELOPE_RESERVE;
+  for (const variant of list.results) {
+    const summary = toComboSummary(variant, formatKey);
+    const cost = JSON.stringify(summary).length + 1;
+    if (kept.length > 0 && bytes + cost > BYTE_BUDGET) break;
+    kept.push(summary);
+    bytes += cost;
+  }
+  return kept;
+}
+function rangeNote2(offset, shown, total, nextOffset) {
+  const range = `${total} combos match; showing combos ${offset + 1}-${offset + shown}`;
+  return nextOffset === void 0 ? `${range}. This is the last page.` : `${range}. Request \`offset: ${nextOffset}\` for the next page. Page size varies with combo size, so always follow \`next_offset\` rather than assuming a fixed step.`;
+}
 async function comboSearch(client, params) {
   const formatKey = resolveFormat(params.format);
   if (formatKey === void 0) return unknownFormatFailure(params.format ?? "");
-  const page = normalizePage2(params.page);
-  const offset = (page - 1) * PAGE_SIZE2;
+  const offset = normalizeOffset(params.offset);
   let result;
   try {
     result = await client.get("/variants/", {
       q: params.q,
       // byte-identical; encoding is the transport's job
-      limit: String(PAGE_SIZE2),
+      limit: String(UPSTREAM_LIMIT),
       offset: String(offset),
       // Without this, `count` comes back null with the key PRESENT — a missing total that does
       // not announce itself (MCP-PRD §4.4, verified 2026-08-24). Criterion 8 needs the total.
@@ -16089,26 +16099,28 @@ async function comboSearch(client, params) {
   const list = asVariantList(result.value);
   if (list === void 0) return unexpectedBodyFailure();
   const countIsUsable = typeof list.count === "number" && Number.isFinite(list.count);
-  const shown = list.results.slice(0, PAGE_SIZE2);
-  const total = countIsUsable ? list.count : offset + shown.length;
-  if (shown.length === 0 && total > 0) return outOfRangeFailure2(page, total);
-  const first = shown[0];
+  const total = countIsUsable ? list.count : offset + list.results.length;
+  if (list.results.length === 0 && total > 0) return outOfRangeFailure2(offset, total);
+  const first = list.results[0];
   if (first !== void 0 && typeof first.legalities[formatKey] !== "boolean") {
     return missingLegalityFailure(formatKey);
   }
-  const combos = shown.map((variant) => toComboSummary(variant, formatKey));
-  const has_more = list.next !== null || offset + combos.length < total;
+  const combos = fillPage(list, formatKey);
+  const truncatedLocally = combos.length < list.results.length;
+  const has_more = truncatedLocally || list.next !== null || offset + combos.length < total;
+  const nextOffset = has_more ? offset + combos.length : void 0;
   const data = {
     combos,
     total_combos: total,
-    page,
+    offset,
+    ...nextOffset !== void 0 ? { next_offset: nextOffset } : {},
     has_more,
     format: formatKey
   };
   if (!countIsUsable) {
     data.note = DERIVED_TOTAL_NOTE;
-  } else if (has_more || pageCount(total) > 1) {
-    data.note = rangeNote2(page, offset, combos.length, total);
+  } else if (combos.length > 0 && (has_more || offset > 0)) {
+    data.note = rangeNote2(offset, combos.length, total, nextOffset);
   }
   return { ok: true, value: data };
 }
@@ -16127,12 +16139,12 @@ var CARD_SEARCH_INPUT_SCHEMA = {
   },
   required: ["q"]
 };
-var COMBO_SEARCH_DESCRIPTION = "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by Commander Spellbook itself \u2014 `card:\"Thassa's Oracle\"` is the common case. Returns each combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. 20 combos per page; the response reports `total_combos` and `has_more`. `format` names the single format legality is judged for (default `commander`); these format names are not Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns Commander Spellbook's error text verbatim \u2014 correct it and retry.";
+var COMBO_SEARCH_DESCRIPTION = "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by Commander Spellbook itself \u2014 `card:\"Thassa's Oracle\"` is the common case. Returns each combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. Pages are sized by bytes, not by a fixed count, so combos per page varies; the response reports `total_combos`, `has_more` and `next_offset` \u2014 pass `next_offset` back as `offset` for the next page, never a computed one. `format` names the single format legality is judged for (default `commander`); these format names are not Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns Commander Spellbook's error text verbatim \u2014 correct it and retry.";
 var COMBO_SEARCH_INPUT_SCHEMA = {
   type: "object",
   properties: {
     q: { type: "string", description: "Commander Spellbook query string. Evaluated server-side; sent unmodified." },
-    page: { type: "integer", minimum: 1, description: "1-based page; 20 combos per page." },
+    offset: { type: "integer", minimum: 0, description: "0-based start, in combos. Omit for the first page; then pass the previous response's `next_offset`." },
     format: { type: "string", description: "Format legality is judged for. Default: commander. Unknown values are refused." }
   },
   required: ["q"]
@@ -16212,7 +16224,7 @@ async function dispatchComboSearch(client, args) {
   const raw = args;
   const params = {
     q,
-    ...typeof raw.page === "number" && Number.isInteger(raw.page) ? { page: raw.page } : {},
+    ...typeof raw.offset === "number" && Number.isInteger(raw.offset) ? { offset: raw.offset } : {},
     ...typeof raw.format === "string" ? { format: raw.format } : {}
   };
   return toolResult(await comboSearch(client, params));

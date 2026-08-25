@@ -597,7 +597,7 @@ not yet a PR — half of `CAP-02`, and the slice that sets the normalized combo 
 modules: `src/spellbook/types.ts` (wire shapes that omit `prices` and every `imageUri*` field),
 `src/spellbook/combos.ts` (`ComboSummary` plus `resolveFormat` over Commander Spellbook's 16
 legality keys), `src/tools/combo-search.ts` (one upstream request per call, `limit=40`,
-`offset=(page-1)*20`, `count=true`, defensive `slice(0, 20)`); `register.ts` gains a `Clients`
+a pass-through `offset`, `count=true`, and a 50,000-character page budget); `register.ts` gains a `Clients`
 bundle and a second tool definition, `index.ts` builds both clients. `tools/list` on the rebuilt
 bundle reports **two** tools. Tests 150 → 210, suites 39 → 56; typecheck clean;
 `npm run acceptance` 13/13 live, no 429. Evidence: `docs/slices/TrackA-Slice16-results.md`.
@@ -626,7 +626,7 @@ owner's call. The design facts bind later slices. `dispatchToolCall(clients, nam
 **bundle**, and each handler still receives the one client it needs. **Zero matches is HTTP 200**
 and a successful empty result, while a **404 stays a failure** — `CAP-01`'s 404-as-empty mapping is
 deliberately not ported. **Slice 14's 88-card half-page arithmetic does not transfer**:
-`ceil(total / 20)` and a true `offset = (page-1) * 20`. **`format` always names the format
+a page is filled to a **byte budget** and paged by **`next_offset`**. **`format` always names the format
 requested**, so there is no applied-versus-requested gap like `legalities_mode`'s — and legality is
 one **boolean** named `legal`, never a map of 16 keys and never Scryfall's `"legal"`/`"not_legal"`
 strings, with a per-call guard that returns a structured `unexpected` if the resolved key is absent

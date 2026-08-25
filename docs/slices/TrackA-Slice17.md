@@ -372,12 +372,24 @@ enforce.
    `"matched+near"` returns near-misses, each labelled with the bucket it came from. Assert against
    all four near buckets, not just `almostIncluded`.
 7. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion 8, `combo_find_deck` half]** A
-   response reports at most **20** combos (the cap was amended from 40 on 2026-08-25 — see
-   [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) and
-   [§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured)), states `total_combos` and
-   `has_more`, and page 2 returns the
-   next slice — with `total_combos` counting after classification and filtering, not upstream's
-   `count`.
+   response fills a page to the **byte budget** rather than to a combo count, states
+   `total_combos` and `has_more`, and reports **`next_offset`** so following it reaches every
+   combo exactly once — with `total_combos` counting after classification and filtering, not
+   upstream's `count`.
+
+   **This changed twice on 2026-08-25 and the final shape is the one to build.** The cap was
+   specified as 40 combos, amended to 20 on measurement, then replaced entirely by a 50,000
+   character budget with offset paging, because per-combo cost spans 547–4,421 characters and no
+   single count serves both ends ([CAP-02](../MCP-PRD.md#cap-02--combo-discovery),
+   [§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured)'s three addenda).
+   `combo_search` ships this shape today: `offset` in, `next_offset` out, absent on the last page,
+   and **one combo larger than the whole budget is still returned** so the offset always advances.
+   Match it — a second paging idiom across two tools of one capability is exactly the drift
+   [OQ-12](../MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)
+   set the normalized-shape rule to prevent.
+
+   **The budget is applied after classification here, not sent upstream** — that distinction is
+   untouched by the change and is still the point of the two paging bullets.
 8. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion 13]** An empty `cards`, an absent
    `cards`, and an array of only empty strings each return a `bad_request` and make **zero**
    upstream calls to either source — asserted by counting calls on both fakes.
@@ -443,7 +455,7 @@ fixture precisely as the criterion describes it. `tests/fixtures/spellbook/READM
 Cite [§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured)'s measurements from the
 PRD; never recompute them from a truncated fixture.
 
-Tests needing more than 20 combos in a bucket synthesize them in-test by repeating a fixture
+Tests needing more combos in a bucket than a fixture holds synthesize them in-test by repeating a fixture
 variant with distinct ids, rather than committing a larger fixture. Say so in a comment — a
 synthesized payload is derived data too.
 

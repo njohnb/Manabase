@@ -253,13 +253,13 @@ describe("resolveFormat — requirement 7", () => {
 });
 
 describe("the trim, measured", () => {
-  test("a 20-combo page stays well inside the harness ceiling", () => {
-    // A page is 20 combos, sized on measurement — see PAGE_SIZE in src/tools/combo-search.ts.
-    // This fixture holds 40 variants, so its first 20 are one page and all 40 exercise the shaper.
+  test("the whole cheap fixture fits one byte-budgeted page", () => {
+    // A page is filled to BYTE_BUDGET (src/tools/combo-search.ts), not to a fixed combo count.
+    // This fixture is a cheap query at ~1,001 characters per combo, so all 40 fit — which is the
+    // point of the budget, since the retired fixed cap of 20 would have returned half of them.
     const shaped = page1.results.map((v) => toComboSummary(v, "commander"));
     assert.equal(shaped.length, 40);
 
-    const pageChars = JSON.stringify(shaped.slice(0, 20)).length;
     const allChars = JSON.stringify(shaped).length;
 
     // A BOUND, never an equality: per-combo cost varies with how many cards a combo uses, so an
@@ -270,8 +270,8 @@ describe("the trim, measured", () => {
     // the cap is sized for margin. And this fixture is a CHEAP query: 577 combos sampled live on
     // 2026-08-25 put its ~1,001 characters per combo near the bottom of a distribution whose p99
     // is 2,530 and whose maximum is 4,421. Never read this test as proving a page is always small.
-    assert.ok(pageChars < 50_000, `20-combo page measured ${pageChars} characters`);
-    assert.ok(allChars < 116_626, `40 shaped variants measured ${allChars} characters`);
+    assert.ok(allChars < 50_000, `40 shaped variants measured ${allChars} characters`);
+    assert.ok(allChars < 116_626, "at the issue #25 ceiling");
     assert.ok(allChars / 40 < 1_400, `per-combo cost ${Math.round(allChars / 40)} on this fixture`);
 
     // The trim is real: the raw fixture is several times the shaped form.

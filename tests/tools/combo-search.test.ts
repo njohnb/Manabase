@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { Failure, Result } from "../../src/result.ts";
 import type { SpellbookClient } from "../../src/spellbook/client.ts";
-import type { SpellbookVariantList } from "../../src/spellbook/types.ts";
+import type { SpellbookVariant, SpellbookVariantList } from "../../src/spellbook/types.ts";
 import { comboSearch } from "../../src/tools/combo-search.ts";
 
 // Loaded at runtime, like every other suite here.
@@ -11,13 +11,17 @@ function fixture(name: string): unknown {
   return JSON.parse(readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8"));
 }
 
-/** Verbatim: 40 variants, `count` 96, `next` populated. */
+/** Verbatim: 40 variants, `count` 96, `next` populated. ~1,001 characters per shaped combo. */
 const page1 = fixture("spellbook/variants-page1.json") as SpellbookVariantList;
 /** DERIVED: the real offset=40 response truncated to 8. `count` is still the captured 96. */
 const page2 = fixture("spellbook/variants-page2.json") as SpellbookVariantList;
 const empty = fixture("spellbook/variants-empty.json") as SpellbookVariantList;
 /** Verbatim HTTP 400 body: `{"q":["Invalid search query: unexpected character : at position 34."]}` */
 const invalidQuery400 = fixture("spellbook/variants-invalid-query-400.json") as Record<string, string[]>;
+
+/** Mirrors BYTE_BUDGET / UPSTREAM_LIMIT in src/tools/combo-search.ts. */
+const BYTE_BUDGET = 50_000;
+const UPSTREAM_LIMIT = 60;
 
 interface RecordedCall {
   path: string;
@@ -83,7 +87,7 @@ const failure = (
   return { ok: false, error };
 };
 
-/** An envelope carrying `n` variants, cycling the page-1 pool and stamping distinguishable ids. */
+/** An envelope of `n` variants cycling the page-1 pool, with distinguishable ids. */
 function envelope(
   n: number,
   opts: { count: number | null; next?: string | null },
@@ -96,6 +100,29 @@ function envelope(
     results: Array.from({ length: n }, (_, i) => ({
       ...pool[i % pool.length]!,
       id: `synthetic-${i + 1}`,
+    })),
+  };
+}
+
+/**
+ * An envelope whose variants are deliberately expensive, by padding `description` — the field
+ * that dominates the trimmed form. Synthesized rather than captured: no committed fixture carries
+ * a combo near the 4,421-character maximum measured live on 2026-08-25.
+ */
+function expensiveEnvelope(
+  n: number,
+  charsEach: number,
+  opts: { count: number | null; next?: string | null },
+): SpellbookVariantList {
+  const base = page1.results[0]!;
+  return {
+    count: opts.count,
+    next: opts.next ?? null,
+    previous: null,
+    results: Array.from({ length: n }, (_, i): SpellbookVariant => ({
+      ...base,
+      id: `costly-${i + 1}`,
+      description: "x".repeat(charsEach),
     })),
   };
 }
@@ -138,8 +165,8 @@ describe("comboSearch — the query passes through byte-identically", () => {
   });
 });
 
-describe("comboSearch — paging is a true offset", () => {
-  test("[CAP-02 #8] page 1 sends limit=20, offset=0 and count=true", async () => {
+describe("comboSearch — paging is by offset", () => {
+  test("[CAP-02 #8] the first call sends limit=60, offset=0 and count=true", async () => {
     const { client, calls } = makeFakeClient({ ok: true, value: page1 });
 
     const result = await comboSearch(client, { q: 'card:"Thassa\'s Oracle"' });
@@ -147,54 +174,77 @@ describe("comboSearch — paging is a true offset", () => {
     assert.ok(result.ok);
     assert.deepEqual(calls[0]!.query, {
       q: 'card:"Thassa\'s Oracle"',
-      limit: "20",
+      limit: String(UPSTREAM_LIMIT),
       offset: "0",
       count: "true",
     });
-    assert.equal(result.value.combos.length, 20);
+    assert.equal(result.value.offset, 0);
     assert.equal(result.value.total_combos, 96);
-    assert.equal(result.value.page, 1);
     assert.equal(result.value.has_more, true);
   });
 
-  test("[CAP-02 #8] page 2 sends offset=20 and returns different ids", async () => {
+  test("[CAP-02 #8] `offset` passes through unchanged — no page arithmetic", async () => {
+    // Nothing multiplies or divides the caller's offset. The page size is not constant, so any
+    // arithmetic over it would be wrong by construction.
+    for (const offset of [0, 1, 17, 40, 500]) {
+      const { client, calls } = makeFakeClient({ ok: true, value: envelope(60, { count: 1000 }) });
+      const result = await comboSearch(client, { q: "x", offset });
+      assert.ok(result.ok, `offset ${offset}`);
+      assert.equal(calls[0]!.query!.offset, String(offset));
+      assert.equal(result.value.offset, offset);
+    }
+  });
+
+  test("[CAP-02 #8] a later offset returns different combos", async () => {
     const { client: c1 } = makeFakeClient({ ok: true, value: page1 });
     const first = await comboSearch(c1, { q: "x" });
 
     const { client: c2, calls } = makeFakeClient({ ok: true, value: page2 });
-    const second = await comboSearch(c2, { q: "x", page: 2 });
+    const second = await comboSearch(c2, { q: "x", offset: 40 });
 
-    assert.equal(calls[0]!.query!.offset, "20");
-    assert.equal(calls[0]!.query!.limit, "20");
+    assert.equal(calls[0]!.query!.offset, "40");
     assert.ok(first.ok && second.ok);
 
     const firstIds = new Set(first.value.combos.map((c) => c.id));
     const secondIds = second.value.combos.map((c) => c.id);
     assert.ok(secondIds.length > 0);
-    for (const id of secondIds) assert.equal(firstIds.has(id), false, `id ${id} repeated on page 2`);
-    assert.equal(second.value.page, 2);
+    for (const id of secondIds) assert.equal(firstIds.has(id), false, `id ${id} repeated`);
+    assert.equal(second.value.offset, 40);
   });
 
-  test("offset arithmetic is (page - 1) * 20 — no half-page trick", async () => {
-    // Slice 14's 88-card arithmetic exists because Scryfall's `page` is in units of 175 with no
-    // offset. Commander Spellbook exposes a real offset, so reproducing it here would be a bug.
-    for (const [page, offset] of [[1, "0"], [2, "20"], [3, "40"], [5, "80"]] as const) {
-      const { client, calls } = makeFakeClient({ ok: true, value: envelope(40, { count: 500 }) });
-      await comboSearch(client, { q: "x", page });
-      assert.equal(calls[0]!.query!.offset, offset, `page ${page}`);
-    }
+  test("`next_offset` advances by exactly the combos returned", async () => {
+    // The contract the caller depends on: echo `next_offset` back and nothing is skipped or
+    // repeated, whatever the page size turned out to be.
+    const { client } = makeFakeClient({ ok: true, value: expensiveEnvelope(60, 5_000, { count: 500 }) });
+
+    const result = await comboSearch(client, { q: "x", offset: 12 });
+
+    assert.ok(result.ok);
+    assert.equal(result.value.next_offset, 12 + result.value.combos.length);
+    assert.equal(result.value.has_more, true);
   });
 
-  test("a non-positive, fractional or absent page defends itself and becomes page 1", async () => {
-    for (const page of [undefined, 0, -5, 1.7, Number.NaN, Number.POSITIVE_INFINITY]) {
+  test("`next_offset` is ABSENT on the last page, never a dead-end number", async () => {
+    const last = envelope(5, { count: 5, next: null });
+    const { client } = makeFakeClient({ ok: true, value: last });
+
+    const result = await comboSearch(client, { q: "x" });
+
+    assert.ok(result.ok);
+    assert.equal(result.value.has_more, false);
+    assert.equal("next_offset" in result.value, false);
+  });
+
+  test("a negative, fractional or absent offset defends itself and never goes negative", async () => {
+    for (const offset of [undefined, -1, -500, 1.7, Number.NaN, Number.POSITIVE_INFINITY]) {
       const { client, calls } = makeFakeClient({ ok: true, value: page1 });
       const result = await comboSearch(client, {
         q: "x",
-        ...(page !== undefined ? { page } : {}),
+        ...(offset !== undefined ? { offset } : {}),
       });
-      assert.ok(result.ok, `page ${String(page)}`);
-      assert.equal(calls[0]!.query!.offset, "0", `page ${String(page)}`);
-      assert.equal(result.value.page, 1, `page ${String(page)}`);
+      assert.ok(result.ok, `offset ${String(offset)}`);
+      assert.ok(Number(calls[0]!.query!.offset) >= 0, `offset ${String(offset)}`);
+      assert.ok(result.value.offset >= 0);
     }
   });
 
@@ -208,12 +258,10 @@ describe("comboSearch — paging is a true offset", () => {
     assert.equal(calls.length, 1);
   });
 
-  test("has_more is false on the last page", async () => {
-    // 96 combos, page 5: offset 80, 16 returned, nothing left and no `next`.
-    const last = envelope(16, { count: 96, next: null });
-    const { client } = makeFakeClient({ ok: true, value: last });
+  test("has_more is false when the window is the whole result", async () => {
+    const { client } = makeFakeClient({ ok: true, value: envelope(16, { count: 96, next: null }) });
 
-    const result = await comboSearch(client, { q: "x", page: 5 });
+    const result = await comboSearch(client, { q: "x", offset: 80 });
 
     assert.ok(result.ok);
     assert.equal(result.value.combos.length, 16);
@@ -222,37 +270,97 @@ describe("comboSearch — paging is a true offset", () => {
   });
 });
 
-describe("comboSearch — the defensive cap", () => {
-  test("[requirement 6] an envelope carrying 21 results returns 20", async () => {
-    // `limit=40` is the mechanism; the slice is the guarantee. An upstream that ignores or
-    // redefines `limit` must not turn into a 400,000-character tool result.
-    const { client } = makeFakeClient({ ok: true, value: envelope(21, { count: 96 }) });
+describe("comboSearch — the byte budget", () => {
+  test("[requirement 6] a page never exceeds the budget once more than one combo fits", async () => {
+    // 60 variants at ~5,000 characters each is 300,000 raw; the budget is what stops it.
+    const { client } = makeFakeClient({ ok: true, value: expensiveEnvelope(60, 5_000, { count: 500 }) });
 
     const result = await comboSearch(client, { q: "x" });
 
     assert.ok(result.ok);
-    assert.equal(result.value.combos.length, 20);
+    const chars = JSON.stringify(result.value).length;
+    assert.ok(chars <= BYTE_BUDGET, `page measured ${chars}, over the ${BYTE_BUDGET} budget`);
+    assert.ok(result.value.combos.length > 1);
+    assert.ok(result.value.combos.length < 60, "the budget did not bite");
     assert.equal(result.value.has_more, true);
   });
 
-  test("[requirement 6] an upstream that ignores limit entirely is still capped", async () => {
-    const { client } = makeFakeClient({ ok: true, value: envelope(96, { count: 96, next: null }) });
+  test("[requirement 6] a cheap query fills the page with far more than a fixed cap would", async () => {
+    // The point of the budget: ~1,001 characters per combo means the whole 40-variant fixture
+    // fits, where the retired fixed cap of 20 would have returned half of it.
+    const { client } = makeFakeClient({ ok: true, value: page1 });
 
     const result = await comboSearch(client, { q: "x" });
 
     assert.ok(result.ok);
-    assert.equal(result.value.combos.length, 20);
+    assert.equal(result.value.combos.length, 40);
+    assert.ok(JSON.stringify(result.value).length <= BYTE_BUDGET);
+  });
+
+  test("a single combo larger than the whole budget is STILL returned", async () => {
+    // The load-bearing guard. Returning zero would leave `next_offset` equal to `offset`, and the
+    // caller would page forever on an empty result — an infinite loop is worse than a big page.
+    const { client } = makeFakeClient({
+      ok: true,
+      value: expensiveEnvelope(3, BYTE_BUDGET * 2, { count: 3 }),
+    });
+
+    const result = await comboSearch(client, { q: "x" });
+
+    assert.ok(result.ok);
+    assert.equal(result.value.combos.length, 1);
+    assert.equal(result.value.next_offset, 1, "next_offset must advance past an oversized combo");
     assert.equal(result.value.has_more, true);
-    // The point of the cap: an uncapped 96-variant response is 533,840 characters upstream
-    // (MCP-PRD §4.4.1). The bound asserted is the issue #25 harness ceiling, not CAP-02's 50,000
-    // page budget — a live page 2 of this query measured 63,688 on 2026-08-25.
-    assert.ok(JSON.stringify(result.value).length < 116_626);
+    assert.ok(JSON.stringify(result.value).length > BYTE_BUDGET); // deliberately over
+  });
+
+  test("truncating inside a window we already hold still reports has_more", async () => {
+    // `next` is null and the count is satisfied by the window, so the ONLY signal that more
+    // exist is that the budget ended the page early. A fixed cap never had this case.
+    const { client } = makeFakeClient({
+      ok: true,
+      value: expensiveEnvelope(60, 5_000, { count: 60, next: null }),
+    });
+
+    const result = await comboSearch(client, { q: "x" });
+
+    assert.ok(result.ok);
+    assert.ok(result.value.combos.length < 60);
+    assert.equal(result.value.has_more, true);
+    assert.equal(result.value.next_offset, result.value.combos.length);
+  });
+
+  test("paging an expensive result by next_offset reaches every combo exactly once", async () => {
+    // The end-to-end reachability claim, driven through repeated calls the way a caller would.
+    const total = 45;
+    const all = expensiveEnvelope(total, 5_000, { count: total, next: null });
+    const seen: string[] = [];
+    let offset = 0;
+
+    for (let guard = 0; guard < 20; guard += 1) {
+      const window: SpellbookVariantList = {
+        count: total,
+        next: null,
+        previous: null,
+        results: all.results.slice(offset, offset + UPSTREAM_LIMIT),
+      };
+      const { client } = makeFakeClient({ ok: true, value: window });
+      const result = await comboSearch(client, { q: "x", offset });
+      assert.ok(result.ok);
+      seen.push(...result.value.combos.map((c) => c.id));
+      if (!result.value.has_more) break;
+      assert.ok(result.value.next_offset! > offset, "offset must strictly advance");
+      offset = result.value.next_offset!;
+    }
+
+    assert.equal(seen.length, total, "every combo reachable exactly once");
+    assert.equal(new Set(seen).size, total, "no combo repeated");
   });
 });
 
 describe("comboSearch — count=true and the total", () => {
   test("[requirement 4] every outgoing request carries count=true", async () => {
-    for (const params of [{ q: "x" }, { q: "x", page: 4 }, { q: "x", format: "modern" }]) {
+    for (const params of [{ q: "x" }, { q: "x", offset: 40 }, { q: "x", format: "modern" }]) {
       const { client, calls } = makeFakeClient({ ok: true, value: page1 });
       await comboSearch(client, params);
       assert.equal(calls[0]!.query!.count, "true");
@@ -270,9 +378,9 @@ describe("comboSearch — count=true and the total", () => {
     const result = await comboSearch(client, { q: "x" });
 
     assert.ok(result.ok);
-    assert.equal(result.value.combos.length, 20);
+    assert.ok(result.value.combos.length > 0);
     assert.notEqual(result.value.total_combos, 0);
-    assert.equal(result.value.total_combos, 20); // derived from what was returned
+    assert.equal(result.value.total_combos, 40); // derived from what was returned
     assert.ok(result.value.note);
     assert.match(result.value.note, /count/i);
     // `next` still says more exist, so the response must not claim this is everything.
@@ -303,6 +411,7 @@ describe("comboSearch — zero matches, and what must NOT be mapped to it", () =
     assert.deepEqual(result.value.combos, []);
     assert.equal(result.value.total_combos, 0);
     assert.equal(result.value.has_more, false);
+    assert.equal("next_offset" in result.value, false);
     assert.equal(result.value.format, "commander");
   });
 
@@ -316,35 +425,34 @@ describe("comboSearch — zero matches, and what must NOT be mapped to it", () =
 
     const result = await comboSearch(client, { q: "x" });
 
-    assert.equal(result.ok, false);
     assert.ok(!result.ok);
     assert.equal(result.error.code, "not_found");
     assert.equal(result.error.status, 404);
   });
 });
 
-describe("comboSearch — a page past the end", () => {
-  test("an empty page with a non-zero total is bad_request, not an empty success", async () => {
+describe("comboSearch — an offset past the end", () => {
+  test("an empty window with a non-zero total is bad_request, not an empty success", async () => {
     // Distinguishable from zero matches exactly as CAP-01 distinguishes it: `count > 0` with no
-    // results is an out-of-range page, not a query that matched nothing.
+    // results is an out-of-range offset, not a query that matched nothing.
     const { client } = makeFakeClient({ ok: true, value: envelope(0, { count: 96, next: null }) });
 
-    const result = await comboSearch(client, { q: "x", page: 9 });
+    const result = await comboSearch(client, { q: "x", offset: 500 });
 
     assert.ok(!result.ok);
     assert.equal(result.error.code, "bad_request");
     assert.match(result.error.message, /96 combos match/);
-    assert.match(result.error.message, /valid pages 1-5/);
+    assert.match(result.error.message, /valid offsets are 0-95/);
     // No `status`: our determination from a 200 body, not an HTTP outcome.
     assert.equal("status" in result.error, false);
   });
 
-  test("the page count is ceil(total / 20) — Slice 14's arithmetic does not transfer", async () => {
-    for (const [total, pages] of [[20, 1], [21, 2], [96, 5], [176, 9], [200, 10]] as const) {
+  test("the valid range is stated in combos, not pages", async () => {
+    for (const total of [1, 40, 96, 176]) {
       const { client } = makeFakeClient({ ok: true, value: envelope(0, { count: total }) });
-      const result = await comboSearch(client, { q: "x", page: 99 });
+      const result = await comboSearch(client, { q: "x", offset: 9_999 });
       assert.ok(!result.ok);
-      assert.match(result.error.message, new RegExp(`valid pages 1-${pages}\\b`), `total ${total}`);
+      assert.match(result.error.message, new RegExp(`valid offsets are 0-${total - 1}\\b`), `total ${total}`);
     }
   });
 });

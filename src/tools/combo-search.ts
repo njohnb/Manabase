@@ -1,21 +1,30 @@
 import type { Result } from "../result.ts";
 import type { HttpClient } from "../http/client.ts";
-import type { SpellbookVariant, SpellbookVariantList } from "../spellbook/types.ts";
+import type { SpellbookVariantList } from "../spellbook/types.ts";
 import { SPELLBOOK_LEGALITY_KEYS, resolveFormat, toComboSummary } from "../spellbook/combos.ts";
 import type { ComboSummary } from "../spellbook/combos.ts";
 
 export interface ComboSearchParams {
   /** Passed upstream byte-identically. Never parsed, validated, or rewritten. */
   q: string;
-  page?: number;   // 1-based; default 1
+  /** 0-based, in combos. Default 0. Take it from the previous response's `next_offset`. */
+  offset?: number;
   format?: string; // default "commander"; an unrecognized value is refused
 }
 
 export interface ComboSearchData {
-  /** At most `PAGE_SIZE`, and never carrying `bucket` — that is `combo_find_deck`'s. */
+  /** Filled to `BYTE_BUDGET`, never carrying `bucket` — that is `combo_find_deck`'s. */
   combos: ComboSummary[];
   total_combos: number;
-  page: number;
+  /** Where this page starts, echoing the request (0-based). */
+  offset: number;
+  /**
+   * Where the NEXT page starts. Absent when `has_more` is false.
+   *
+   * This exists because the page size is not constant: pages are filled to a byte budget, so the
+   * caller cannot compute the next start from a page number. Echo this value back as `offset`.
+   */
+  next_offset?: number;
   has_more: boolean;
   /**
    * The format legality was judged for. ALWAYS the one requested: `resolveFormat` refuses
@@ -28,45 +37,52 @@ export interface ComboSearchData {
 }
 
 /**
- * Our page size, and the `limit` sent upstream.
+ * A page is filled to a BYTE BUDGET, not to a fixed combo count.
  *
- * TWENTY, NOT CAP-02's ORIGINAL FORTY, and the difference is measured rather than cautious.
- * That 40 was derived from one query — `card:"Thassa's Oracle"` at 1,236 characters per combo —
- * and 577 combos sampled across 15 queries on 2026-08-25 put that near the CHEAP end of the real
- * distribution: p50 1,390, p99 2,530, max 4,421, sampled mean 1,393. Per-combo cost tracks how
- * many cards a combo uses, and `cards>5 steps>5` is an ordinary query a user can type: at 40 it
- * returned a measured 99,311-character tool result, 85% of the 116,626 that breached a harness
- * ceiling in issue #25.
+ * Fixed counts do not fit this source. 577 combos sampled across 15 queries on 2026-08-25 measured
+ * per-combo cost at 547 minimum, 1,390 median and 4,421 maximum — a 5.7x spread, because cost
+ * tracks how many cards a combo uses. Any single count is therefore wrong in both directions at
+ * once: a count safe for `cards>5` (a real query, measured at 99,311 characters for 40 combos —
+ * 85% of the 116,626 that breached a harness ceiling in issue #25) starves an ordinary
+ * `card:"..."` query of two thirds of the combos that would have fit.
  *
- * The margin is the point. 116,626 is a value known to FAIL, not the limit — the true ceiling is
- * unknown and lower. At 20 the realistic worst page is ~58,400 and a page of all-maximum-cost
- * combos still lands under 90,000, while the typical page is ~27,900. A cap of 25 would put the
- * pathological page at 95% of a number already known to be too big.
- *
- * CAP-01's 88-card half-page arithmetic DOES NOT TRANSFER. That shape exists because Scryfall's
- * `page` is in units of 175 with no offset, so a cap below 175 would strand cards behind no `page`
- * value at all. Commander Spellbook exposes a real `offset`, so there is no half-page trick, no
- * upstream-page anchoring, and `ceil(total / 20)` is simply correct here where its analogue was
- * wrong there. Reproducing Slice 14's arithmetic would be a bug — and it is what makes changing
- * this number safe: every combo stays reachable at any cap.
+ * 50,000 matches CAP-01's delivered band and is under half the known-bad 116,626 — which is a
+ * value known to FAIL rather than the limit, the true ceiling being unknown and lower.
  */
-const PAGE_SIZE = 20;
-
-/** How many of our pages a result spans. A true offset, so the naive form is the right one. */
-function pageCount(total: number): number {
-  return total <= 0 ? 0 : Math.ceil(total / PAGE_SIZE);
-}
+const BYTE_BUDGET = 50_000;
 
 /**
- * `page` reaches here from `dispatchToolCall`, which admits any integer, and from direct calls
- * (MCP-PRD D-03) — the schema's `minimum: 1` is not enforced in code, so this defends itself.
- * An unclamped `page: 0` or `page: -5` would compute a negative offset and serve either nothing
- * or someone else's combos under a nonsense page number.
+ * How many variants to ask upstream for. Not the page size — the page size is whatever fits.
+ *
+ * 60 fills the budget for every query except the very cheapest, and costs 20.4 KB gzipped against
+ * 7.1 KB for 20 (measured 2026-08-25; the API serves `content-encoding: gzip`). Fetching more than
+ * is returned is deliberate and cheap: MCP-PRD §4.4.1's "the wire budget and the model budget are
+ * different budgets". It cannot be avoided by asking for less, either — `/variants/` ignores
+ * `fields=`, `fields[]=`, `only=` and `omit=`, so the ten `imageUri*` fields worth 41.9% of the
+ * payload arrive on every call whatever we do.
+ *
+ * Fewer, larger requests is also the direction §3.4 and §3.7 care about: they constrain request
+ * RATE against a source that publishes no limit, and this makes a 96-combo sweep 2 requests
+ * rather than 5.
  */
-function normalizePage(raw: number | undefined): number {
-  if (raw === undefined || !Number.isFinite(raw)) return 1;
+const UPSTREAM_LIMIT = 60;
+
+/**
+ * Reserved for the keys around `combos` — `total_combos`, `offset`, `next_offset`, `has_more`,
+ * `format` and the longest `note` this module emits. Deliberately generous: overshooting the
+ * budget matters and under-filling a page by a few hundred bytes does not.
+ */
+const ENVELOPE_RESERVE = 400;
+
+/**
+ * `offset` reaches here from `dispatchToolCall`, which admits any integer, and from direct calls
+ * (MCP-PRD D-03) — the schema's `minimum: 0` is not enforced in code, so this defends itself. A
+ * negative offset would ask upstream for a nonsense window.
+ */
+function normalizeOffset(raw: number | undefined): number {
+  if (raw === undefined || !Number.isFinite(raw)) return 0;
   const truncated = Math.trunc(raw);
-  return truncated >= 1 ? truncated : 1;
+  return truncated >= 0 ? truncated : 0;
 }
 
 /** No `status`: our determination from the parameters, not an HTTP outcome. */
@@ -86,22 +102,21 @@ function unknownFormatFailure(requested: string): Result<ComboSearchData> {
 }
 
 /**
- * A page past the end of a result we already hold. Reported as a failure rather than an empty
+ * An offset past the end of a result we already hold. Reported as a failure rather than an empty
  * success so it never reads as "no combos match": upstream answers an out-of-range offset with an
  * HTTP 200 whose `results` is empty and whose `count` is unchanged, so a non-zero total beside an
- * empty page is exactly the signal that separates the two. Same treatment CAP-01 gives it.
+ * empty window is exactly the signal that separates the two. Same treatment CAP-01 gives it.
  */
-function outOfRangeFailure(page: number, total: number): Result<ComboSearchData> {
-  const pages = pageCount(total);
+function outOfRangeFailure(offset: number, total: number): Result<ComboSearchData> {
   return {
     ok: false,
     error: {
       // No `status`: our determination from a 200 body, not an HTTP outcome.
       code: "bad_request",
       message:
-        `Page ${page} is past the end of this result: ${total} combos match, which is ` +
-        `${pages} page${pages === 1 ? "" : "s"} of ${PAGE_SIZE} (valid pages 1-${pages}). ` +
-        `This is an out-of-range page, not a query that matched nothing.`,
+        `Offset ${offset} is past the end of this result: ${total} combos match, so the valid ` +
+        `offsets are 0-${total - 1}. This is an out-of-range offset, not a query that matched ` +
+        `nothing. Start at offset 0 and follow \`next_offset\`.`,
     },
   };
 }
@@ -143,19 +158,42 @@ function asVariantList(value: unknown): SpellbookVariantList | undefined {
   return Array.isArray(body.results) ? (value as SpellbookVariantList) : undefined;
 }
 
-/** The total, the range shown, and the page count. Only emitted when the total is trustworthy. */
-function rangeNote(page: number, offset: number, shown: number, total: number): string {
-  return (
-    `${total} combos match; showing combos ${offset + 1}-${offset + shown} ` +
-    `(page ${page} of ${pageCount(total)}). ` +
-    `Narrow the query or request a specific page.`
-  );
-}
-
 const DERIVED_TOTAL_NOTE =
   "Commander Spellbook did not report a total (`count` was absent or non-numeric), so " +
   "`total_combos` is derived from this page and may understate the true number; `has_more` " +
   "reflects upstream's own next-page link.";
+
+/**
+ * Shape variants until the byte budget is spent.
+ *
+ * The `kept.length > 0` guard is load-bearing, not defensive tidiness: a single combo larger than
+ * the whole budget must still be returned, or `next_offset` never advances past it and the caller
+ * pages forever on an empty result. One oversized combo is a big response; a non-advancing offset
+ * is an infinite loop.
+ */
+function fillPage(list: SpellbookVariantList, formatKey: string): ComboSummary[] {
+  const kept: ComboSummary[] = [];
+  let bytes = ENVELOPE_RESERVE;
+
+  for (const variant of list.results) {
+    const summary = toComboSummary(variant, formatKey);
+    const cost = JSON.stringify(summary).length + 1; // +1 for the separating comma
+    if (kept.length > 0 && bytes + cost > BYTE_BUDGET) break;
+    kept.push(summary);
+    bytes += cost;
+  }
+
+  return kept;
+}
+
+/** The total and the window shown, plus where to go next. */
+function rangeNote(offset: number, shown: number, total: number, nextOffset: number | undefined): string {
+  const range = `${total} combos match; showing combos ${offset + 1}-${offset + shown}`;
+  return nextOffset === undefined
+    ? `${range}. This is the last page.`
+    : `${range}. Request \`offset: ${nextOffset}\` for the next page. Page size varies with combo ` +
+      `size, so always follow \`next_offset\` rather than assuming a fixed step.`;
+}
 
 /**
  * Evaluate a Commander Spellbook query and return shaped combos.
@@ -166,6 +204,12 @@ const DERIVED_TOTAL_NOTE =
  * `Failure.details` on the next call. Exactly one upstream request per tool call: pagination is
  * reported, never resolved, and no further page is ever auto-fetched. Never throws
  * (MCP-PRD D-10).
+ *
+ * Paging is by OFFSET, not page number, because the page size is not constant — see BYTE_BUDGET.
+ * CAP-01's 88-card half-page arithmetic does not transfer and neither does its page numbering:
+ * Scryfall's `page` is in units of 175 with no offset, so its cap had to divide a page evenly or
+ * strand cards. Commander Spellbook exposes a real `offset`, which is what lets a page end
+ * wherever the budget runs out with nothing stranded behind it.
  *
  * Two behaviours are deliberately the OPPOSITE of CAP-01's and are easy to port by mistake:
  * zero matches arrives as HTTP 200 and is a successful empty result, while a 404 means a bad
@@ -180,8 +224,7 @@ export async function comboSearch(
   const formatKey = resolveFormat(params.format);
   if (formatKey === undefined) return unknownFormatFailure(params.format ?? "");
 
-  const page = normalizePage(params.page);
-  const offset = (page - 1) * PAGE_SIZE;
+  const offset = normalizeOffset(params.offset);
 
   // (MCP-PRD D-10) the handler's own backstop, so it honours "never throws" standing alone and
   // not only in composition with a client that already guards itself.
@@ -189,7 +232,7 @@ export async function comboSearch(
   try {
     result = await client.get("/variants/", {
       q: params.q, // byte-identical; encoding is the transport's job
-      limit: String(PAGE_SIZE),
+      limit: String(UPSTREAM_LIMIT),
       offset: String(offset),
       // Without this, `count` comes back null with the key PRESENT — a missing total that does
       // not announce itself (MCP-PRD §4.4, verified 2026-08-24). Criterion 8 needs the total.
@@ -217,37 +260,38 @@ export async function comboSearch(
   if (list === undefined) return unexpectedBodyFailure();
 
   const countIsUsable = typeof list.count === "number" && Number.isFinite(list.count);
-  // `limit=40` is the mechanism; this slice is the guarantee. An upstream that ignores or
-  // redefines `limit` must not become a 400,000-character tool result.
-  const shown: SpellbookVariant[] = list.results.slice(0, PAGE_SIZE);
-  const total = countIsUsable ? (list.count as number) : offset + shown.length;
+  const total = countIsUsable ? (list.count as number) : offset + list.results.length;
 
-  if (shown.length === 0 && total > 0) return outOfRangeFailure(page, total);
+  if (list.results.length === 0 && total > 0) return outOfRangeFailure(offset, total);
 
-  const first = shown[0];
+  const first = list.results[0];
   if (first !== undefined && typeof first.legalities[formatKey] !== "boolean") {
     return missingLegalityFailure(formatKey);
   }
 
-  const combos = shown.map((variant) => toComboSummary(variant, formatKey));
-  const has_more = list.next !== null || offset + combos.length < total;
+  const combos = fillPage(list, formatKey);
+
+  // Three independent reasons more may exist, and the first is the one a fixed cap never had:
+  // the budget can end a page inside a window we already hold.
+  const truncatedLocally = combos.length < list.results.length;
+  const has_more = truncatedLocally || list.next !== null || offset + combos.length < total;
+  const nextOffset = has_more ? offset + combos.length : undefined;
 
   const data: ComboSearchData = {
     combos,
     total_combos: total,
-    page,
+    offset,
+    ...(nextOffset !== undefined ? { next_offset: nextOffset } : {}),
     has_more,
     format: formatKey,
   };
 
   if (!countIsUsable) {
-    // A derived total makes "page 1 of 1" a lie when `next` says otherwise, so the range note is
-    // suppressed and the derivation is reported instead.
+    // A derived total would make a range note claim a total it does not know, so the derivation
+    // is reported instead.
     data.note = DERIVED_TOTAL_NOTE;
-  } else if (has_more || pageCount(total) > 1) {
-    // Emitted on the last page too, where `has_more` is false but "page 3 of 3" is still the fact
-    // the model needs.
-    data.note = rangeNote(page, offset, combos.length, total);
+  } else if (combos.length > 0 && (has_more || offset > 0)) {
+    data.note = rangeNote(offset, combos.length, total, nextOffset);
   }
 
   return { ok: true, value: data };
