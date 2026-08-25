@@ -16002,11 +16002,22 @@ function toComboSummary(variant, formatKey, bucket) {
     legal: variant.legalities[formatKey] === true
   };
 }
+var BYTE_BUDGET = 5e4;
+var ENVELOPE_RESERVE = 400;
+function fillPage(summaries, extraReserve = 0) {
+  const kept = [];
+  let bytes = ENVELOPE_RESERVE + extraReserve;
+  for (const summary of summaries) {
+    const cost = JSON.stringify(summary).length + 1;
+    if (kept.length > 0 && bytes + cost > BYTE_BUDGET) break;
+    kept.push(summary);
+    bytes += cost;
+  }
+  return kept;
+}
 
 // src/tools/combo-search.ts
-var BYTE_BUDGET = 5e4;
 var UPSTREAM_LIMIT = 60;
-var ENVELOPE_RESERVE = 400;
 function normalizeOffset(raw) {
   if (raw === void 0 || !Number.isFinite(raw)) return 0;
   const truncated = Math.trunc(raw);
@@ -16055,18 +16066,6 @@ function asVariantList(value) {
   return Array.isArray(body.results) ? value : void 0;
 }
 var DERIVED_TOTAL_NOTE = "Commander Spellbook did not report a total (`count` was absent or non-numeric), so `total_combos` is derived from this page and may understate the true number; `has_more` reflects upstream's own next-page link.";
-function fillPage(list, formatKey) {
-  const kept = [];
-  let bytes = ENVELOPE_RESERVE;
-  for (const variant of list.results) {
-    const summary = toComboSummary(variant, formatKey);
-    const cost = JSON.stringify(summary).length + 1;
-    if (kept.length > 0 && bytes + cost > BYTE_BUDGET) break;
-    kept.push(summary);
-    bytes += cost;
-  }
-  return kept;
-}
 function rangeNote2(offset, shown, total, nextOffset) {
   const range = `${total} combos match; showing combos ${offset + 1}-${offset + shown}`;
   return nextOffset === void 0 ? `${range}. This is the last page.` : `${range}. Request \`offset: ${nextOffset}\` for the next page. Page size varies with combo size, so always follow \`next_offset\` rather than assuming a fixed step.`;
@@ -16105,7 +16104,7 @@ async function comboSearch(client, params) {
   if (first !== void 0 && typeof first.legalities[formatKey] !== "boolean") {
     return missingLegalityFailure(formatKey);
   }
-  const combos = fillPage(list, formatKey);
+  const combos = fillPage(list.results.map((variant) => toComboSummary(variant, formatKey)));
   const truncatedLocally = combos.length < list.results.length;
   const has_more = truncatedLocally || list.next !== null || offset + combos.length < total;
   const nextOffset = has_more ? offset + combos.length : void 0;
@@ -16122,6 +16121,213 @@ async function comboSearch(client, params) {
   } else if (combos.length > 0 && (has_more || offset > 0)) {
     data.note = rangeNote2(offset, combos.length, total, nextOffset);
   }
+  return { ok: true, value: data };
+}
+
+// src/scryfall/collection.ts
+var BATCH_SIZE = 75;
+function asCollection(value) {
+  if (typeof value !== "object" || value === null) return void 0;
+  const body = value;
+  return Array.isArray(body.data) && Array.isArray(body.not_found) ? value : void 0;
+}
+function unexpectedBodyFailure2() {
+  return {
+    ok: false,
+    error: {
+      code: "unexpected",
+      message: "Scryfall returned a body that is not a card collection: no `data` array, no `not_found` array, or both. No name was resolved from it, and no card name can be reported as unrecognized on the strength of it."
+    }
+  };
+}
+async function resolveNames(client, names) {
+  const resolved = [];
+  const unresolved = [];
+  for (let start = 0; start < names.length; start += BATCH_SIZE) {
+    const batch = names.slice(start, start + BATCH_SIZE);
+    const result = await client.post("/cards/collection", {
+      identifiers: batch.map((name) => ({ name }))
+    });
+    if (!result.ok) return result;
+    const body = asCollection(result.value);
+    if (body === void 0) return unexpectedBodyFailure2();
+    for (const card of body.data) resolved.push(card.name);
+    for (const miss of body.not_found) {
+      if (typeof miss?.name === "string") unresolved.push(miss.name);
+    }
+  }
+  return { ok: true, value: { resolved, unresolved } };
+}
+
+// src/tools/combo-find-deck.ts
+var MATCHED_BUCKETS = ["included", "includedByChangingCommanders"];
+var NEAR_BUCKETS = [
+  "almostIncluded",
+  "almostIncludedByAddingColors",
+  "almostIncludedByChangingCommanders",
+  "almostIncludedByAddingColorsAndChangingCommanders"
+];
+var MAX_MAIN = 600;
+var MAX_COMMANDERS = 12;
+function normalizeOffset2(raw) {
+  if (raw === void 0 || !Number.isFinite(raw)) return 0;
+  const truncated = Math.trunc(raw);
+  return truncated >= 0 ? truncated : 0;
+}
+function cleanNames(raw) {
+  if (!Array.isArray(raw)) return [];
+  const names = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") continue;
+    const trimmed = entry.trim();
+    if (trimmed.length > 0) names.push(trimmed);
+  }
+  return names;
+}
+function unknownFormatFailure2(requested) {
+  return {
+    ok: false,
+    error: {
+      code: "bad_request",
+      message: `Commander Spellbook cannot judge the format "${requested}". It reports legality for these 16 formats only: ${SPELLBOOK_LEGALITY_KEYS.join(", ")} (plus the alias "edh" for commander). These names are NOT Scryfall's \u2014 note the capital in "standardBrawl", and that historic, timeless, penny, duel, future, gladiator, oldschool and tlr do not exist here at all. Request one of the listed formats.`
+    }
+  };
+}
+function emptyDeckFailure() {
+  return {
+    ok: false,
+    error: {
+      code: "bad_request",
+      message: '`cards` must be a non-empty array of card NAMES \u2014 the main deck. Nothing was requested upstream, because a combo search with no deck returns every combo in Magic as a near-miss rather than an error. Pass names only, with no quantities: ["Demonic Consultation", "Thassa\'s Oracle"], not ["1 Demonic Consultation"].'
+    }
+  };
+}
+function tooManyFailure(field, count, cap) {
+  return {
+    ok: false,
+    error: {
+      code: "bad_request",
+      message: `\`${field}\` carries ${count} entries and Commander Spellbook accepts at most ${cap}. Nothing was requested upstream. A list this long is a mistake rather than a deck \u2014 check that quantities were stripped and that only card names were sent.`
+    }
+  };
+}
+function outOfRangeFailure3(offset, total, include) {
+  return {
+    ok: false,
+    error: {
+      // No `status`: our determination from a 200 body, not an HTTP outcome.
+      code: "bad_request",
+      message: `Offset ${offset} is past the end of this result: ${total} combos match under \`include: "${include}"\`, so the valid offsets are 0-${total - 1}. This is an out-of-range offset, not a deck that matched nothing. Note that \`include\` changes the list an offset indexes \u2014 start at offset 0 and follow \`next_offset\`.`
+    }
+  };
+}
+function missingLegalityFailure2(formatKey) {
+  return {
+    ok: false,
+    error: {
+      code: "unexpected",
+      message: `Commander Spellbook returned no "${formatKey}" legality on these combos, so legality cannot be reported for the format requested. Reporting false here would claim the combos are illegal, which is not what an absent key means.`
+    }
+  };
+}
+function unexpectedBodyFailure3() {
+  return {
+    ok: false,
+    error: {
+      code: "unexpected",
+      message: "Commander Spellbook returned a body that is not a deck combo result: `results` is not the six-bucket object carrying a string `identity`. Nothing was classified from it."
+    }
+  };
+}
+function asFindMyCombos(value) {
+  if (typeof value !== "object" || value === null) return void 0;
+  const body = value;
+  const results = body.results;
+  if (typeof results !== "object" || results === null || Array.isArray(results)) return void 0;
+  if (typeof results.identity !== "string") return void 0;
+  return value;
+}
+function classify(results, include) {
+  const buckets = include === "matched+near" ? [...MATCHED_BUCKETS, ...NEAR_BUCKETS] : MATCHED_BUCKETS;
+  const flattened = [];
+  for (const bucket of buckets) {
+    const variants = results[bucket];
+    if (!Array.isArray(variants)) continue;
+    for (const variant of variants) flattened.push({ variant, bucket });
+  }
+  return flattened;
+}
+function rangeNote3(offset, shown, total, nextOffset) {
+  const range = `${total} combos match; showing combos ${offset + 1}-${offset + shown}`;
+  return nextOffset === void 0 ? `${range}. This is the last page.` : `${range}. Request \`offset: ${nextOffset}\` for the next page, keeping \`include\` and the decklist identical \u2014 changing either changes the list an offset indexes. Page size varies with combo size, so always follow \`next_offset\` rather than assuming a fixed step.`;
+}
+var UPSTREAM_PAGINATED_NOTE = "Commander Spellbook returned a next-page link for a request that asked for no page, so this deck's combos may be incomplete and `total_combos` may understate the true number.";
+async function comboFindDeck(clients2, params) {
+  const formatKey = resolveFormat(params.format);
+  if (formatKey === void 0) return unknownFormatFailure2(params.format ?? "");
+  const cards = cleanNames(params.cards);
+  const commanders = cleanNames(params.commanders);
+  if (cards.length === 0) return emptyDeckFailure();
+  if (cards.length > MAX_MAIN) return tooManyFailure("cards", cards.length, MAX_MAIN);
+  if (commanders.length > MAX_COMMANDERS) {
+    return tooManyFailure("commanders", commanders.length, MAX_COMMANDERS);
+  }
+  const include = params.include === "matched+near" ? "matched+near" : "matched";
+  const offset = normalizeOffset2(params.offset);
+  const resolution = await resolveNames(clients2.scryfall, [...cards, ...commanders]);
+  if (!resolution.ok) return resolution;
+  const body = {
+    main: cards.map((card) => ({ card, quantity: 1 })),
+    commanders: commanders.map((card) => ({ card, quantity: 1 }))
+  };
+  let result;
+  try {
+    result = await clients2.spellbook.post("/find-my-combos", body);
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: "unexpected",
+        message: `Unexpected failure searching Commander Spellbook: ${err instanceof Error ? err.message : String(err)}`
+      }
+    };
+  }
+  if (!result.ok) return result;
+  const found = asFindMyCombos(result.value);
+  if (found === void 0) return unexpectedBodyFailure3();
+  const flattened = classify(found.results, include);
+  const total_combos = flattened.length;
+  if (total_combos > 0 && offset >= total_combos) {
+    return outOfRangeFailure3(offset, total_combos, include);
+  }
+  const first = flattened[0];
+  if (first !== void 0 && typeof first.variant.legalities[formatKey] !== "boolean") {
+    return missingLegalityFailure2(formatKey);
+  }
+  const unresolved = resolution.value.unresolved;
+  const combos = fillPage(
+    flattened.slice(offset).map(({ variant, bucket }) => toComboSummary(variant, formatKey, bucket)),
+    JSON.stringify(unresolved).length
+  );
+  const has_more = offset + combos.length < total_combos;
+  const nextOffset = has_more ? offset + combos.length : void 0;
+  const data = {
+    combos,
+    total_combos,
+    offset,
+    ...nextOffset !== void 0 ? { next_offset: nextOffset } : {},
+    has_more,
+    include,
+    format: formatKey,
+    color_identity: found.results.identity,
+    unresolved_cards: unresolved
+  };
+  const notes = [];
+  if (found.next !== null) notes.push(UPSTREAM_PAGINATED_NOTE);
+  if (combos.length > 0 && (has_more || offset > 0)) {
+    notes.push(rangeNote3(offset, combos.length, total_combos, nextOffset));
+  }
+  if (notes.length > 0) data.note = notes.join(" ");
   return { ok: true, value: data };
 }
 
@@ -16149,8 +16355,38 @@ var COMBO_SEARCH_INPUT_SCHEMA = {
   },
   required: ["q"]
 };
+var COMBO_FIND_DECK_DESCRIPTION = 'Find which Magic: The Gathering combos a decklist already contains, and \u2014 with `include: "matched+near"` \u2014 the ones it is one card away from, classified by Commander Spellbook. `cards` is main-deck card NAMES only: no quantities and no objects, so strip a leading count ("1 Sol Ring" will not resolve). `commanders` is separate and optional. Every submitted name is checked against Scryfall first, and any it does not recognize is listed in `unresolved_cards`, which is always present \u2014 Commander Spellbook ignores an unknown name silently, so this is the only signal that a typo cost you combos. Submit a double-faced card by ONE face name: the combined `Front // Back` form is reported unresolved even though the card is real. Near-misses are the bulk of the data and are absent unless asked for. Pages are filled to a byte budget rather than to a combo count, so combos per page varies: pass the previous response\'s `next_offset` back as `offset`, never a computed one. Each call re-fetches and re-classifies the whole deck \u2014 there is no cursor \u2014 and changing `include` or the decklist changes what an offset means, so restart at 0. `format` names the single format legality is judged for (default `commander`); these format names are not Scryfall\'s, and an unrecognized one is refused rather than guessed.';
+var COMBO_FIND_DECK_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    cards: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 1,
+      description: "Main-deck card names. Names only \u2014 strip quantities. One entry per distinct card."
+    },
+    commanders: {
+      type: "array",
+      items: { type: "string" },
+      description: "Commander names, if any. Names only. At most 12."
+    },
+    include: {
+      type: "string",
+      enum: ["matched", "matched+near"],
+      description: "Default: matched (combos the deck contains). matched+near adds the ones it is one card away from."
+    },
+    offset: {
+      type: "integer",
+      minimum: 0,
+      description: "0-based start in the classified list. Omit for the first page; then pass the previous response's `next_offset`."
+    },
+    format: { type: "string", description: "Format legality is judged for. Default: commander. Unknown values are refused." }
+  },
+  required: ["cards"]
+};
 var CARD_SEARCH_TOOL_NAME = "card_search";
 var COMBO_SEARCH_TOOL_NAME = "combo_search";
+var COMBO_FIND_DECK_TOOL_NAME = "combo_find_deck";
 var toolDefinitions = [
   {
     name: CARD_SEARCH_TOOL_NAME,
@@ -16161,20 +16397,31 @@ var toolDefinitions = [
     name: COMBO_SEARCH_TOOL_NAME,
     description: COMBO_SEARCH_DESCRIPTION,
     inputSchema: COMBO_SEARCH_INPUT_SCHEMA
+  },
+  {
+    name: COMBO_FIND_DECK_TOOL_NAME,
+    description: COMBO_FIND_DECK_DESCRIPTION,
+    inputSchema: COMBO_FIND_DECK_INPUT_SCHEMA
   }
 ];
 var UNIQUE_VALUES = ["cards", "prints", "art"];
 var DIR_VALUES = ["auto", "asc", "desc"];
 var LEGALITIES_VALUES = ["queried", "default", "all"];
+var INCLUDE_VALUES = ["matched", "matched+near"];
 function asEnum(allowed, value) {
   return typeof value === "string" && allowed.includes(value) ? value : void 0;
 }
 function errorResult(body) {
   return { isError: true, content: [{ type: "text", text: JSON.stringify(body) }] };
 }
+function asNames(value) {
+  if (!Array.isArray(value)) return void 0;
+  return value.filter((entry) => typeof entry === "string");
+}
 async function dispatchToolCall(clients2, name, args) {
   if (name === CARD_SEARCH_TOOL_NAME) return dispatchCardSearch(clients2.scryfall, args);
   if (name === COMBO_SEARCH_TOOL_NAME) return dispatchComboSearch(clients2.spellbook, args);
+  if (name === COMBO_FIND_DECK_TOOL_NAME) return dispatchComboFindDeck(clients2, args);
   throw new Error(`Unknown tool: ${name}`);
 }
 function readQuery(args, language) {
@@ -16228,6 +16475,27 @@ async function dispatchComboSearch(client, args) {
     ...typeof raw.format === "string" ? { format: raw.format } : {}
   };
   return toolResult(await comboSearch(client, params));
+}
+async function dispatchComboFindDeck(clients2, args) {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return errorResult({
+      error: {
+        code: "bad_request",
+        message: "Tool arguments must be an object with a `cards` array of card names."
+      }
+    });
+  }
+  const raw = args;
+  const commanders = asNames(raw.commanders);
+  const include = asEnum(INCLUDE_VALUES, raw.include);
+  const params = {
+    cards: asNames(raw.cards) ?? [],
+    ...commanders !== void 0 ? { commanders } : {},
+    ...include !== void 0 ? { include } : {},
+    ...typeof raw.offset === "number" && Number.isInteger(raw.offset) ? { offset: raw.offset } : {},
+    ...typeof raw.format === "string" ? { format: raw.format } : {}
+  };
+  return toolResult(await comboFindDeck(clients2, params));
 }
 function registerTools(server2, clients2) {
   server2.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolDefinitions }));

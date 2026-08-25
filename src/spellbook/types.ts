@@ -88,3 +88,40 @@ export interface SpellbookVariantList {
   previous: string | null;
   results: SpellbookVariant[];
 }
+
+/**
+ * `POST /find-my-combos`'s `results` — an OBJECT of six buckets plus `identity`, not an array
+ * (verified 2026-08-24, MCP-PRD §4.4). That is the one structural difference from `/variants/`.
+ *
+ * `identity` sits HERE, inside `results`, and not at the envelope top level. Reading it from the
+ * envelope produces `undefined` rather than an error, which is why it is declared where it lives.
+ *
+ * Only the first two buckets name combos the deck actually contains. `includedByChangingCommanders`
+ * and `almostIncludedByChangingCommanders` differ by one word and mean opposite things, so the
+ * names are carried through verbatim rather than translated: a translation layer here surfaces a
+ * correctly-shaped, WRONGLY-LABELLED result, which is the failure mode MCP-PRD §4.4 rejects local
+ * deck matching for.
+ */
+export interface SpellbookDeckResults {
+  /** The deck's colour identity as a letter string, e.g. "UBR". */
+  identity: string;
+  included: SpellbookVariant[];
+  includedByChangingCommanders: SpellbookVariant[];
+  almostIncluded: SpellbookVariant[];
+  almostIncludedByAddingColors: SpellbookVariant[];
+  almostIncludedByChangingCommanders: SpellbookVariant[];
+  almostIncludedByAddingColorsAndChangingCommanders: SpellbookVariant[];
+}
+
+/** The `POST /find-my-combos` envelope. The same DRF pagination keys wrap a different `results`. */
+export interface SpellbookFindMyCombos {
+  count: number | null;
+  /**
+   * Expected `null`: this capability sends no `limit` and no `offset` (MCP-PRD CAP-02 criterion
+   * 10), and the 164-variant capture came back whole. A non-null value would mean upstream
+   * paginated anyway, and the handler reports that rather than under-counting silently.
+   */
+  next: string | null;
+  previous: string | null;
+  results: SpellbookDeckResults;
+}
