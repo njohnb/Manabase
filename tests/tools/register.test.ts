@@ -82,7 +82,7 @@ const EXPECTED_COMBO_DESCRIPTION =
   "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by " +
   "Commander Spellbook itself — `card:\"Thassa's Oracle\"` is the common case. Returns each " +
   "combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. " +
-  "40 combos per page; the response reports `total_combos` and `has_more`. `format` names the " +
+  "20 combos per page; the response reports `total_combos` and `has_more`. `format` names the " +
   "single format legality is judged for (default `commander`); these format names are not " +
   "Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns " +
   "Commander Spellbook's error text verbatim — correct it and retry.";
@@ -343,7 +343,7 @@ describe("dispatchToolCall — each tool reaches ONE source", () => {
     assert.equal(scryfallCalls.length, 0);
 
     const body = parseBody(result) as ComboSearchData;
-    assert.equal(body.combos.length, 40);
+    assert.equal(body.combos.length, 20);
     assert.equal(body.total_combos, 96);
     assert.equal(body.format, "commander");
   });
@@ -402,8 +402,8 @@ describe("dispatchToolCall — combo_search argument handling", () => {
     assert.ok(!("isError" in result) || result.isError !== true);
     assert.deepEqual(spellbookCalls[0]!.query, {
       q: "x",
-      limit: "40",
-      offset: "40",
+      limit: "20",
+      offset: "20",
       count: "true",
     });
     assert.equal((parseBody(result) as ComboSearchData).format, "modern");

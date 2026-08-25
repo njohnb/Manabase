@@ -28,15 +28,29 @@ export interface ComboSearchData {
 }
 
 /**
- * Our page size, and the `limit` sent upstream (MCP-PRD CAP-02).
+ * Our page size, and the `limit` sent upstream.
+ *
+ * TWENTY, NOT CAP-02's ORIGINAL FORTY, and the difference is measured rather than cautious.
+ * That 40 was derived from one query — `card:"Thassa's Oracle"` at 1,236 characters per combo —
+ * and 577 combos sampled across 15 queries on 2026-08-25 put that near the CHEAP end of the real
+ * distribution: p50 1,390, p99 2,530, max 4,421, sampled mean 1,393. Per-combo cost tracks how
+ * many cards a combo uses, and `cards>5 steps>5` is an ordinary query a user can type: at 40 it
+ * returned a measured 99,311-character tool result, 85% of the 116,626 that breached a harness
+ * ceiling in issue #25.
+ *
+ * The margin is the point. 116,626 is a value known to FAIL, not the limit — the true ceiling is
+ * unknown and lower. At 20 the realistic worst page is ~58,400 and a page of all-maximum-cost
+ * combos still lands under 90,000, while the typical page is ~27,900. A cap of 25 would put the
+ * pathological page at 95% of a number already known to be too big.
  *
  * CAP-01's 88-card half-page arithmetic DOES NOT TRANSFER. That shape exists because Scryfall's
  * `page` is in units of 175 with no offset, so a cap below 175 would strand cards behind no `page`
  * value at all. Commander Spellbook exposes a real `offset`, so there is no half-page trick, no
- * upstream-page anchoring, and `ceil(total / 40)` is simply correct here where its analogue was
- * wrong there. Reproducing Slice 14's arithmetic would be a bug.
+ * upstream-page anchoring, and `ceil(total / 20)` is simply correct here where its analogue was
+ * wrong there. Reproducing Slice 14's arithmetic would be a bug — and it is what makes changing
+ * this number safe: every combo stays reachable at any cap.
  */
-const PAGE_SIZE = 40;
+const PAGE_SIZE = 20;
 
 /** How many of our pages a result spans. A true offset, so the naive form is the right one. */
 function pageCount(total: number): number {

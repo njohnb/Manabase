@@ -253,32 +253,33 @@ describe("resolveFormat — requirement 7", () => {
 });
 
 describe("the trim, measured", () => {
-  test("a full 40-combo page stays well inside the harness ceiling", () => {
+  test("a 20-combo page stays well inside the harness ceiling", () => {
+    // A page is 20 combos, sized on measurement — see PAGE_SIZE in src/tools/combo-search.ts.
+    // This fixture holds 40 variants, so its first 20 are one page and all 40 exercise the shaper.
     const shaped = page1.results.map((v) => toComboSummary(v, "commander"));
     assert.equal(shaped.length, 40);
 
-    const chars = JSON.stringify(shaped).length;
+    const pageChars = JSON.stringify(shaped.slice(0, 20)).length;
+    const allChars = JSON.stringify(shaped).length;
 
     // A BOUND, never an equality: per-combo cost varies with how many cards a combo uses, so an
     // exact assertion becomes a test that fails on a fixture refresh for no real reason.
     //
     // The bound that MATTERS is the harness ceiling: 116,626 characters is the CAP-01 response
-    // that breached one in issue #25. CAP-02 also states a 50,000 page budget, but that budget is
-    // NOT a guarantee and this test must not be read as proving it — page 2 of this same query
-    // measured 63,688 characters live on 2026-08-25, at 1,592 characters per combo against the
-    // 930-1,236 band MCP-PRD §4.4.1 records. A page stays comfortably inside the ceiling; it does
-    // not stay inside 50,000.
-    assert.ok(chars < 116_626, `shaped page measured ${chars} characters — at the issue #25 ceiling`);
-    // Fixture-level regression guard, not a claim about live data.
-    assert.ok(chars < 50_000, `shaped page 1 measured ${chars} characters`);
-    assert.ok(chars / 40 < 1_400, `per-combo cost ${Math.round(chars / 40)} on this fixture`);
+    // that breached one in issue #25 — a value known to FAIL rather than the limit, which is why
+    // the cap is sized for margin. And this fixture is a CHEAP query: 577 combos sampled live on
+    // 2026-08-25 put its ~1,001 characters per combo near the bottom of a distribution whose p99
+    // is 2,530 and whose maximum is 4,421. Never read this test as proving a page is always small.
+    assert.ok(pageChars < 50_000, `20-combo page measured ${pageChars} characters`);
+    assert.ok(allChars < 116_626, `40 shaped variants measured ${allChars} characters`);
+    assert.ok(allChars / 40 < 1_400, `per-combo cost ${Math.round(allChars / 40)} on this fixture`);
 
     // The trim is real: the raw fixture is several times the shaped form.
     const raw = readFileSync(
       new URL("../fixtures/spellbook/variants-page1.json", import.meta.url),
       "utf8",
     ).length;
-    assert.ok(chars < raw * 0.35, `only trimmed to ${((100 * chars) / raw).toFixed(1)}% of raw`);
+    assert.ok(allChars < raw * 0.35, `only trimmed to ${((100 * allChars) / raw).toFixed(1)}% of raw`);
   });
 
   test("description is kept — it is what the model reasons from", () => {

@@ -372,7 +372,10 @@ enforce.
    `"matched+near"` returns near-misses, each labelled with the bucket it came from. Assert against
    all four near buckets, not just `almostIncluded`.
 7. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion 8, `combo_find_deck` half]** A
-   response reports at most 40 combos, states `total_combos` and `has_more`, and page 2 returns the
+   response reports at most **20** combos (the cap was amended from 40 on 2026-08-25 — see
+   [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) and
+   [§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured)), states `total_combos` and
+   `has_more`, and page 2 returns the
    next slice — with `total_combos` counting after classification and filtering, not upstream's
    `count`.
 8. **[[CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criterion 13]** An empty `cards`, an absent
@@ -440,7 +443,7 @@ fixture precisely as the criterion describes it. `tests/fixtures/spellbook/READM
 Cite [§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured)'s measurements from the
 PRD; never recompute them from a truncated fixture.
 
-Tests needing more than 40 combos in a bucket synthesize them in-test by repeating a fixture
+Tests needing more than 20 combos in a bucket synthesize them in-test by repeating a fixture
 variant with distinct ids, rather than committing a larger fixture. Say so in a comment — a
 synthesized payload is derived data too.
 

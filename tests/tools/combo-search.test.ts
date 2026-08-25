@@ -139,7 +139,7 @@ describe("comboSearch — the query passes through byte-identically", () => {
 });
 
 describe("comboSearch — paging is a true offset", () => {
-  test("[CAP-02 #8] page 1 sends limit=40, offset=0 and count=true", async () => {
+  test("[CAP-02 #8] page 1 sends limit=20, offset=0 and count=true", async () => {
     const { client, calls } = makeFakeClient({ ok: true, value: page1 });
 
     const result = await comboSearch(client, { q: 'card:"Thassa\'s Oracle"' });
@@ -147,25 +147,25 @@ describe("comboSearch — paging is a true offset", () => {
     assert.ok(result.ok);
     assert.deepEqual(calls[0]!.query, {
       q: 'card:"Thassa\'s Oracle"',
-      limit: "40",
+      limit: "20",
       offset: "0",
       count: "true",
     });
-    assert.equal(result.value.combos.length, 40);
+    assert.equal(result.value.combos.length, 20);
     assert.equal(result.value.total_combos, 96);
     assert.equal(result.value.page, 1);
     assert.equal(result.value.has_more, true);
   });
 
-  test("[CAP-02 #8] page 2 sends offset=40 and returns different ids", async () => {
+  test("[CAP-02 #8] page 2 sends offset=20 and returns different ids", async () => {
     const { client: c1 } = makeFakeClient({ ok: true, value: page1 });
     const first = await comboSearch(c1, { q: "x" });
 
     const { client: c2, calls } = makeFakeClient({ ok: true, value: page2 });
     const second = await comboSearch(c2, { q: "x", page: 2 });
 
-    assert.equal(calls[0]!.query!.offset, "40");
-    assert.equal(calls[0]!.query!.limit, "40");
+    assert.equal(calls[0]!.query!.offset, "20");
+    assert.equal(calls[0]!.query!.limit, "20");
     assert.ok(first.ok && second.ok);
 
     const firstIds = new Set(first.value.combos.map((c) => c.id));
@@ -175,10 +175,10 @@ describe("comboSearch — paging is a true offset", () => {
     assert.equal(second.value.page, 2);
   });
 
-  test("offset arithmetic is (page - 1) * 40 — no half-page trick", async () => {
+  test("offset arithmetic is (page - 1) * 20 — no half-page trick", async () => {
     // Slice 14's 88-card arithmetic exists because Scryfall's `page` is in units of 175 with no
     // offset. Commander Spellbook exposes a real offset, so reproducing it here would be a bug.
-    for (const [page, offset] of [[1, "0"], [2, "40"], [3, "80"], [5, "160"]] as const) {
+    for (const [page, offset] of [[1, "0"], [2, "20"], [3, "40"], [5, "80"]] as const) {
       const { client, calls } = makeFakeClient({ ok: true, value: envelope(40, { count: 500 }) });
       await comboSearch(client, { q: "x", page });
       assert.equal(calls[0]!.query!.offset, offset, `page ${page}`);
@@ -209,11 +209,11 @@ describe("comboSearch — paging is a true offset", () => {
   });
 
   test("has_more is false on the last page", async () => {
-    // 96 combos, page 3: offset 80, 16 returned, nothing left and no `next`.
+    // 96 combos, page 5: offset 80, 16 returned, nothing left and no `next`.
     const last = envelope(16, { count: 96, next: null });
     const { client } = makeFakeClient({ ok: true, value: last });
 
-    const result = await comboSearch(client, { q: "x", page: 3 });
+    const result = await comboSearch(client, { q: "x", page: 5 });
 
     assert.ok(result.ok);
     assert.equal(result.value.combos.length, 16);
@@ -223,15 +223,15 @@ describe("comboSearch — paging is a true offset", () => {
 });
 
 describe("comboSearch — the defensive cap", () => {
-  test("[requirement 6] an envelope carrying 41 results returns 40", async () => {
+  test("[requirement 6] an envelope carrying 21 results returns 20", async () => {
     // `limit=40` is the mechanism; the slice is the guarantee. An upstream that ignores or
     // redefines `limit` must not turn into a 400,000-character tool result.
-    const { client } = makeFakeClient({ ok: true, value: envelope(41, { count: 96 }) });
+    const { client } = makeFakeClient({ ok: true, value: envelope(21, { count: 96 }) });
 
     const result = await comboSearch(client, { q: "x" });
 
     assert.ok(result.ok);
-    assert.equal(result.value.combos.length, 40);
+    assert.equal(result.value.combos.length, 20);
     assert.equal(result.value.has_more, true);
   });
 
@@ -241,7 +241,7 @@ describe("comboSearch — the defensive cap", () => {
     const result = await comboSearch(client, { q: "x" });
 
     assert.ok(result.ok);
-    assert.equal(result.value.combos.length, 40);
+    assert.equal(result.value.combos.length, 20);
     assert.equal(result.value.has_more, true);
     // The point of the cap: an uncapped 96-variant response is 533,840 characters upstream
     // (MCP-PRD §4.4.1). The bound asserted is the issue #25 harness ceiling, not CAP-02's 50,000
@@ -270,9 +270,9 @@ describe("comboSearch — count=true and the total", () => {
     const result = await comboSearch(client, { q: "x" });
 
     assert.ok(result.ok);
-    assert.equal(result.value.combos.length, 40);
+    assert.equal(result.value.combos.length, 20);
     assert.notEqual(result.value.total_combos, 0);
-    assert.equal(result.value.total_combos, 40); // derived from what was returned
+    assert.equal(result.value.total_combos, 20); // derived from what was returned
     assert.ok(result.value.note);
     assert.match(result.value.note, /count/i);
     // `next` still says more exist, so the response must not claim this is everything.
@@ -334,13 +334,13 @@ describe("comboSearch — a page past the end", () => {
     assert.ok(!result.ok);
     assert.equal(result.error.code, "bad_request");
     assert.match(result.error.message, /96 combos match/);
-    assert.match(result.error.message, /valid pages 1-3/);
+    assert.match(result.error.message, /valid pages 1-5/);
     // No `status`: our determination from a 200 body, not an HTTP outcome.
     assert.equal("status" in result.error, false);
   });
 
-  test("the page count is ceil(total / 40) — Slice 14's arithmetic does not transfer", async () => {
-    for (const [total, pages] of [[40, 1], [41, 2], [96, 3], [176, 5], [200, 5]] as const) {
+  test("the page count is ceil(total / 20) — Slice 14's arithmetic does not transfer", async () => {
+    for (const [total, pages] of [[20, 1], [21, 2], [96, 5], [176, 9], [200, 10]] as const) {
       const { client } = makeFakeClient({ ok: true, value: envelope(0, { count: total }) });
       const result = await comboSearch(client, { q: "x", page: 99 });
       assert.ok(!result.ok);

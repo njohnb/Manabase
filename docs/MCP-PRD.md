@@ -1218,6 +1218,37 @@ cards per combo at a 1,000-character mean, while the eight verbatim variants in 
 `variants-page2.json` average 3.4 cards at a **1,340** mean, min 897 and max 1,838. Evidence:
 [`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md).
 
+**Addendum 2026-08-25, second entry — the tail was sampled, and the page cap was re-sized on it.**
+**[verified 2026-08-25]** The addendum above measured two pages of one query and correctly refused
+to generalize from them. This one sampled the distribution deliberately: **577 combos across 15
+queries**, shaped through the delivered shaper, chosen to stress each driver of shaped size using
+Commander Spellbook's own `cards>N`, `steps>N`, `results>N` and `prerequisites>N` operators — all
+four confirmed real against `/explain-query`. **Both addenda's rows stand; neither is corrected.**
+
+| | per combo |
+|---|---|
+| min / p50 / p90 | 547 / **1,390** / 2,043 |
+| p95 / p99 / max | 2,296 / **2,530** / **4,421** |
+| sampled mean | **1,393** |
+
+**`card:"Thassa's Oracle"` is a cheap query, not a typical one.** Its ~1,001 characters per combo
+sits near the bottom of that distribution, and the 930–1,236 band above is **below the sampled
+mean**. Per-combo cost tracks how many cards a combo uses: a 10-card combo shapes to 4,421
+characters where a 2-card one shapes to 547.
+
+Worst real 40-combo pages measured: `cards>5 steps>5` **99,311**, `cards>5` 98,017,
+`cards>4 prerequisites>2` 81,887, `cards>4` 71,295, `steps>8` 67,748. The first is **85% of the
+116,626** that breached a harness tool-result ceiling, and it is an ordinary query a user can type.
+
+**[CAP-02](#cap-02--combo-discovery)'s page cap was therefore amended from 40 to 20**, and the same
+queries re-measured through the shipped tool: `cards>5 steps>5` **58,240**, `card:"Thassa's Oracle"`
+**16,903**. The reasoning is margin rather than arithmetic — **116,626 is a value known to fail, not
+the limit, and the true ceiling is unknown and lower** — so 25 was rejected for putting a
+maximum-cost page at 95% of a known-bad figure while 20 keeps it under 90,000. A byte-aware cap was
+considered and not taken: it would adapt to the 5.7× cost variance, but paging would have to move
+from page numbers to explicit offsets, and that shape is what
+[Slice 17](./slices/TrackA-Slice17.md) consumes.
+
 ### 4.5 Archidekt
 
 **Date verified:** 2026-07-29
@@ -1740,12 +1771,22 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
     ([§4.4](#44-commander-spellbook)) are reported rather than flattened away, for the same
     reason `legalities_included` exists on [CAP-01](#cap-01--card-search): an unlabelled result
     invites a wrong reading ([§3.6](#36-error-surface)).
-  - **A page carries at most 40 combos, and where the cap is applied differs by tool.** At the
-    worst measured per-combo cost of 1,236 characters a full page is under 50,000 — inside
-    [CAP-01](#cap-01--card-search)'s delivered band and well under the 116,626 that breached a
-    harness tool-result ceiling. **[CAP-01](#cap-01--card-search)'s 88-card arithmetic does not
-    transfer**: Commander Spellbook exposes a true `offset`, so page *n* is `offset = (n-1) * 40`
-    with no half-page trick and every combo reachable.
+  - **A page carries at most 20 combos, and where the cap is applied differs by tool.**
+    **Amended 2026-08-25 from 40, on measurement.** The original 40 rested on a worst per-combo
+    cost of 1,236 characters taken from one query; **577 combos sampled across 15 queries** put
+    that near the *cheap* end of the real distribution — p50 **1,390**, p99 **2,530**, max
+    **4,421** — because per-combo cost tracks how many cards a combo uses. At 40, the ordinary
+    query `cards>5 steps>5` returned a measured **99,311**-character tool result, **85% of the
+    116,626** that breached a harness tool-result ceiling. At 20 the same query returns **58,240**
+    and a typical one **16,903**, so the realistic worst page is half the known-bad figure and even
+    a page of maximum-cost combos stays under 90,000. **The margin is the point: 116,626 is a value
+    known to FAIL, not the limit**, so a cap of 25 was rejected for putting the pathological page
+    at 95% of it. See [§4.4.1](#441-the-combo-payload-is-enormous--measured).
+    **[CAP-01](#cap-01--card-search)'s 88-card arithmetic does not
+    transfer**: Commander Spellbook exposes a true `offset`, so page *n* is `offset = (n-1) * 20`
+    with no half-page trick and every combo reachable — which is also what made re-sizing this cap
+    safe, where [Slice 14](./slices/TrackA-Slice14.md)'s could not have been changed without
+    stranding cards.
   - **`combo_search` pages upstream; `combo_find_deck` must not.** The distinction is the whole
     point and collapsing it breaks one tool or the other. `/variants/` returns **one flat list**,
     so `limit` and `offset` cannot drop the answer to the question asked and are sent upstream —
@@ -1819,8 +1860,10 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   6. No response carries a Commander Spellbook price field
      ([D-06](#d-06--pricing-from-scryfall)).
   7. No response carries a Commander Spellbook `imageUri*` field.
-  8. A response reports at most 40 combos, states the total and whether more exist, and page 2
-     returns the next 40 via `offset` — so every combo is reachable by some page.
+  8. A response reports at most 20 combos, states the total and whether more exist, and page 2
+     returns the next 20 via `offset` — so every combo is reachable by some page. (**Amended
+     2026-08-25 from 40** with the page-cap bullet above; the criterion itself is unchanged in
+     kind, only in number.)
   9. **`include` defaults to `"matched"`**, and no near-miss combo appears in a response that did
      not ask for one. A call setting `"matched+near"` returns near-misses, each labelled with the
      bucket it came from.
@@ -1906,6 +1949,18 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   measurement method [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
   established is available and was not run. Evidence:
   [`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md).
+- **Progress note addendum (2026-08-25) — the page cap was re-sized from 40 to 20 on
+  measurement, and the page-cap bullet above is amended rather than annotated.** The 40 rested
+  on one query; **577 combos sampled across 15 queries** put its per-combo cost near the cheap
+  end of the real distribution (p50 1,390, p99 2,530, max 4,421), and the ordinary query
+  `cards>5 steps>5` returned a measured **99,311**-character tool result at 40 — **85% of the
+  116,626** that breached a harness ceiling. At 20 it returns **58,240** and a typical query
+  **16,903**. Criterion 8's number moves with it, 40 → 20; the criterion is otherwise unchanged
+  and is still verified only in its `combo_search` half. **`Status` stays `specified`.** The
+  true ceiling is unknown and below 116,626, which is why the cap is sized for margin rather
+  than to a target: a cap of 25 would have put a maximum-cost page at 95% of a known-bad
+  figure. [§4.4.1](#441-the-combo-payload-is-enormous--measured) carries the distribution and
+  the before/after measurements.
 
 ---
 
@@ -2647,6 +2702,7 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-24 | **[CAP-02](#cap-02--combo-discovery)'s page-cap bullet corrected — it contradicted itself on upstream paging.** As first written it opened "the cap is never passed upstream", then noted Commander Spellbook exposes a true `offset`, then scoped the after-classification rule to `combo_find_deck` alone. Now split into two bullets stating the rule per tool: **`combo_search` sends `limit`/`offset` upstream** because `/variants/` returns one flat list where they cannot drop the answer asked for — and must, since that endpoint applies no default cap and one card's combos measure 533,840 characters with 476-combo cards projecting past 2.6 MB — while **`combo_find_deck` fetches the full result and caps after classification**, because its `limit` does not prioritize the combos a deck contains. A third bullet records that upstream paging **rests on `/variants/` ordering being stable across calls, which is unverified**, and binds the implementing slice to confirm it live before that path ships. No acceptance criterion changed: 8 already covered both tools and 10 was already scoped to `/find-my-combos`. | The contradiction was introduced the same day, in this document, and would have been read by whoever built it — most likely as a blanket prohibition, which would have meant a 533 KB transfer on every popular-card query against a source with no published rate limit that [§3.7](#37-undocumented-and-bot-protected-third-party-apis) tells this project to treat as fragile. Caught by the implementation-planning pass rather than by review, which is the argument for planning against a spec before building to it. The ordering caveat is recorded because upstream paging is only correct if the sequence is stable, and a drifting one repeats or skips combos **silently** — the same failure class as the `limit` trap the bullet above it exists to avoid. |
 | 2026-08-25 | **Track A [Slice 15](./slices/TrackA-Slice15.md) landed the transport [CAP-02](#cap-02--combo-discovery) needs and none of the capability** (`d08777b`). New `src/http/client.ts` — [CAP-01](#cap-01--card-search)'s client parameterized by a plain-data source spec carrying the source name, the lane table and the error-`details` reader; [`src/scryfall/client.ts`](../src/scryfall/client.ts) reduced to that spec plus a thin factory, every export kept; new `src/spellbook/client.ts` at **one 500 ms lane** with its own reader for Commander Spellbook's Django-REST field-error map; a **POST** verb on the same queue, spacing and 429 backoff; `spellbookBaseUrl` added to [`src/config.ts`](../src/config.ts). **[CAP-02](#cap-02--combo-discovery) criteria 11 and 12 verified, and criterion 3's *client half* only — 3 is not verified outright**, its handler half being [Slice 16](./slices/TrackA-Slice16.md)'s. A dated **Progress note** on the block records that and leaves `Status` at `specified`. **Nothing is wired:** no tool is registered, [`src/index.ts`](../src/index.ts) and [`src/tools/register.ts`](../src/tools/register.ts) show an empty diff, `tools/list` still reports one tool, [`src/result.ts`](../src/result.ts) gained no `FailureCode`, and no npm dependency was added. Lane selection is now **first prefix match in declaration order**, replacing a lane-identity comparison that could not survive generalization. `npm test` **27 suites / 101 tests → 39 / 150**; `npm run typecheck` clean; `npm run acceptance` 13/13 live with no 429. **No `D-` was minted, [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-external-dependencies) are untouched, no [CAP-01](#cap-01--card-search) criterion changed status, and no open question was resolved — [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is explicitly unmoved.** Evidence: [`docs/slices/TrackA-Slice15-results.md`](./slices/TrackA-Slice15-results.md). | [D-16](#d-16--no-npm-commander-spellbook-client-dependency) rejected the first-party npm client because it would not replace the in-house transport but sit beside it, leaving one source of three speaking a different error model, a different throttle and a different test harness — and a **hand-copied second client fails that test the same way**, so the only reading of that decision that survives contact with a second host is one transport pointed at two of them. Kept out of [Slice 16](./slices/TrackA-Slice16.md) because its correctness claim is *nothing observable changed*, which a diff carrying a new tool makes unfalsifiable: the evidence is [`tests/scryfall/client.test.ts`](../tests/scryfall/client.test.ts) passing with **one changed line** and all 101 pre-existing tests green against the extracted transport, run before a single new test was written. Three things are recorded because they are easy to get wrong later. **Lane selection is declaration order, not most-specific prefix** — a spec declaring `/cards` at 700 ms ahead of `/cards/search` at 50 ms routes `/cards/search` to 700, and a test pins it. **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so making `ScryfallClient` an alias of the generic client left three test fakes broken with `npm test` still green; `npm run typecheck` is the check for any shared-interface change. And the Commander Spellbook `details` reader accepts a `string` or a `string[]` value and **drops `details` entirely for any other shape**, rather than reporting a half-understood error body — a reader that threw would convert a clean `bad_request` into the [D-10](#d-10--tool-handlers-never-throw) backstop, which reads as a server fault and discourages the retry that fixes it. The live acceptance pass took three attempts, and the two failures are recorded in the results rather than re-run out of existence: both were a first-call `fetch` rejection ~10.7 s into a freshly spawned server, investigated to an intermittent connection failure **not attributable to the refactor**, whose GET path is byte-identical to what shipped. |
 | 2026-08-25 | **Track A [Slice 16](./slices/TrackA-Slice16.md) landed `combo_search` — half of [CAP-02](#cap-02--combo-discovery), whose `Status` stays `specified`** (`4bf697d`). Three new modules: `src/spellbook/types.ts`, whose hand-written wire shapes **omit** `prices` and every `imageUri*` field, making criteria 6 and 7 compile-time facts; `src/spellbook/combos.ts`, carrying the normalized combo shape every later consumer reads plus format resolution over Commander Spellbook's **16** legality keys, which are not Scryfall's 23; and `src/tools/combo-search.ts`, one upstream request per call at `limit=40`, `offset=(page-1)*40` and `count=true` with a defensive cap at 40. [`src/tools/register.ts`](../src/tools/register.ts) takes a `Clients` bundle and each handler still receives the one client it needs; `tools/list` reports **two** tools. **Criteria 2, 6 and 7 verified in full, criterion 3's handler half — so 3 is now verified in both halves — and the `combo_search` half of criteria 1, 8 and 14. No criterion is marked delivered**, and criterion 10 is entirely [Slice 17](./slices/TrackA-Slice17.md)'s. A second dated **Progress note** records that on the block; the **third cap bullet's ordering caveat is discharged** by a live probe — 80 distinct ids in 80 slots across pages 1 and 2, zero overlap, neither fallback needed; and [§4.4.1](#441-the-combo-payload-is-enormous--measured) gains a dated addendum measuring the shipped trim: page 1 at 40,202 characters live and 40,096 on the 40-variant fixture, whose 173,135 raw makes that a **76.8%** reduction inside the band already recorded, against **page 2 at 63,688 and 1,592 per combo** — above both the 930–1,236 band and the "under 50,000" page budget. `npm test` **39 suites / 150 tests → 56 / 210**; `npm run typecheck` clean; `npm run acceptance` 13/13 live with no 429. **No `D-` was minted, [§2](#2-locked-decisions) and [§3](#3-constraints) are untouched, no [CAP-01](#cap-01--card-search) criterion changed status, and no open question was resolved** — [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) and [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) both stay open. Evidence: [`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md). | Splitting the capability across two slices is what keeps each half's claim falsifiable, and the price of that is a block with partly ticked criteria — so the status is deliberately **not** moved: a half-built capability carrying a delivered status is the reporting failure this document has already paid to unpick once, in the 2026-08-08 row above. The page-budget contradiction is the most useful line here. [§4.4.1](#441-the-combo-payload-is-enormous--measured) already warned that per-combo cost tracks how many cards a combo uses, so a budget derived from one query was always an estimate; the honest record is therefore a dated measurement beside the original rather than a quietly corrected number, and **the page-cap bullet's own "under 50,000" text is left as written — whether to amend it in place is this document's owner's call, not a closeout edit.** Three inversions are recorded because porting [CAP-01](#cap-01--card-search)'s rules is the obvious mistake here: zero matches arrives as HTTP **200** while a **404 stays a failure**, so the deliberate 404-as-empty mapping must not be copied; [Slice 14](./slices/TrackA-Slice14.md)'s 88-card half-page arithmetic does not transfer where a true `offset` exists; and combo legality is **one boolean**, not a map and not Scryfall's `"legal"` strings — guarded so that a legality key upstream dropped returns a structured failure rather than reading as `false`, which [§3.6](#36-error-surface) forbids and which this capability exists partly to avoid. [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) is left open on purpose and is now *concrete* rather than answered: the tool exists, so [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)'s measurement-against-a-baseline method is finally available, and recording an impression in its place would spend the question without answering it. Two verification steps in [`docs/slices/TrackA-Slice16.md`](./slices/TrackA-Slice16.md) are wrong as written and its acceptance criterion 8 contradicts its own requirement 7 (requirement 7 wins, case-insensitive matching resolving `standardbrawl` rather than refusing it); all three are that document's text, and no [CAP-02](#cap-02--combo-discovery) criterion is affected. |
+| 2026-08-25 | **[CAP-02](#cap-02--combo-discovery)'s page cap amended from 40 combos to 20, on measurement, and criterion 8's number with it.** The 40 was derived from one query at 1,236 characters per combo. **577 combos sampled across 15 queries** — using Commander Spellbook's own `cards>N`, `steps>N`, `results>N` and `prerequisites>N` operators, all four confirmed real against `/explain-query` — put that near the **cheap** end: p50 **1,390**, p99 **2,530**, max **4,421**, sampled mean **1,393**, which is itself above the 930–1,236 band. Per-combo cost tracks how many cards a combo uses. At 40, the ordinary query `cards>5 steps>5` returned a measured **99,311**-character tool result, **85% of the 116,626** that breached a harness ceiling in issue #25; at 20 it returns **58,240**, and `card:"Thassa's Oracle"` returns **16,903**. [§4.4.1](#441-the-combo-payload-is-enormous--measured) gains a **second** dated addendum carrying the distribution and the before/after figures, and the first addendum stands as written. The [CAP-02](#cap-02--combo-discovery) page-cap bullet is **amended in place** rather than annotated, and a dated Progress-note addendum records why. **`Status` stays `specified`, no criterion changed verification state** — criterion 8 changed its *number*, not its kind, and is still verified in its `combo_search` half only. `PAGE_SIZE` in `src/tools/combo-search.ts`, the tool description and the input schema all move together; `npm test` stays 56 suites / 210 tests. | The bullet is amended in place rather than left with a dated correction beside it because, unlike [§4](#4-external-dependencies)'s research record, a [§5](#5-capabilities) capability bullet is **instruction to the implementer** — a reader who finds "at most 40 combos" there and a contradicting addendum elsewhere has to guess which binds, and the code can only implement one. The date-stamped reasoning survives in the bullet, the Progress note and [§4.4.1](#441-the-combo-payload-is-enormous--measured). Sizing is by **margin, not by target**: 116,626 is a value known to FAIL rather than the limit, and the true ceiling is unknown and lower, so the question asked was not "what fits 50,000" but "what still fits when every combo on the page is a 10-card one". That rejected 25, whose maximum-cost page reaches 95% of a known-bad figure, and it is why the realistic worst page at 20 (~58,000) is accepted despite exceeding the original 50,000 aspiration — a fixed count cap cannot honour that aspiration against 5.7× cost variance without going to 15 and tripling the page count. A **byte-aware** cap was considered and rejected for now: it adapts to the variance, but nothing may strand a combo behind no reachable page ([Slice 14](./slices/TrackA-Slice14.md)'s lesson), so it requires paging by explicit offset rather than page number — a contract change to the very shape [Slice 17](./slices/TrackA-Slice17.md) is about to consume. Re-sizing was **safe only because** Commander Spellbook exposes a true `offset`: the same change against Scryfall's offsetless `page` would have stranded cards, which is exactly why [Slice 14](./slices/TrackA-Slice14.md) could not simply pick a smaller number. |
 
 ---
 

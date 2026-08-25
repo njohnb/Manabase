@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-25
 **Spec:** [`TrackA-Slice16.md`](./TrackA-Slice16.md)
-**Commit:** `4bf697d` on `feat/slice16-combo-search`
+**Commits:** `4bf697d` (the tool), plus the page-cap amendment recorded in §2a
 **Delivers:** [CAP-02](../MCP-PRD.md#cap-02--combo-discovery) criteria **2, 6 and 7** in full, the
 **handler half** of criterion 3, and the **`combo_search` half** of criteria 1, 8 and 14.
 **No criterion is marked delivered and `Status` stays `specified`** — the capability is delivered
@@ -85,6 +85,64 @@ The byte tests assert the **issue #25 ceiling** as the bound that matters, with 
 kept only as a fixture-level regression guard and commented as such. An exact assertion was
 deliberately not written: it would fail on a fixture refresh for no real reason.
 
+**That finding was then chased down, and it changed the cap. See §2a.**
+
+## 2a. The page cap was re-sized from 40 to 20, on a sampled distribution
+
+Page 2 being above the band was a symptom, so the distribution was sampled deliberately rather than
+inferred: **577 combos across 15 queries**, shaped through the delivered shaper, each query chosen
+to stress one driver of shaped size. Commander Spellbook's `cards>N`, `steps>N`, `results>N` and
+`prerequisites>N` operators were all confirmed real against `/explain-query` first, so no call was
+spent on a guessed operator.
+
+| | per combo |
+|---|---|
+| min / p50 / p90 | 547 / **1,390** / 2,043 |
+| p95 / p99 / max | 2,296 / **2,530** / **4,421** |
+| sampled mean | **1,393** |
+
+**`card:"Thassa's Oracle"` is a cheap query, not a representative one.** Its ~1,001 characters per
+combo sits near the bottom of that distribution, and
+[§4.4.1](../MCP-PRD.md#441-the-combo-payload-is-enormous--measured)'s 930–1,236 band is *below the
+sampled mean*. Cost tracks how many cards a combo uses: a 10-card combo shapes to 4,421 characters
+where a 2-card one shapes to 547.
+
+Worst real 40-combo pages, measured: `cards>5 steps>5` **99,311**, `cards>5` 98,017,
+`cards>4 prerequisites>2` 81,887, `cards>4` 71,295, `steps>8` 67,748. The first was confirmed
+**end to end through the shipped tool**, not projected — 85% of the 116,626 that breached a harness
+ceiling, from a query any user can type.
+
+| cap | typical page (1,393) | worst page mean (2,913) | every combo at max (4,421) |
+|---|---|---|---|
+| 40 (as specified) | 55,720 | **116,640** | 176,840 |
+| 25 | 34,825 | 72,945 | 110,525 |
+| **20 (chosen)** | **27,860** | **58,380** | **88,420** |
+| 15 | 20,895 | 43,815 | 66,315 |
+
+**Sizing is by margin, not to a target.** 116,626 is a value known to **fail**, not the ceiling —
+the true limit is unknown and lower. The question was therefore not "what fits 50,000" but "what
+still fits when every combo on the page is a 10-card one". That rejected 25, whose maximum-cost page
+reaches 95% of a known-bad figure. It also means the realistic worst page at 20 (~58,000) is
+**accepted despite exceeding the original 50,000 aspiration**: a fixed count cap cannot honour that
+aspiration against 5.7× cost variance without dropping to 15 and tripling the page count.
+
+Re-measured through the shipped tool after the change:
+
+| query | at 40 | at 20 |
+|---|---|---|
+| `cards>5 steps>5` | **99,311** | **58,240** |
+| `card:"Thassa's Oracle"` | 40,141 (page 1) | **16,903** |
+
+**Re-sizing was safe only because Commander Spellbook exposes a true `offset`.** Every combo stays
+reachable at any cap, so changing the number strands nothing — the same change against Scryfall's
+offsetless `page` would have, which is precisely why [Slice 14](./TrackA-Slice14.md) could not
+simply pick a smaller number and had to use a half-page.
+
+A **byte-aware** cap — fill a page to a byte budget and report an explicit `next_offset` — was
+considered and **not taken**. It adapts to the variance properly, but it moves paging from page
+numbers to offsets, and that is the shape [Slice 17](./TrackA-Slice17.md) is about to consume.
+Recorded as the option to revisit if 20 proves wrong.
+
 ## 3. `requires` costs almost nothing, on the fixtures this repo holds
 
 [Slice 16](./TrackA-Slice16.md) requirement 10 cites **13.5 characters per variant** across the
@@ -105,7 +163,7 @@ Four inversions, each pinned by a test:
   failure** — porting [CAP-01](../MCP-PRD.md#cap-01--card-search)'s 404-as-empty mapping would
   report "no combos match" for a bad path.
 - **[Slice 14](./TrackA-Slice14.md)'s 88-card half-page arithmetic does not transfer.**
-  `ceil(total / 40)` is simply correct here, and page *n* is a true `offset = (n-1) * 40`.
+  `ceil(total / 20)` is simply correct here, and page *n* is a true `offset = (n-1) * 20`.
 - **`format` always names the format requested.** Requirement 7 refuses anything this source cannot
   judge, so there is no applied-versus-requested gap of the kind
   [CAP-01](../MCP-PRD.md#cap-01--card-search)'s `legalities_mode` has. Nobody should add one.
@@ -198,7 +256,7 @@ and `tests/tools/register.test.ts` asserts exactly that, over every tool definit
 | 3 | Invalid query → structured failure, verbatim message, no throw | **met** |
 | 4 | No Commander Spellbook price field | **met** — sweep + typecheck, and live |
 | 5 | No `imageUri*` field | **met** — sweep + typecheck, and live |
-| 6 | ≤40 combos, states `total_combos` and `has_more`, page 2 sends `offset=40` | **met** |
+| 6 | ≤20 combos, states `total_combos` and `has_more`, page 2 sends `offset=20` | **met** |
 | 7 | Format stated once, one `legal` boolean, no other format's legality | **met** |
 | 8 | `historic` / `standardbrawl` / `notaformat` refused with no upstream call; `EDH` and `Commander` resolve | **met, with one correction** — see below |
 | 9 | Empty 200 → successful empty result; 404 stays a failure | **met** |

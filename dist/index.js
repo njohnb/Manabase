@@ -16004,7 +16004,7 @@ function toComboSummary(variant, formatKey, bucket) {
 }
 
 // src/tools/combo-search.ts
-var PAGE_SIZE2 = 40;
+var PAGE_SIZE2 = 20;
 function pageCount(total) {
   return total <= 0 ? 0 : Math.ceil(total / PAGE_SIZE2);
 }
@@ -16127,12 +16127,12 @@ var CARD_SEARCH_INPUT_SCHEMA = {
   },
   required: ["q"]
 };
-var COMBO_SEARCH_DESCRIPTION = "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by Commander Spellbook itself \u2014 `card:\"Thassa's Oracle\"` is the common case. Returns each combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. 40 combos per page; the response reports `total_combos` and `has_more`. `format` names the single format legality is judged for (default `commander`); these format names are not Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns Commander Spellbook's error text verbatim \u2014 correct it and retry.";
+var COMBO_SEARCH_DESCRIPTION = "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by Commander Spellbook itself \u2014 `card:\"Thassa's Oracle\"` is the common case. Returns each combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. 20 combos per page; the response reports `total_combos` and `has_more`. `format` names the single format legality is judged for (default `commander`); these format names are not Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns Commander Spellbook's error text verbatim \u2014 correct it and retry.";
 var COMBO_SEARCH_INPUT_SCHEMA = {
   type: "object",
   properties: {
     q: { type: "string", description: "Commander Spellbook query string. Evaluated server-side; sent unmodified." },
-    page: { type: "integer", minimum: 1, description: "1-based page; 40 combos per page." },
+    page: { type: "integer", minimum: 1, description: "1-based page; 20 combos per page." },
     format: { type: "string", description: "Format legality is judged for. Default: commander. Unknown values are refused." }
   },
   required: ["q"]
