@@ -42,7 +42,7 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (150 tests, 39 suites)
+npm test            # node --experimental-strip-types --test  (210 tests, 56 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
@@ -64,15 +64,22 @@ src/scryfall/client.ts  spec: two lanes (500/100 ms), Scryfall's details reader.
 src/spellbook/client.ts spec: one 500 ms lane, the Django-REST field-error details reader
 src/scryfall/prices.ts  resolvePrice() — the three price traps
 src/scryfall/types.ts   minimal wire shapes; only fields actually read
+src/spellbook/types.ts  wire shapes that OMIT prices and every imageUri* field — the omission is
+                        the mechanism: code cannot read a field the type does not declare
+src/spellbook/combos.ts ComboSummary, the normalized shape every later consumer reads, plus
+                        resolveFormat over Commander Spellbook's 16 legality keys (NOT Scryfall's 23)
 src/tools/card-search.ts  cardSearch() — query in, shaped CardSearchData out
-src/tools/register.ts     tool definitions + dispatchToolCall + registerTools
+src/tools/combo-search.ts comboSearch() — one upstream request per call, limit 40 + true offset
+src/tools/register.ts     tool definitions + dispatchToolCall(clients, name, args) + registerTools
 tests/                  handlers called as plain functions; fixtures under tests/fixtures/
 dist/index.js           committed build output — NOT gitignored
 ```
 
-Data flows one way: `index.ts` builds config → creates the client → `registerTools` wires the SDK
-handlers to `dispatchToolCall` → `cardSearch` → `client.get`. Nothing below `index.ts` touches
-global state, so every layer is testable by passing a fake.
+Data flows one way: `index.ts` builds config → creates both clients → `registerTools` wires the SDK
+handlers to `dispatchToolCall` → `cardSearch` / `comboSearch` → `client.get`. `dispatchToolCall`
+takes a `Clients` bundle rather than positional clients, and each handler receives the **one**
+client it needs, so no handler can reach a source it has no business calling. Nothing below
+`index.ts` touches global state, so every layer is testable by passing a fake.
 
 ## Rules that are easy to violate by accident
 
@@ -584,6 +591,58 @@ body. One thing that is *not* a trap: the live acceptance pass took three attemp
 first-call `fetch` rejection ~10.7 s into a freshly spawned server, investigated to an intermittent
 connection failure **not attributable to the refactor** — §7 of that results doc records it, and it
 is not a defect in the transport.
+
+**Slice 16 (`combo_search`) landed 2026-08-25 as commit `4bf697d` on `feat/slice16-combo-search`,
+not yet a PR — half of `CAP-02`, and the slice that sets the normalized combo shape.** Three new
+modules: `src/spellbook/types.ts` (wire shapes that omit `prices` and every `imageUri*` field),
+`src/spellbook/combos.ts` (`ComboSummary` plus `resolveFormat` over Commander Spellbook's 16
+legality keys), `src/tools/combo-search.ts` (one upstream request per call, `limit=40`,
+a pass-through `offset`, `count=true`, and a 50,000-character page budget); `register.ts` gains a `Clients`
+bundle and a second tool definition, `index.ts` builds both clients. `tools/list` on the rebuilt
+bundle reports **two** tools. Tests 150 → 210, suites 39 → 56; typecheck clean;
+`npm run acceptance` 13/13 live, no 429. Evidence: `docs/slices/TrackA-Slice16-results.md`.
+**`CAP-02`'s `Status` stays `specified` and no criterion is marked delivered** — the capability is
+delivered when Slice 17 lands, and a half-built capability with ticked criteria is the reporting
+failure Slice 12 paid for. Verified: **criteria 2, 6 and 7 in full**, criterion **3's handler
+half** — so 3 is now verified in both halves, Slice 15 having done the client half, but never write
+"3 verified" flatly — and the **`combo_search` half only** of criteria 1, 8 and 14. Criterion 10 is
+entirely Slice 17's. No `CAP-01`, `PC-01`, `PC-02` or `PC-03` criterion changed status, `PQ-06` did
+not move in either half, no `D-` was minted, and §2/§3/§4 of both PRDs are untouched apart from one
+dated §4.4.1 addendum.
+
+Two live findings and five design facts from that slice. **The ordering probe passed and `CAP-02`'s
+third cap bullet is discharged** — two calls, `card:"Thassa's Oracle"` pages 1 and 2 through the
+shipped client on its 500 ms lane, **80 distinct ids in 80 slots, zero overlap** — so the
+upstream-paging path ships as specified and neither fallback (an explicit `ordering` parameter, or
+one fetch plus a client-side slice) was needed. **And one measured figure contradicts `CAP-02`'s
+page budget:** live page 2 measured **63,688 characters at 1,592 per combo**, above §4.4.1's
+930–1,236 band and above the bullet's stated "under 50,000". Nothing is broken — that is 55% of the
+116,626 that breached a harness ceiling in issue #25 — but **the 50,000 figure is an estimate from
+one query and is never a guarantee**; page 1 measured 40,202 live and 40,096 on the fixture at
+~1,001–1,005 per combo, a 76.8% reduction on that fixture's 173,135 raw, and `description` is 36.5%
+of the trimmed form. The dated §4.4.1 addendum carries both,
+and **the page-cap bullet's own text is left as written** — amending it in place is the document
+owner's call. The design facts bind later slices. `dispatchToolCall(clients, name, args)` takes a
+**bundle**, and each handler still receives the one client it needs. **Zero matches is HTTP 200**
+and a successful empty result, while a **404 stays a failure** — `CAP-01`'s 404-as-empty mapping is
+deliberately not ported. **Slice 14's 88-card half-page arithmetic does not transfer**:
+a page is filled to a **byte budget** and paged by **`next_offset`**. **`format` always names the format
+requested**, so there is no applied-versus-requested gap like `legalities_mode`'s — and legality is
+one **boolean** named `legal`, never a map of 16 keys and never Scryfall's `"legal"`/`"not_legal"`
+strings, with a per-call guard that returns a structured `unexpected` if the resolved key is absent
+from the payload, because an absent key read as `false` is what §3.6 forbids. A page past the end
+is `bad_request` with **no `status`**, mirroring `card-search.ts`'s `outOfRangeFailure`, and
+upstream signals it with a 200 whose `results` is empty beside an unchanged non-zero `count`.
+
+**No open question moved. `OQ-05` and `OQ-14` both stay open**, and `OQ-14` is now *concrete*
+rather than answered — the tool exists, so the measurement method `OQ-01` established is finally
+available, and this slice did not run it. Two things in `docs/slices/TrackA-Slice16.md` are wrong
+as written and are that document's text rather than `CAP-` criteria: its `grep` verification steps
+2 and 3 cannot print nothing (requirement 1 *requires* the header comment naming the forbidden
+fields, and `register.ts` has carried a `mcp__plugin_manabase_mtg__card_search` comment since the
+tool was first registered), and its acceptance criterion 8 contradicts its own requirement 7 —
+case-insensitive matching **resolves** `standardbrawl` to `standardBrawl` rather than refusing it,
+and the implementation follows requirement 7.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions

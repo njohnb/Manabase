@@ -296,6 +296,41 @@ strictest-lane rule applied, not a measured fit. No
 [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in both halves.
 Evidence: [`docs/slices/TrackA-Slice15-results.md`](./slices/TrackA-Slice15-results.md).
 
+**[Slice 16](./slices/TrackA-Slice16.md) landed 2026-08-25 — half the capability, and not the
+capability.** Commit `4bf697d`: `src/spellbook/types.ts` (hand-written wire shapes that **omit**
+`prices` and every `imageUri*` field, which is what makes criteria 6 and 7 compile-time facts),
+`src/spellbook/combos.ts` (the normalized combo shape every later consumer reads, plus format
+resolution over Commander Spellbook's **16** legality keys, which are not Scryfall's 23),
+`src/tools/combo-search.ts`, and a `Clients` bundle in
+[`src/tools/register.ts`](../src/tools/register.ts) so each handler still receives the one client
+it needs. `tools/list` on the rebuilt bundle reports **two** tools.
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria **2, 6 and 7 are verified in full**, plus
+the **handler half** of criterion 3 — its client half was [15](./slices/TrackA-Slice15.md)'s, so 3
+is now verified in both halves — plus the **`combo_search` half** of criteria 1, 8 and 14;
+criterion 10 is entirely [17](./slices/TrackA-Slice17.md)'s. **No criterion is marked delivered and
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s `Status` stays `specified`** — the capability is
+delivered when [17](./slices/TrackA-Slice17.md) lands. The live ordering probe **passed**, 80
+distinct ids in 80 slots across pages 1 and 2 with zero overlap, discharging
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s third cap bullet. One measurement went the other
+way and is recorded rather than smoothed: a live `combo_search` page 2 measured **63,688
+characters at 1,592 per combo**, above both
+[§4.4.1](./MCP-PRD.md#441-the-combo-payload-is-enormous--measured)'s 930–1,236 band and
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s stated "under 50,000" page budget — nothing is
+broken by it, at 55% of the 116,626 that breached a harness ceiling, but that budget is an estimate
+from one query and is not a guarantee. **No open question moved:**
+[OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) and
+[OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+are both still open, the latter now *concrete* rather than answered — the tool exists, so the
+measurement method [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model)
+established is available, and this slice did not run it. No
+[CAP-01](./MCP-PRD.md#cap-01--card-search), [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status,
+[12](./slices/TrackC-Slice12.md) is still the open gate, and
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in both halves.
+The source-file and test rows below carry this slice's figures. Evidence:
+[`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md).
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -304,9 +339,9 @@ Evidence: [`docs/slices/TrackA-Slice15-results.md`](./slices/TrackA-Slice15-resu
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)) |
 | README | install instructions in `owner/repo` form with the raw-URL trap warning ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), version floor, disclaimer |
-| Server source | `config.ts`, `index.ts`, `result.ts`, `http/client.ts`, `scryfall/{client,prices,types}.ts`, `spellbook/client.ts`, `tools/{card-search,register}.ts` — **ten** files since [Slice 15](./slices/TrackA-Slice15.md) (2026-08-25), which made `http/client.ts` **the one transport** and left `scryfall/client.ts` and `spellbook/client.ts` as source specs over it |
-| Tests | 39 suites, **150 tests, 150 passing**; `tsc --noEmit` clean — re-run 2026-08-25 ([Slice 15](./slices/TrackA-Slice15.md) took it from 27 suites and 101 tests, [Slice 14](./slices/TrackA-Slice14.md) from 21 and 73). **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so a change to a shared interface passes it and fails only `npm run typecheck`, which is how [Slice 15](./slices/TrackA-Slice15.md) found three test fakes broken by `ScryfallClient` becoming an alias. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
-| `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules` |
+| Server source | `config.ts`, `index.ts`, `result.ts`, `http/client.ts`, `scryfall/{client,prices,types}.ts`, `spellbook/{client,combos,types}.ts`, `tools/{card-search,combo-search,register}.ts` — **thirteen** files since [Slice 16](./slices/TrackA-Slice16.md) (2026-08-25), which added the three Commander Spellbook and tool modules to the ten [Slice 15](./slices/TrackA-Slice15.md) left. [Slice 15](./slices/TrackA-Slice15.md) made `http/client.ts` **the one transport** and left `scryfall/client.ts` and `spellbook/client.ts` as source specs over it |
+| Tests | 56 suites, **210 tests, 210 passing**; `tsc --noEmit` clean — re-run 2026-08-25 ([Slice 16](./slices/TrackA-Slice16.md) took it from 39 suites and 150 tests, [Slice 15](./slices/TrackA-Slice15.md) from 27 and 101, [Slice 14](./slices/TrackA-Slice14.md) from 21 and 73). **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so a change to a shared interface passes it and fails only `npm run typecheck`, which is how [Slice 15](./slices/TrackA-Slice15.md) found three test fakes broken by `ScryfallClient` becoming an alias. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
+| `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules`. Since [Slice 16](./slices/TrackA-Slice16.md) (2026-08-25) the rebuilt bundle lists **two** tools, `card_search` and `combo_search` |
 | CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` **ran for the first time 2026-08-10** on tag `v0.1.0` (run `31421682409`), after its `actions/checkout`, `setup-node` and `upload-artifact` pins were bumped to `@v7` — `upload-artifact@v6` is the first major on `node24`, so `@v5` still carried the Node-20 deprecation annotation that prompted the bump |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
@@ -1197,6 +1232,14 @@ slice before anything calls it. The constraint the paragraph above states was ho
 so its claim stayed falsifiable — `tests/scryfall/client.test.ts` passes with one changed line and
 `npm run acceptance` is 13/13.
 
+**Superseded again 2026-08-25: [16](./slices/TrackA-Slice16.md) has landed too, so the unblocked
+set is [12](./slices/TrackC-Slice12.md) and [17](./slices/TrackA-Slice17.md).** Phase 1's remaining
+path is still 12 → 13 and no Phase 1 status moved. [17](./slices/TrackA-Slice17.md) is the last
+slice in the Phase 2 chain and the one that closes
+[CAP-02](./MCP-PRD.md#cap-02--combo-discovery) — [16](./slices/TrackA-Slice16.md) deliberately did
+not, leaving `Status` at `specified` with no criterion marked delivered, so the chain is two thirds
+built rather than nearly done.
+
 ## 6. Beyond Phase 1 — queued slice packs
 
 Both PRDs deliberately refuse to schedule anything past Phase 1 (`MCP-PRD.md` [§6](./MCP-PRD.md#6-phases),
@@ -1255,7 +1298,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | # | Slice | Track | Status |
 |---|---|---|---|
 | 15 | Transport generalization & the POST verb | A — server | ☑ |
-| 16 | `combo_search` | A — server | ☐ |
+| 16 | `combo_search` | A — server | ☑ |
 | 17 | `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) | A — server | ☐ |
 
 ---
@@ -1295,10 +1338,26 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   field, which is what makes criteria 6 and 7 compile-time facts), `src/spellbook/combos.ts`,
   `src/tools/combo-search.ts`; a `Clients` bundle in
   [`src/tools/register.ts`](../src/tools/register.ts).
-- **Done when:** ☐ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 2, 3, 6, 7, 8 and 14's
-  `combo_search` half verified · ☐ upstream paging sends `limit=40`, `offset=(page-1)*40` and
-  `count=true` · ☐ an unknown `format` is refused before any call · ☐ `dist/` rebuilt in the same
-  commit · ☐ one [§9](./MCP-PRD.md#9-revision-log) row and **no criterion marked delivered**.
+- **Done when:** ☑ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 2, 3, 6, 7, 8 and 14's
+  `combo_search` half verified · ☑ upstream paging sends `limit=60`, a pass-through `offset` and
+  `count=true` · ☑ an unknown `format` is refused before any call · ☑ `dist/` rebuilt in the same
+  commit · ☑ one [§9](./MCP-PRD.md#9-revision-log) row and **no criterion marked delivered**.
+- **Done 2026-08-25.** Results:
+  [`TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md). Commit `4bf697d` on
+  `feat/slice16-combo-search`. `npm test` 39 suites / 150 tests → **56 / 210**; `npm run typecheck`
+  clean; `npm run acceptance` 13/13 live with no 429; `tools/list` on the rebuilt bundle reports
+  **two** tools. Verified precisely: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria **2, 6
+  and 7 in full**, the **handler half** of criterion 3 — whose client half was
+  [15](./slices/TrackA-Slice15.md)'s, so 3 is now verified in both halves — and the
+  **`combo_search` half** of criteria 1, 8 and 14. Criterion 10 is entirely
+  [17](./slices/TrackA-Slice17.md)'s and is untouched. **No criterion is marked delivered and
+  `Status` stays `specified`.** The live ordering probe **passed** — 80 distinct ids in 80 slots
+  across pages 1 and 2 of one query, zero overlap — which discharges
+  [CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s third cap bullet, so the upstream-paging path
+  ships as specified and neither fallback is needed. Two of this slice's own verification steps are
+  wrong as written, and its acceptance criterion 8 contradicts its requirement 7 (requirement 7
+  wins) — all three are [`TrackA-Slice16.md`](./slices/TrackA-Slice16.md)'s text rather than
+  [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria, and the results document records each.
 - **Binding refs:** [CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s two paging bullets,
   [§4.4.1](./MCP-PRD.md#441-the-combo-payload-is-enormous--measured) (the trim this implements),
   [D-06](./MCP-PRD.md#d-06--pricing-from-scryfall),
@@ -1306,8 +1365,8 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key) (never write a scoped tool name into a
   description).
 - **The trap.** [Slice 14](./slices/TrackA-Slice14.md)'s 88-card half-page arithmetic **does not
-  transfer** — Commander Spellbook exposes a true `offset`, so `ceil(total / 40)` is simply correct
-  here where its analogue was wrong there. And zero matches is an HTTP **200**, not a 404, so
+  transfer** — Commander Spellbook exposes a true `offset`, which is what lets a page end wherever
+  the byte budget runs out with nothing stranded behind it. And zero matches is an HTTP **200**, not a 404, so
   [CAP-01](./MCP-PRD.md#cap-01--card-search)'s deliberate 404-as-empty mapping must not be ported.
 
 #### Slice 17 — `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery)
