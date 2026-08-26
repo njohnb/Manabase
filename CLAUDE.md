@@ -672,6 +672,30 @@ does not close Slice 13. The reorder to 18 → 12 → 13 was already recorded in
 above still reads 210 (it tracks `main`); 237 is this slice's local figure. Evidence:
 `docs/slices/TrackC-Slice18-results.md`.
 
+**Slice 18 merged 2026-08-25 (PR #54) and its first live release run FAILED — the mechanism was
+then revised (PR #55), and the corrected form is what binds.** `main` had gained branch protection
+(`required_pull_request_reviews`) between this slice's scoping — when its precondition "`main` is not
+branch-protected" was verified true — and its merge, so the release job's `GITHUB_TOKEN` push of the
+bumped `plugin.json` back to `main` was rejected (`GH006`, protected-branch hook). The tag/pack/
+release steps never ran, so **nothing was published** — `v0.1.0`/`v0.1.1` untouched, `v0.2.0` never
+cut; a clean failure. **The release job no longer pushes to `main` at all. The version rides in the
+PR:** run `npm run bump-version` on a releasable branch — it computes the number from the commit
+range and writes `plugin.json`'s `version` (never typed by hand) — and commit that into the PR. On
+merge the job runs `scripts/bump-version.mjs --check` (read-only: is the committed version a new,
+valid, untagged semver ahead of the newest tag?) and, if so, creates the tag, packs, and publishes.
+**Tags are not branch-protected, so tagging needs no bypass; `main` is, so never re-add a
+push-to-`main` step or a `v*` tag trigger to `release.yml`.** This revises Slice 18 requirement 5
+(its write-back step is removed) and holds whether or not protection is later removed — it never
+depended on the push. **Consequence that binds every release:** a releasable PR (a `feat:`/`fix:`/
+`perf:` in range) that forgets the bump ships **nothing** on merge rather than something wrong — a
+safe failure — and `ci.yml`'s `--advise` step warns about exactly that at PR time (a `::warning::`,
+never a gate). A docs-only merge ships nothing by design. `bump-version.mjs` now has three modes —
+default/`--dry-run`/`--set` (author writes the version), `--check` (the release job decides), and
+`--advise` (CI's PR warning); tests are 240 on this branch. `plugin.json` carries `version` `0.2.0`
+as of PR #55, so merging it both installs the fix and lets the job cut the withheld `v0.2.0`.
+Evidence: the dated addendum in `docs/slices/TrackC-Slice18-results.md` and the `PC-03` correction in
+`docs/PLUGIN-PRD.md`.
+
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
 arising *inside* triaged work are the other lane — `OPEN-QUESTIONS.md` and §7.
