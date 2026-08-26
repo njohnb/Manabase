@@ -1,25 +1,49 @@
-name: Release the MCPB bundle
+name: Release on merge to main
 
-# The Chat tab's install artifact is built here and nowhere else. A friend downloads
-# manabase.mcpb from a Release; nobody hand-packs one. See PLUGIN-PRD PC-03 and P-14.
+# Merging to main is the release trigger (Track C Slice 18, executing PLUGIN-PRD P-08). One job
+# does everything, with every irreversible step last: build and prove dist/, compute the version
+# from the commit range, and only then write plugin.json back to main, tag it, pack the bundle,
+# and publish the Release.
 #
-# The tag names the *bundle*, not the plugin — plugin.json stays version-less under P-08
-# until Slice 13 settles it.
+# The tag trigger is GONE on purpose (Slice 18 requirement 6). Two producers in one `v*` namespace
+# is the trap: `claude plugin tag` writes into it, and so does this job. If a hand-pushed tag also
+# fired a release, it would cut a *second* release of a version this job already published.
+# workflow_dispatch stays as the rehearsal-and-recovery path.
+#
+# The write-back to main uses GITHUB_TOKEN, and a GITHUB_TOKEN push does NOT trigger workflows.
+# That is load-bearing twice over: no `[skip ci]` marker is needed on the plugin.json commit, and
+# the `v<version>` tag this job pushes cannot fire a second workflow — which is exactly why the
+# tag/pack/release steps live in THIS job rather than in a tag-triggered one.
+#
+# NEVER add `npm run acceptance` here, under any trigger. It calls live Scryfall and MCP-PRD §3.4
+# makes rate limits a hard constraint (ci.yml says the same). Automated releases therefore ship
+# without a live pass, by design.
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  # A fixed group with cancel-in-progress:false — two merges landing close together must not race
+  # the same tag, and cancelling a run mid-publish is worse than queueing it behind the first.
+  group: release-main
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history and tags: the bump script's range is `<newest v* tag>..HEAD`, and the
+          # commit/tag write-back pushes back to main.
+          fetch-depth: 0
+          fetch-tags: true
 
       - uses: actions/setup-node@v7
         with:
@@ -28,18 +52,21 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run lint:docs
+
       - run: npm run typecheck
 
       - run: npm test
 
-      # dist/ is committed on purpose (P-09). Rebuilding here and failing on a diff is the
-      # check that a released bundle can never carry a server the repo does not describe.
+      # dist/ is committed on purpose (P-09). Rebuilding here and failing on a diff is the check
+      # that a released bundle can never carry a server the repo does not describe — ahead of every
+      # publishing step below.
       - name: Rebuild and prove dist/ is not stale
         run: |
           npm run build
-          # Porcelain, not `git diff --exit-code`: an *absent* dist/index.js is recreated by
-          # the rebuild as an untracked file, which git diff does not report at all. Same
-          # comparison ci.yml uses — see docs/slices/TrackC-Slice11.md, requirement 8.
+          # Porcelain, not `git diff --exit-code`: an *absent* dist/index.js is recreated by the
+          # rebuild as an untracked file, which git diff does not report at all. Same comparison
+          # ci.yml uses — see docs/slices/TrackC-Slice11.md, requirement 8.
           if [ -n "$(git status --porcelain -- dist/)" ]; then
             echo "::error title=dist/ is stale::dist/ is stale — run 'npm run build' and commit dist/index.js (P-09, PQ-06)."
             git --no-pager diff --stat -- dist/
@@ -47,24 +74,52 @@ jobs:
             exit 1
           fi
 
-      # pack:mcpb unpacks what it just wrote and fails if server/index.js is not the committed
-      # dist/index.js (PC-03 criterion 7). It lives in the pack script rather than in a step
-      # here so the assertion is identical locally and on the runner — no second implementation
-      # to drift, and nothing to add here.
+      # Compute the next version from the commit range and write it into plugin.json. On a
+      # documentation-only range this reports no release and exits 0, and every step below is gated
+      # on release == 'true', so the job simply ends green here. On workflow_dispatch the script
+      # still runs and writes plugin.json in the runner workspace, but the push-gated steps are
+      # skipped, so nothing is committed — that is the rehearsal.
+      - name: Compute the version
+        id: bump
+        run: node scripts/bump-version.mjs
+
+      # --- everything below is irreversible; it runs only when a release is warranted -----------
+
+      - name: Commit the bumped plugin.json to main
+        if: steps.bump.outputs.release == 'true' && github.event_name == 'push'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .claude-plugin/plugin.json
+          git commit -m "chore: release v${{ steps.bump.outputs.version }} — set plugin.json version [bot]"
+          # GITHUB_TOKEN push: does not re-trigger this workflow (see the header comment).
+          git push origin HEAD:main
+
+      - name: Tag the release
+        if: steps.bump.outputs.release == 'true' && github.event_name == 'push'
+        run: |
+          git tag "v${{ steps.bump.outputs.version }}"
+          git push origin "v${{ steps.bump.outputs.version }}"
+
+      # pack:mcpb stamps the bundle from MANABASE_BUNDLE_VERSION and asserts the packed
+      # server/index.js is byte-identical to the committed dist/index.js (PC-03 criterion 7). On a
+      # dispatch rehearsal the version is empty, so it stamps a dev bundle rather than a release one.
       - name: Pack the bundle
+        if: steps.bump.outputs.release == 'true'
         env:
-          MANABASE_BUNDLE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          MANABASE_BUNDLE_VERSION: ${{ github.event_name == 'push' && format('v{0}', steps.bump.outputs.version) || '' }}
         run: npm run pack:mcpb
 
-      # v7, not v5: upload-artifact v4 *and* v5 both declare `using: node20`, so bumping to v5
-      # left the deprecation warning exactly where it was. v6 is the first major on node24.
+      # v7, not v5: upload-artifact v4 and v5 both declare `using: node20`; v6 is the first major on
+      # node24. Uploaded on both push and dispatch so a rehearsal bundle can be inspected.
       - uses: actions/upload-artifact@v7
+        if: steps.bump.outputs.release == 'true'
         with:
           name: manabase-mcpb
           path: build/manabase.mcpb
 
       - name: Attach to the Release
-        if: github.ref_type == 'tag'
+        if: steps.bump.outputs.release == 'true' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" build/manabase.mcpb --generate-notes --title "$GITHUB_REF_NAME"
+        run: gh release create "v${{ steps.bump.outputs.version }}" build/manabase.mcpb --generate-notes --title "v${{ steps.bump.outputs.version }}"

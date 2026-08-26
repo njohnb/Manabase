@@ -3,6 +3,61 @@
 > Self-contained implementation spec. You do not need to read the PRDs to build this slice;
 > everything binding is inlined. PRD references are pointers for deeper context only.
 
+> **Amended 2026-08-25 — read this before acting on anything below. Four of this slice's
+> requirements moved to [Slice 18](./TrackC-Slice18.md), and this spec's preconditions are stale.**
+>
+> **What moved.** [Slice 18](./TrackC-Slice18.md) absorbs **requirement 3** (set `version` in
+> `plugin.json` — the [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme) switchover) and
+> **requirements 7, 8 and 9** (the three update-semantics tests). It also supersedes **requirement
+> 10**: `claude plugin tag` is not used, because a hand-pushed tag and an automated release would be
+> two producers in one `v*` namespace. The reasoning for the reordering is in that spec's *Why this
+> slice exists* section and is not restated here; the short form is that the gate protected against a
+> cost — a hand-cut release to fix a post-switchover defect — that automating the release removes.
+>
+> **What remains, and it is still a gate.** Requirement 11's
+> [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable)
+> disposition, requirement 12's single [§9](../PLUGIN-PRD.md#9-revision-log) row closing Phase 1, the
+> `README.md` status paragraph, and the roadmap status. **This slice still cannot open until
+> [Slice 12](./TrackC-Slice12.md)'s cold run is recorded** — precondition C is unchanged, and a
+> Phase 1 closing row written while a `PC` criterion waits on a stranger is the reporting failure
+> [Slice 12](./TrackC-Slice12.md) already paid for once.
+>
+> **Requirements 5 and 6 are untouched and are now load-bearing elsewhere.**
+> [Slice 18](./TrackC-Slice18.md) sources the release version from `plugin.json`, **not**
+> `package.json`, precisely because requirement 5 forbids the sync and
+> [`P-09`](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript) rejected `npx` to avoid
+> two numbers moving in lockstep. `package.json` stays `0.0.0`, `APP_VERSION` stays mirroring it, and
+> [Slice 18](./TrackC-Slice18.md) adds the test that makes requirement 6's hand-sync rule mechanical.
+>
+> **Three stale premises in the preconditions below.** They are left as written, per this repo's rule
+> that a dated record is appended to rather than overwritten — but do not work the checklist without
+> them.
+>
+> 1. **Precondition A says "[`CAP-01`](../MCP-PRD.md#cap-01--card-search)'s twelve acceptance
+>    criteria."** That block now carries **fifteen** and is delivered against **1–14**; criterion 13
+>    was added 2026-08-04 and verified by [Slice 14](./TrackA-Slice14.md), criterion 14 was added and
+>    verified by the same slice, and **criterion 15 (opt-in card images,
+>    [`OQ-13`](../MCP-PRD.md#oq-13--should-a-card-search-result-carry-image-uris-and-at-what-cost)) is
+>    unimplemented and unscheduled**. The gate condition is "every criterion has a recorded
+>    disposition," and criterion 15's disposition is *not implemented, no slice* — record it, do not
+>    build it here.
+> 2. **[`CAP-02`](../MCP-PRD.md#cap-02--combo-discovery) is absent from the checklist entirely**,
+>    because it did not exist when this spec was written. As of 2026-08-25 its `Status` is
+>    `specified` with [Slice 16](./TrackA-Slice16.md)'s half built, and
+>    [PR #53](https://github.com/njohnb/Manabase/pull/53) is the slice that closes it — so by the
+>    time this gate is worked the checklist owes it a row. Three of its open questions —
+>    [`OQ-05`](../MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits),
+>    [`OQ-06`](../MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
+>    and [`OQ-14`](../MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) — shipped
+>    with the capability. `OQ-06` has since closed. **Precondition D works by enumerating a range,
+>    and a question added after the range was written is exactly the silent kind it exists to
+>    catch** — that sentence is already in precondition D and it now applies to this document's own
+>    ranges.
+> 3. **Precondition B's [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 line
+>    resolves in [Slice 18](./TrackC-Slice18.md), not here.** `claude plugin validate . --strict`
+>    fails today on exactly one warning — the unset `version` — and that warning disappears when the
+>    switchover lands. [Slice 18](./TrackC-Slice18.md) records the output on both sides.
+
 **Goal.** Declare the plugin public: set explicit semver in `plugin.json` for the first time,
 prove that the update semantics inverted in both directions, push the release tag, and close
 Phase 1 in [`docs/PLUGIN-PRD.md`](../PLUGIN-PRD.md) — [§7](../PLUGIN-PRD.md#7-open-questions) with an explicit disposition for [`PQ-05`](../PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable), [§9](../PLUGIN-PRD.md#9-revision-log) with the row

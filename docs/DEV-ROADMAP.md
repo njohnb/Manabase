@@ -1074,6 +1074,93 @@ landed. Slice 14 implements it.
   [the slice spec](./slices/TrackC-Slice13.md) instructs its closer to mark this slice ☑ and is
   written for the whole slice; that instruction does not apply to a half.
 - **Binding refs:** [P-08](./PLUGIN-PRD.md#p-08--version-scheme), `PLUGIN-PRD.md` [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates), [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable); `MCP-PRD.md` [D-02](./MCP-PRD.md#d-02--runtime-nodejs--typescript). Also [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) and [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08), which the executed half serves.
+- **Amended 2026-08-25 — four requirements moved out.**
+  [Slice 18](./slices/TrackC-Slice18.md) absorbs the
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover itself and the three update-semantics
+  tests, and supersedes the `claude plugin tag` step — an automated release and a hand-pushed tag
+  would be two producers in one `v*` namespace, which is the trap the block above already names.
+  **What is left here is a gate, not a chore:**
+  [PQ-05](./PLUGIN-PRD.md#pq-05--should-the-plugin-be-submitted-to-the-community-marketplace-once-it-is-stable)'s
+  disposition, the single [§9](./PLUGIN-PRD.md#9-revision-log) row closing Phase 1, the README status
+  paragraph, and this status column. **It still waits on
+  [Slice 12](./slices/TrackC-Slice12.md)** — a Phase 1 closing row written while a `PC` criterion
+  waits on a stranger is the reporting failure [Slice 12](./slices/TrackC-Slice12.md) already paid
+  for once. The done-when boxes above are **not** re-scoped here; the two that belong to
+  [Slice 18](./slices/TrackC-Slice18.md) are ticked by that slice and read from this one.
+
+#### Slice 18 — Automated release on merge to main
+
+- **Goal:** [IDEA-02](../IDEAS.md#idea-02--auto-release-on-merge-to-main) built — `plugin.json`
+  gains a version, the version increments itself from the commit range, and a merge to `main`
+  publishes both artifacts with no number typed by a human. Executes
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) rather than amending it.
+- **Work:**
+  - `scripts/bump-version.mjs` — conventional commits from the last `v*` tag to `HEAD` decide the
+    bump; `feat:` minor, `fix:`/`perf:` patch, everything else and unprefixed no release. Node
+    builtins, `--dry-run` and `--set`, real semver validation, and a refusal to reuse a tagged
+    version.
+  - [`release.yml`](../.github/workflows/release.yml) moves to `push: branches: [main]` and **loses
+    its tag trigger**; the [Slice 11](./slices/TrackC-Slice11.md) `dist/` gate stays ahead of every
+    publishing step.
+  - Fix the two defects that would otherwise ship: [`mcpb/manifest.json`](../mcpb/manifest.json)
+    declares one tool where `register.ts` exports more, and `APP_VERSION`'s hand-sync becomes a
+    test. Both checks are **set equalities, never counts** — the tool set changes under this slice.
+  - The three update-semantics tests, absorbed from [Slice 13](./slices/TrackC-Slice13.md).
+- **Done when:**
+  - ☐ A merge with no releasable commit produces no tag, no Release and no bundle, on a green run.
+  - ☐ A merge with a releasable commit produces a tag, a Release and a bundle from one run.
+  - ☐ All three update-semantics tests recorded, the negative one with the string searched for named.
+  - ☐ [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 verified —
+    `claude plugin validate . --strict` recorded on both sides of the switchover.
+- **Why it precedes [Slice 12](./slices/TrackC-Slice12.md), which is an inversion:** the gate
+  protected against the cost of a hand-cut fix after an irreversible switchover, and automating the
+  release removes that cost; the three tests need the **author's** already-installed machine, not a
+  cold reader; and `v0.1.0`/`v0.1.1` both predate
+  [Slice 15](./slices/TrackA-Slice15.md) onward, so a cold run today installs a bundle carrying one
+  tool while `main` already registers two. The argument in full is in
+  [the slice spec](./slices/TrackC-Slice18.md)'s *Why this slice exists*.
+- **The first automated version is determined by history, not chosen:** three `feat:` commits from
+  Slices [15](./slices/TrackA-Slice15.md)–[16](./slices/TrackA-Slice16.md) sit unreleased on `main`,
+  so the range from `v0.1.1` is a minor and the first release is **`v0.2.0`**, fired by this slice's
+  own merge. [PR #53](https://github.com/njohnb/Manabase/pull/53) —
+  [Slice 17](./slices/TrackA-Slice17.md) — then produces `v0.3.0`, which is the first bundle in
+  existence carrying all three tools and is what [Slice 12](./slices/TrackC-Slice12.md)'s cold
+  reader installs. **That ordering is the point:** merging this slice first is what makes
+  [PR #53](https://github.com/njohnb/Manabase/pull/53) a live test of the pipeline rather than one
+  more unreleased merge.
+- **Binding refs:** [P-08](./PLUGIN-PRD.md#p-08--version-scheme),
+  [P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript),
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab),
+  [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) (user-facing half, sharpened
+  and **not** closed),
+  [PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08);
+  `PLUGIN-PRD.md` [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates); `MCP-PRD.md`
+  [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) (why no workflow runs
+  acceptance).
+- **Built and rehearsed 2026-08-25 — build-and-rehearse only, not yet merged; the live sequence is
+  the author's.** On branch `docs/slice18-auto-release`, off `main` at `c33f735`:
+  [`scripts/bump-version.mjs`](../scripts/bump-version.mjs) (the conventional-commit bump behind a
+  main-guard — `--dry-run` computes `0.2.0`, `--set 0.1.1` refuses as already-tagged and
+  `--set 0.1.01` refuses as non-semver), the [`mcpb/manifest.json`](../mcpb/manifest.json) fix
+  declaring both registered tools, [`tests/manifest.test.ts`](../tests/manifest.test.ts) (tool-set
+  equality both directions versus [`register.ts`](../src/tools/register.ts), plus `APP_VERSION` =
+  `package.json` version) and [`tests/bump-version.test.ts`](../tests/bump-version.test.ts), and the
+  [`release.yml`](../.github/workflows/release.yml) rewrite (trigger `push: main` + `workflow_dispatch`,
+  `v*` tag trigger removed, `contents: write`, a non-cancelling `release-main` concurrency group,
+  every irreversible step gated behind the [Slice 11](./slices/TrackC-Slice11.md) `dist/` check) are
+  all written and verified locally — `npm run typecheck` clean, `npm test` **237/237** (was 210),
+  `npm run lint:docs` OK, `npm run acceptance` 13/13 live with no 429, `dist/` current (no `src/`
+  change). [`plugin.json`](../.claude-plugin/plugin.json) still carries **no** committed `version`
+  and `package.json` stays `0.0.0`. **The four done-when boxes stay ☐** — each needs the irreversible
+  live-merge run or the interactive `/plugin update` tests, both deferred to the author.
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criteria 12–14 are recorded
+  build-and-rehearse, **not verified**, and [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)
+  criterion 9 waits on the switchover's live run; [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is
+  executed, not amended, and no `P-`/`D-` was minted.
+  [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) moves in **neither** half.
+  This slice does not close [Slice 13](./slices/TrackC-Slice13.md) and Phase 1 stays open behind
+  [Slice 12](./slices/TrackC-Slice12.md). Evidence:
+  [`docs/slices/TrackC-Slice18-results.md`](./slices/TrackC-Slice18-results.md).
 
 ## 5. Order and parallelism
 
@@ -1239,6 +1326,41 @@ slice in the Phase 2 chain and the one that closes
 [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) — [16](./slices/TrackA-Slice16.md) deliberately did
 not, leaving `Status` at `specified` with no criterion marked delivered, so the chain is two thirds
 built rather than nearly done.
+
+**Superseded 2026-08-25 (later the same day): [Slice 18](./slices/TrackC-Slice18.md) is scoped and
+inserted ahead of [12](./slices/TrackC-Slice12.md), and Phase 1's remaining path changes for the
+first time since this section was written.** It is now **18 → 12 → 13**, where it has read 12 → 13
+throughout. **The unblocked set is [17](./slices/TrackA-Slice17.md) and
+[18](./slices/TrackC-Slice18.md)** — [17](./slices/TrackA-Slice17.md) is in flight as
+[PR #53](https://github.com/njohnb/Manabase/pull/53) and [18](./slices/TrackC-Slice18.md) needs only
+[11](./slices/TrackC-Slice11.md), so the two are independent and either can merge first.
+**[18](./slices/TrackC-Slice18.md) should go first anyway**, because that is what turns
+[PR #53](https://github.com/njohnb/Manabase/pull/53)'s merge into a live exercise of the release
+pipeline instead of one more unreleased merge.
+
+**This is a deliberate inversion of an existing gate, and it is the first one this document has
+made.** [12](./slices/TrackC-Slice12.md)'s cold run has gated
+[13](./slices/TrackC-Slice13.md)'s [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover since
+both were scoped, and [18](./slices/TrackC-Slice18.md) performs that switchover *before* the run.
+Three reasons, none of them impatience: the gate protected against the cost of a hand-cut release to
+fix a post-switchover defect, and automating the release is what removes that cost; the switchover's
+own proof — SHA→semver, no-bump-ships-nothing, bump-carries-the-withheld-commit — runs on the
+**author's** already-installed machine and a cold reader cannot perform it; and `v0.1.0` and
+`v0.1.1` both predate [15](./slices/TrackA-Slice15.md) onward, so a cold run today would install a
+bundle carrying **one** tool while `main` already registers two. **What the inversion does not do is
+lower the gate** — every pre-flight check [13](./slices/TrackC-Slice13.md) required before the
+switchover is reproduced in [18](./slices/TrackC-Slice18.md)'s requirement 1, unchanged, and
+[13](./slices/TrackC-Slice13.md) keeps its Phase 1 closing row behind
+[12](./slices/TrackC-Slice12.md).
+
+**No component criterion moved and nothing is built yet.** This entry scopes a slice;
+[CAP-01](./MCP-PRD.md#cap-01--card-search), [CAP-02](./MCP-PRD.md#cap-02--combo-discovery),
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server),
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) and
+[PC-04](./PLUGIN-PRD.md#pc-04--card-viewer) are all untouched,
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) did not move in either half,
+and no `P-` or `D-` was minted.
 
 ## 6. Beyond Phase 1 — queued slice packs
 
