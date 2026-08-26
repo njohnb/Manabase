@@ -72,6 +72,16 @@ party, or a capability that does not exist yet?*
   something `docs/MCP-PRD.md` does not specify … is a CAP in that document"). The open sub-question
   a triager owns: whether this is a **new `CAP`** or an **amendment to `D-07`**, which is already
   the cache decision and already three-way.
+- **Claude-usage surface:** **A guess to be checked, not a decision.** *No new surface* — the cache
+  fronts `client.get` beneath `card_search`, so `scryfall-query-craft` (the skill that already turns
+  plain English into a `card_search` call) reaches a cached response through the identical tool call,
+  with no skill, agent, or hook change. It is **not** `— none, self-contained`: this idea is neither
+  a consuming surface nor dev-only tooling, it is a server-internal capability whose *existing*
+  consumer suffices. One seam to watch: the `Opens` entry "Is a cache hit visible to the model, or
+  silent?" — if a hit is ever surfaced (a result field, a `note`), that is the first thing that
+  would pull `scryfall-query-craft` into scope, because the skill would then have to teach the model
+  what a hit means for staleness. Until that question is answered, the transparent path needs
+  nothing built.
 - **Depends on:** `CAP-01` — the only delivered capability, and what a cache would front. Nothing
   else blocks it: choosing in-process scope deliberately avoids `OQ-03`'s open refresh-trigger half,
   `PQ-03`, and the §6 Tag discovery pack that owns the persistence decision. **Not blocking but

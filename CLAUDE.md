@@ -708,6 +708,27 @@ and `PC-02` criterion 9 (`claude plugin validate . --strict` post-switchover —
 a `version` so the one warning should be gone, but nobody has run it). `PQ-06` unmoved in both
 halves; `PQ-05` untouched; Phase 1 still open behind Slice 12, and this does not close Slice 13.
 
+**The `OQ-14` plugin-side combo-query eval ran 2026-08-25 — measurement only, no status change,
+and `OQ-14` stays open in both halves.** Run the way Slice 9 measured `OQ-01` for `card_search`: a
+clean-room subject agent with no `Skill` tool (`.claude/agents/oq14-baseline.md`), 12 cases from
+`evals/combo-evals.json` × two configurations = 24 fresh subagents dispatched strictly one at a
+time, ~48 sequential live upstream calls and no 429. Subject skill: `skills/spellbook-combo-craft/`.
+Without the skill **37/46** expectations pass (7/12 cases fully); with it **45/46** (11/12). The
+skill helps **decisively on two axes and not at all on the other two**: it flips cases 4, 5, 6
+(query craft beyond `card:` — the `result:`/`steps:`/`commander:`/`ci:` operators) and case 10
+(error recovery — retry after a loud bad-operator 400) fail→pass, while tool selection (1, 2, 3, 12)
+and paging (7, 8) show no tally difference because the baseline was already correct there — the same
+shape `OQ-01` found. It demonstrably loaded and was followed (`SKILL_CONSULTED` plus operator and
+recovery behavior absent from the baseline). **Forward finding for the MCP half, recorded and not
+decided:** the `combo_search` description in `src/tools/register.ts` names `card:"…"` but not
+`result:`/`steps:`/`commander:`/`ci:`, and the data suggests naming those four there would likely
+close cases 4/5/6 for the baseline — the `OQ-01` shorter-skill/richer-description trade, now with
+data; the skill's irreducible value is the recovery loop and the zero-match-is-success handling.
+**Nothing landed:** no `CAP-02`, `CAP-01`, `PC-01`, `PC-02` or `PC-03` criterion changed status,
+`OQ-14`'s MCP-PRD tool-description half stays open, and the skill, protocol, eval cases and
+clean-room agent are working-tree artifacts — the combo skill is uncommitted and has no `PC`.
+Evidence: `docs/slices/OQ14-combo-eval-results.md`.
+
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
 arising *inside* triaged work are the other lane — `OPEN-QUESTIONS.md` and §7.
