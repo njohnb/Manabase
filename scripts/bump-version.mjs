@@ -14,6 +14,9 @@
 //     the committed version is a new, releasable semver (present, valid, not already tagged, ahead of
 //     the newest tag) and emits that decision. The job then tags and publishes without ever touching
 //     the protected branch.
+//   * --advise                     — CI runs this on pull_request. It warns (never errors) when a
+//     PR's range is releasable but plugin.json was not bumped, so a forgotten `npm run bump-version`
+//     is caught at PR time rather than silently shipping nothing on merge. Always exits 0.
 // No dependency, nothing that reaches the network.
 //
 // Mapping (this spec's decision, not an inherited one; highest across the range wins):
@@ -224,8 +227,48 @@ function check() {
   process.exit(0);
 }
 
+/**
+ * PR advisory (`--advise`): runs in CI on pull_request. It compares the version this PR's commit
+ * range would warrant against the version plugin.json actually carries, and emits a GitHub
+ * ::warning:: — never an error — when a releasable range has not been bumped. It is a reminder, not
+ * a gate: a forgotten bump already fails safe (the merge ships nothing rather than something wrong),
+ * so this never blocks the PR. Always exits 0.
+ */
+function advise() {
+  const newestTag = git(['describe', '--tags', '--abbrev=0']);
+  const baseVersion = newestTag ? newestTag.replace(/^v/, '') : '0.0.0';
+  const logArgs = newestTag ? ['log', `${newestTag}..HEAD`, '--format=%s'] : ['log', 'HEAD', '--format=%s'];
+  const rawLog = git(logArgs);
+  const subjects = rawLog ? rawLog.split('\n').filter((s) => s.length > 0) : [];
+  const bump = classifyBump(subjects);
+  const expected = nextVersion(baseVersion, bump);
+  const current = readPluginVersion();
+
+  if (expected === null) {
+    console.log('bump-version: no releasable commit since the last tag — no version bump needed.');
+    process.exit(0);
+  }
+  if (current === expected) {
+    console.log(`bump-version: plugin.json is bumped to ${expected} as expected for this range.`);
+    process.exit(0);
+  }
+  const has = current ?? 'none';
+  const message =
+    `This PR's range is releasable (${bump}) and expects plugin.json version ${expected}, but it ` +
+    `is ${has}. Run \`npm run bump-version\` on this branch and commit the change, or the merge to ` +
+    `main will ship nothing.`;
+  // ::warning::, never ::error:: — advisory only, so the PR stays mergeable.
+  console.log(`::warning title=Version bump missing::${message}`);
+  console.log(`bump-version: ${message}`);
+  process.exit(0);
+}
+
 function main() {
   const argv = process.argv.slice(2);
+  if (argv.includes('--advise')) {
+    advise();
+    return;
+  }
   if (argv.includes('--check')) {
     check();
     return;

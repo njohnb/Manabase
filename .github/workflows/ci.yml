@@ -34,6 +34,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history and tags so the release advisory below can compute the range
+          # `<newest v* tag>..HEAD`. Cheap relative to the build this job already runs.
+          fetch-depth: 0
+          fetch-tags: true
 
       - uses: actions/setup-node@v7
         with:
@@ -71,3 +76,12 @@ jobs:
             git status --porcelain -- dist/
             exit 1
           fi
+
+      # Release advisory (pull_request only): the release job on merge to main reads the version this
+      # PR carries in plugin.json and ships nothing if it was not bumped (release.yml, Slice 18). That
+      # fails safe but silently, so this warns at PR time when a releasable range has no bump. It is a
+      # ::warning::, never a failure — a forgotten bump must not block a PR, and some PRs batch
+      # deliberately. See scripts/bump-version.mjs --advise.
+      - name: Release advisory — flag a releasable PR with no version bump
+        if: github.event_name == 'pull_request'
+        run: node scripts/bump-version.mjs --advise
