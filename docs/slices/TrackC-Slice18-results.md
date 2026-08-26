@@ -177,3 +177,41 @@ user-facing half is **unchanged in disposition** — this observation lives here
 - **Built and locally verified here:** 1, 2, 3 (unit + guard-demo), 4, 5 (guard demonstrated), 6,
   13's *before* side, 14 (this doc), 15 (PLUGIN-PRD amendment + one §9 row), 16.
 - **Awaiting the live sequence (author):** 7, 8, 9, 10, 11, 12, 13's *after* side, 17.
+
+## Addendum 2026-08-25 — first live merge failed on branch protection; the mechanism was revised
+
+**What happened.** This slice's PR (#54) merged, the release job ran on `push: main`, computed
+`v0.2.0`, committed `plugin.json` locally in the runner, and then **failed pushing that commit to
+`main`**: `remote: error: GH006: Protected branch update failed … Changes must be made through a
+pull request … [remote rejected] HEAD -> main (protected branch hook declined)`. The steps after the
+push (tag, pack, Release) never ran, so **nothing was partially published** — no `v0.2.0` tag, no
+Release, no bundle; `v0.1.0`/`v0.1.1` untouched; `main` left at the PR-54 merge with `plugin.json`
+still version-less. A clean, fully recoverable failure.
+
+**Why.** The [precondition](./TrackC-Slice18.md) "`main` is not branch-protected" (the
+branch-protection API returned 404 when the slice was scoped) **no longer holds** — protection with
+`required_pull_request_reviews` was added between scoping and merge. Requirement 5 wrote this exact
+failure mode down rather than assuming the condition held forever, which is why it was diagnosable in
+one read.
+
+**The fix (author's decision: "version rides in the PR").** The release job no longer pushes to
+`main` at all. The author runs `npm run bump-version` on the release branch — it computes the version
+and writes [`plugin.json`](../../.claude-plugin/plugin.json), and that write is committed **into the
+PR**, so the version reaches `main` through the normal protected-PR flow. On merge, the job runs
+[`scripts/bump-version.mjs`](../../scripts/bump-version.mjs) **`--check`**, which reads the committed
+version and decides releasable (present, valid semver, not already tagged, ahead of the newest tag)
+without writing or pushing anything, then tags + packs + publishes. **Tags are not
+branch-protected**, so tagging needs no bypass. "No human types the number" is preserved — the script
+computes it (requirement 4).
+
+Requirement 5's step 4 ("commit the bumped `plugin.json` and push it to `main`") is **removed** by
+this revision; the version is on `main` before the job runs. Everything else in requirement 5 — order,
+the `dist/` gate first, `concurrency`, `contents: write`, no `acceptance` — is unchanged. Verified
+locally: `--check` reports `0.2.0` releasable (newest tag `v0.1.1`); an already-tagged version and an
+absent version both report **no release, exit 0** (the documentation-only-merge path); typecheck
+clean, `npm test` 240/240, `lint:docs` OK.
+
+**Recovery.** This fix PR also carries [`plugin.json`](../../.claude-plugin/plugin.json) at `0.2.0`
+(written by the script), so merging it both installs the revised workflow and, via the same merge,
+lets the job read `0.2.0` and cut the withheld **`v0.2.0`** release. The live update-semantics tests
+(requirement 8) then run against that release exactly as the table above lays out.

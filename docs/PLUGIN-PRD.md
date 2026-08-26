@@ -1311,6 +1311,21 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
   still names the **bundle** as well ([PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)),
   so [P-08](#p-08--version-scheme)'s text is unchanged. Evidence:
   [`docs/slices/TrackC-Slice18-results.md`](./slices/TrackC-Slice18-results.md)
+- **Corrected 2026-08-25 (same day) — the first live merge revised the mechanism: the job no longer
+  writes `plugin.json` back to `main`.** The bullet above described a job that computes the version
+  and commits it to `main`; that step **failed on the first run**, because `main` had gained branch
+  protection (`required_pull_request_reviews`) between this slice's scoping — when the precondition
+  "`main` is not branch-protected" was verified true — and its merge, and a `GITHUB_TOKEN` push to a
+  protected branch is rejected. Nothing published (no `v0.2.0` tag or Release), so the failure was
+  clean. The mechanism is now: the author runs `npm run bump-version` on the release branch, the
+  computed version is committed **into the PR**, and the merge job runs
+  [`scripts/bump-version.mjs`](../scripts/bump-version.mjs) `--check` — read-only, no push — to
+  decide releasable, then tags and publishes (**tags are not branch-protected**, so no bypass is
+  needed). The version still reaches `main`, through the PR rather than a bot push; "no human types
+  the number" holds; the trigger is still merge-to-`main`. This revises this slice's requirement 5
+  (its write-back step is removed) and is recorded in
+  [`docs/slices/TrackC-Slice18-results.md`](./slices/TrackC-Slice18-results.md)'s dated addendum. If
+  branch protection is ever removed again, the mechanism still works — it never depended on the push.
 - **User need:** I use the Claude Desktop Chat tab, not a terminal. I installed the plugin and
   it answered my Magic question from a web search without telling me. I want the same tools my
   friends get in Claude Code, and if I can't have them I want to be told.
