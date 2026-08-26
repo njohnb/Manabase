@@ -1,0 +1,179 @@
+# Track C — Slice 18 results: automated release on merge to main (the P-08 switchover, automated)
+
+> **Status: build + rehearse complete; the live release sequence is the author's, and is not run
+> here.** This pass produced every buildable, reversible artifact — the bump script, the manifest
+> fix, the two test files, and the merge-triggered `release.yml` — and verified them locally. The
+> three merges of [requirement 12](./TrackC-Slice18.md) (which publish `v0.2.0` → *(no release)* →
+> `v0.3.0`) and the three `/plugin update` tests of
+> [requirement 8](./TrackC-Slice18.md) are **irreversible and interactive**, deferred to the author
+> by an explicit scope decision. Their rows below are left as author-TODO placeholders, to be filled
+> as the sequence runs.
+
+## How this was run
+
+- Repo `C:\Projects\Manabase`, branch `docs/slice18-auto-release`, off `main` at `c33f735`.
+- Claude Code session on the author's Windows 11 machine, Node `v22.17.1`, `core.autocrlf=true`.
+- No push, no tag, no Release, no `/plugin` command in this pass — all deferred (see the status note
+  above).
+
+## What was built
+
+| File | Action | State |
+|---|---|---|
+| [`scripts/bump-version.mjs`](../../scripts/bump-version.mjs) | new | pure parser behind a main-guard; `--dry-run`, `--set`, `GITHUB_OUTPUT` |
+| [`mcpb/manifest.json`](../../mcpb/manifest.json) | `tools` now declares `card_search` **and** `combo_search`, descriptions matching the registered ones | fixed |
+| [`tests/manifest.test.ts`](../../tests/manifest.test.ts) | new | tool-name set equality both directions; `APP_VERSION` == `package.json` version |
+| [`tests/bump-version.test.ts`](../../tests/bump-version.test.ts) | new | 20 cases over the subject parser; never shells out to `git log` |
+| [`.github/workflows/release.yml`](../../.github/workflows/release.yml) | rewritten | trigger `push: branches: [main]` + `workflow_dispatch`; tag trigger removed |
+| [`package.json`](../../package.json) | one `scripts` entry `bump-version`; `version` still `0.0.0` | done |
+| [`tsconfig.json`](../../tsconfig.json) | `allowJs: true`, `checkJs: false` — so the test can import the `.mjs` script without deep-checking its plain-JS body | done |
+
+`src/` was **not** touched: pre-flight 1(h) confirmed `APP_VERSION`'s contact URL is real and there
+is no `OWNER` placeholder, and requirement 2's `APP_VERSION` finding requires no code change, so the
+"restart the pre-flight at 1(a)" branch was never entered. `dist/` therefore needs no rebuild-commit
+beyond confirming it is current.
+
+## Pre-flight, in the spec's order (requirement 1)
+
+| Step | Result |
+|---|---|
+| **1(a)** git clean, branch off `main` | Branch `docs/slice18-auto-release` at `c33f735`. |
+| **1(b)** `lint:docs && typecheck && test && build`, then git status | `lint:docs` OK (33 files, 4381 links, 0 broken). `typecheck` clean. `test` 237/237 (was 210 — the two new files add 27). `build` produced a `dist/` that git reports clean. |
+| **1(c)** CI green on the exact commit | **Author-TODO** — CI runs on push/PR; confirm green on the commit this releases from before the live merge. |
+| **1(d)** `npm run acceptance` | **13/13 PASS, exit 0, no 429.** One recorded drift, expected: no paper Black Lotus printing carries a USD price upstream any more (EUR only) — check 11 reports `no-price-data`, correctly, not a bare failure. |
+| **1(e)** `claude plugin validate . --strict` | **Author-TODO — capture BOTH sides.** Expected to fail today on exactly one warning: [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme)'s unset `version`. After the first automated release writes `version` into `plugin.json`, `--strict` is expected to pass — that pass is [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9's evidence, and this slice is the only one positioned to record both sides. |
+| **1(f)** Fan Content disclaimer on all three surfaces | **Character-identical.** `plugin.json`'s `description`, the marketplace entry, and `README.md` (lines 436–438, line-wrapped) all carry the same string byte-for-byte. |
+| **1(g)** offline `initialize` from a `node_modules`-free directory | **PASS.** `dist/index.js` copied to an empty scratch dir answered `initialize` → `serverInfo {name: "manabase-mtg", version: "0.0.0"}`. |
+| **1(h)** `APP_VERSION` contact URL real, no `OWNER` | **PASS.** `grep OWNER src/config.ts` finds nothing; the User-Agent is `manabase-mtg/${APP_VERSION} (+https://github.com/njohnb/manabase)`. |
+
+## The two ship-blocking defects (requirement 2)
+
+- **Manifest `tools`:** was one entry (`card_search`, a one-line description); now declares the two
+  tools [`src/tools/register.ts`](../../src/tools/register.ts) exports today — `card_search` and
+  `combo_search` — with the descriptions matching the registered `CARD_SEARCH_DESCRIPTION` and
+  `COMBO_SEARCH_DESCRIPTION`. No count is hardcoded anywhere; the test guards drift.
+- **`APP_VERSION` stays `0.0.0`, coupled to `package.json`.** No `src/` change. **Consequence, stated
+  plainly:** the `User-Agent` Scryfall sees names the **npm artifact's** version (`package.json`'s
+  `0.0.0`), which is not the plugin's release version and has no rule relating it to one
+  ([`D-02`](../MCP-PRD.md#d-02--runtime-nodejs--typescript),
+  [`P-09`](../PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript)). An automated *plugin*
+  release does not change the npm artifact, so `package.json` does not move, so `APP_VERSION` does
+  not move. This is [Slice 13](./TrackC-Slice13.md) requirement 5 applied, not an oversight.
+
+## The defects cannot recur (requirement 3)
+
+`tests/manifest.test.ts` asserts tool-name **set equality in both directions** between
+`register.ts`'s `toolDefinitions` and the manifest's `tools` — never a count — so it survives
+[PR #53](https://github.com/njohnb/Manabase/pull/53) landing a third tool, and it also asserts
+`APP_VERSION` equals `package.json`'s `version`.
+
+**Guard demonstrated failing, then restored** (acceptance criterion 5): with `combo_search` removed
+from the manifest, `npm test` on the file failed with `manifest is missing registered tool:
+combo_search` (2 of 4 assertions failed); after restoring, 4/4 pass and the manifest diff is back to
+the intended `5 insertions(+), 1 deletion(-)`.
+
+## The bump script (requirement 4)
+
+`--dry-run` on the current branch, verbatim:
+
+```
+bump-version: range v0.1.1..HEAD
+bump-version: 25 commit(s) in range
+bump-version:   [minor] feat: fill combo_search pages to a byte budget, paged by offset
+bump-version:   [patch] fix: re-size the combo_search page cap from 40 to 20, on measurement
+bump-version:   [minor] feat: add combo_search and the normalized combo shape — Slice 16
+bump-version:   [minor] feat: extract the HTTP transport and add POST — Slice 15
+bump-version:   [no prefix — no release contribution] Merge pull request #52 ...
+bump-version:   ... (merge commits and the unprefixed 662604c all contribute nothing)
+bump-version: current version 0.1.1 (from tag; plugin.json has none yet)
+bump-version: computed version 0.2.0 (minor)
+bump-version: --dry-run, wrote nothing.
+```
+
+The unprefixed `662604c` ("prompt to setup card viewer project") is **logged by subject**, not
+silently dropped. The base is read from the newest tag (`v0.1.1`) because `plugin.json` has no
+`version` on the first run — `0.1.1` is not hardcoded.
+
+**Both refusals demonstrated** (acceptance criterion 3):
+
+- `--set 0.1.1` → *"v0.1.1 already exists as a tag — that version is spent…"*, exit 1.
+- `--set 0.1.01` → *"refusing a non-semver version: 0.1.01 (a leading zero in a component is
+  rejected)."*, exit 1. The strict-semver regex `^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)…$`
+  rejects the leading-zero component that [`pack-mcpb.mjs`](../../scripts/pack-mcpb.mjs)'s looser
+  `\d+` guard would accept.
+
+**Mapping, both directions, on real ranges** (acceptance criterion 2): the release-warranted range
+above computes a **minor**; a `docs:`-only range reports **no release** and exits 0 (covered by the
+unit tests, and to be observed live as merge 2). The 0.x clamp (a breaking marker → minor, never
+major, while the base is `0.x`) lives in `nextVersion` and is unit-tested.
+
+## The workflow (requirements 5 & 6)
+
+[`release.yml`](../../.github/workflows/release.yml) is now one merge-triggered job. Trigger
+`push: branches: [main]` + `workflow_dispatch`; the **`v*` tag trigger is removed**, with the reason
+in the file header: two producers in one `v*` namespace (`claude plugin tag` and this job) would
+double-cut. `permissions: contents: write`; `concurrency: { group: release-main,
+cancel-in-progress: false }`.
+
+Step order, irreversible last: `npm ci` → `lint:docs` → `typecheck` → `test` → rebuild-and-gate
+`dist/` → `bump-version.mjs` (`id: bump`) → **commit+push `plugin.json` to `main`** → **tag+push
+`v<version>`** → `pack:mcpb` → `upload-artifact` → `gh release create`. Every step after the bump is
+gated on `steps.bump.outputs.release == 'true'`; the write-back and Release steps additionally gate
+on `github.event_name == 'push'`, so a `workflow_dispatch` rehearsal exercises build/bump/pack
+without publishing. `MANABASE_BUNDLE_VERSION` is `v<version>` on push and empty on dispatch (a dev
+bundle).
+
+**Author-TODO — the `GITHUB_TOKEN` observation (requirement 5).** The spec requires confirming
+*in-session* that the `GITHUB_TOKEN` write-back to `main` does **not** trigger a second workflow
+run, and that the tag this job pushes does not fire one either. That can only be observed on a real
+run; record here what the Actions log showed after the first live merge.
+
+**Automated releases ship without a live pass — by design.** `npm run acceptance` is deliberately
+absent from this workflow under every trigger ([`§3.4`](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)),
+which removes the human who currently runs one before a deliberate release. The pre-flight above is
+where the live pass happens instead.
+
+## Rehearsal (author-TODO)
+
+Not run in this pass (it needs a branch push and Actions minutes). The command is
+`gh workflow run release.yml --ref docs/slice18-auto-release` then `gh run watch`. Expect: green,
+with *Commit*, *Tag*, and *Attach to the Release* **skipped** (dispatch is not a `push`), and the
+pack step producing a `0.0.0-dev+<commit>` bundle uploaded as an artifact for inspection. Confirm
+both a release-warranted dispatch (this branch) and a no-release outcome are observed — a skip path
+never skipped is not known to work ([Slice 11](./TrackC-Slice11.md)'s rule).
+
+## The live sequence (requirement 12) — author-TODO
+
+| # | Merge | Expected | Test | Run URL | Observed |
+|---|---|---|---|---|---|
+| 1 | This slice's PR | `v0.2.0` — tag, Release, bundle carrying `combo_search`; `plugin.json` gains `version` | Positive A (SHA→semver) | _TODO_ | _TODO_ |
+| 2 | A `docs:`-only PR | Green run, **no** tag/Release/bundle | Negative | _TODO_ | _TODO_ |
+| 3 | [PR #53](https://github.com/njohnb/Manabase/pull/53), rebased after merge 1 | `v0.3.0` — `combo_find_deck` + merge 2's withheld `docs:` commit | Positive B (semver→semver) | _TODO_ | _TODO_ |
+
+**The three update-semantics tests (requirement 8)** run on the author's already-installed machine,
+one `/plugin update` per test, in order, reading `~/.claude/plugins/cache`:
+
+- **Positive A** — `/plugin update` picks the switchover up (SHA→semver); record before/after
+  versions and the new cache directory. _TODO_
+- **Negative** — after merge 2, `/plugin update` reports already current; **prove the absence
+  positively** by naming the file and exact string searched under the installed cache. _TODO_
+- **Positive B** — after merge 3, the update lands **and** carries merge 2's withheld `docs:`
+  commit. _TODO_
+
+**Downloaded-asset byte-identity (acceptance criterion 12):** for each release, `gh release download
+v<version> -p manabase.mcpb`, unpack, and sha256 `server/index.js` against the committed
+[`dist/index.js`](../../dist/index.js). _TODO_
+
+## `PQ-06`, sharpened not moved (requirement 11)
+
+Automation produces **more** bundles that never self-update — an installed `.mcpb` has no update
+path, and this slice adds a release on every releasable merge. A staleness signal remains the thing
+no mechanism in this repo provides. [`PQ-06`](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s
+user-facing half is **unchanged in disposition** — this observation lives here, not in
+[`§7`](../PLUGIN-PRD.md#7-open-questions).
+
+## Criteria status (of [Slice 18](./TrackC-Slice18.md)'s 17)
+
+- **Built and locally verified here:** 1, 2, 3 (unit + guard-demo), 4, 5 (guard demonstrated), 6,
+  13's *before* side, 14 (this doc), 15 (PLUGIN-PRD amendment + one §9 row), 16.
+- **Awaiting the live sequence (author):** 7, 8, 9, 10, 11, 12, 13's *after* side, 17.

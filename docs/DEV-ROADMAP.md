@@ -1137,6 +1137,30 @@ landed. Slice 14 implements it.
   `PLUGIN-PRD.md` [§4.3](./PLUGIN-PRD.md#43-versioning-and-updates); `MCP-PRD.md`
   [§3.4](./MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) (why no workflow runs
   acceptance).
+- **Built and rehearsed 2026-08-25 — build-and-rehearse only, not yet merged; the live sequence is
+  the author's.** On branch `docs/slice18-auto-release`, off `main` at `c33f735`:
+  [`scripts/bump-version.mjs`](../scripts/bump-version.mjs) (the conventional-commit bump behind a
+  main-guard — `--dry-run` computes `0.2.0`, `--set 0.1.1` refuses as already-tagged and
+  `--set 0.1.01` refuses as non-semver), the [`mcpb/manifest.json`](../mcpb/manifest.json) fix
+  declaring both registered tools, [`tests/manifest.test.ts`](../tests/manifest.test.ts) (tool-set
+  equality both directions versus [`register.ts`](../src/tools/register.ts), plus `APP_VERSION` =
+  `package.json` version) and [`tests/bump-version.test.ts`](../tests/bump-version.test.ts), and the
+  [`release.yml`](../.github/workflows/release.yml) rewrite (trigger `push: main` + `workflow_dispatch`,
+  `v*` tag trigger removed, `contents: write`, a non-cancelling `release-main` concurrency group,
+  every irreversible step gated behind the [Slice 11](./slices/TrackC-Slice11.md) `dist/` check) are
+  all written and verified locally — `npm run typecheck` clean, `npm test` **237/237** (was 210),
+  `npm run lint:docs` OK, `npm run acceptance` 13/13 live with no 429, `dist/` current (no `src/`
+  change). [`plugin.json`](../.claude-plugin/plugin.json) still carries **no** committed `version`
+  and `package.json` stays `0.0.0`. **The four done-when boxes stay ☐** — each needs the irreversible
+  live-merge run or the interactive `/plugin update` tests, both deferred to the author.
+  [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criteria 12–14 are recorded
+  build-and-rehearse, **not verified**, and [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)
+  criterion 9 waits on the switchover's live run; [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is
+  executed, not amended, and no `P-`/`D-` was minted.
+  [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) moves in **neither** half.
+  This slice does not close [Slice 13](./slices/TrackC-Slice13.md) and Phase 1 stays open behind
+  [Slice 12](./slices/TrackC-Slice12.md). Evidence:
+  [`docs/slices/TrackC-Slice18-results.md`](./slices/TrackC-Slice18-results.md).
 
 ## 5. Order and parallelism
 

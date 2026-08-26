@@ -644,6 +644,34 @@ tool was first registered), and its acceptance criterion 8 contradicts its own r
 case-insensitive matching **resolves** `standardbrawl` to `standardBrawl` rather than refusing it,
 and the implementation follows requirement 7.
 
+**Slice 18 (automated release on merge to `main`, the `P-08` switchover automated) was built and
+rehearsed 2026-08-25 — build-and-rehearse only, uncommitted on `docs/slice18-auto-release` off
+`main` at `c33f735`, and nothing was merged.** It **executes** `P-08`, it does not amend it — no new
+`P-`/`D-`, and §2/§3/§4 of both PRDs are untouched or append-only. `scripts/bump-version.mjs`
+computes the next version from the conventional-commit range (last `v*` tag → `HEAD`; `feat:` minor,
+`fix:`/`perf:` patch, else no release), writes `plugin.json` in place, and is a pure parser behind a
+main-guard: `--dry-run` computes `0.2.0`, `--set 0.1.1` refuses as already-tagged, `--set 0.1.01`
+refuses as non-semver. `release.yml` is rewritten to fire on `push: branches: [main]` +
+`workflow_dispatch` with the `v*` tag trigger **removed**, `permissions: contents: write`, a
+non-cancelling `release-main` concurrency group, and every irreversible step (commit+push
+`plugin.json` to `main`, tag, pack, release) gated last behind the Slice 11 `dist/` check.
+`mcpb/manifest.json` now declares both registered tools with matching descriptions (was one stale
+entry) and `tests/manifest.test.ts` fails on tool-set drift from `register.ts` in either direction
+and on `APP_VERSION` ≠ `package.json`; `tsconfig.json` gained `allowJs`/`checkJs:false` so the test
+can import the `.mjs`; `package.json` gained a `bump-version` script and its `version` stays
+`0.0.0`. Local verification: typecheck clean, `npm test` **237/237** (was 210), `lint:docs` OK,
+`npm run acceptance` 13/13 live with no 429, `dist/` current (no `src/` change). **No `PC-01`,
+`PC-02` or `PC-03` criterion is verified by this pass** — `PC-03` criteria 12–14 are recorded
+build-and-rehearse, with the three-merge live sequence (`v0.2.0` → no release → `v0.3.0`) and the
+interactive `/plugin update` tests deferred to the author, and `PC-02` criterion 9 waits on the
+switchover's live run, so `plugin.json` still carries no committed `version`. **`PQ-06` moved in
+neither half** — its user-facing half is sharpened, not closed — `PQ-05` is untouched, and Phase 1
+is **not** closed: Slice 12's second cold run and Slice 13's remnant still gate it, and this slice
+does not close Slice 13. The reorder to 18 → 12 → 13 was already recorded in `docs/DEV-ROADMAP.md`
+§5 by `c33f735`. Because the branch is uncommitted, the headline test count in the Commands block
+above still reads 210 (it tracks `main`); 237 is this slice's local figure. Evidence:
+`docs/slices/TrackC-Slice18-results.md`.
+
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
 arising *inside* triaged work are the other lane — `OPEN-QUESTIONS.md` and §7.

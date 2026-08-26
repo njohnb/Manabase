@@ -268,7 +268,10 @@ things changed and the fields above are left as written.
    **after**, so the cold reader installs the automated release rather than a bundle three slices
    stale.
 
-**No `PC-03` criterion has moved and nothing is built.** The
+**Built and rehearsed 2026-08-25 (the plugin and bundle halves both).** The
 [`PC-03`](./docs/PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) amendment this entry's
-`Likely home` guessed at is [Slice 18](./docs/slices/TrackC-Slice18.md)'s requirement 10 and is
-still unwritten.
+`Likely home` guessed at is now written — [Slice 18](./docs/slices/TrackC-Slice18.md)'s requirement
+10 — and adds criteria 12–14. The bump script, the manifest fix, the tests and the merge-triggered
+[`release.yml`](./.github/workflows/release.yml) are built and verified locally; the three-merge
+live sequence that publishes `v0.2.0` → *(no release)* → `v0.3.0` and flips those criteria to
+verified is the author's, and no `PC-03` criterion is claimed verified ahead of it.
