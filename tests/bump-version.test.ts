@@ -6,6 +6,7 @@ import {
   commitType,
   nextVersion,
   isStrictSemver,
+  compareSemver,
 } from "../scripts/bump-version.mjs";
 
 // The bump parser is tested over arrays of commit subjects, never over `git log` — a test that
@@ -102,5 +103,22 @@ describe("isStrictSemver — rejects the 0.1.01 near-miss", () => {
     assert.ok(!isStrictSemver("v0.2.0"));
     assert.ok(!isStrictSemver("0.2"));
     assert.ok(!isStrictSemver("0.2.0.0"));
+  });
+});
+
+describe("compareSemver — the --check advancing guard", () => {
+  test("orders by numeric core", () => {
+    assert.equal(compareSemver("0.2.0", "0.1.1"), 1);
+    assert.equal(compareSemver("0.1.1", "0.2.0"), -1);
+    assert.equal(compareSemver("0.2.0", "0.2.0"), 0);
+    assert.equal(compareSemver("1.0.0", "0.9.9"), 1);
+  });
+
+  test("ignores any prerelease/build suffix", () => {
+    assert.equal(compareSemver("0.2.0-rc.1", "0.2.0"), 0);
+  });
+
+  test("a committed version equal to the newest tag is not ahead (a no-release / already-tagged case)", () => {
+    assert.ok(compareSemver("0.1.1", "0.1.1") <= 0);
   });
 });

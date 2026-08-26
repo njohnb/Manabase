@@ -1,19 +1,21 @@
 name: Release on merge to main
 
 # Merging to main is the release trigger (Track C Slice 18, executing PLUGIN-PRD P-08). One job
-# does everything, with every irreversible step last: build and prove dist/, compute the version
-# from the commit range, and only then write plugin.json back to main, tag it, pack the bundle,
-# and publish the Release.
+# does everything, with every irreversible step last: build and prove dist/, read the version the
+# merged PR already carries, and only then tag it, pack the bundle, and publish the Release.
+#
+# The version rides in the PR, and the job NEVER pushes to main. `main` is branch-protected
+# (changes must go through a pull request), so a job that tried to commit the version back to main
+# would be rejected by the protection hook — which is exactly what happened on the first run
+# (2026-08-25). The author runs `npm run bump-version` on the release branch, the computed version
+# is committed into the PR, and this job only READS it (`bump-version.mjs --check`) and tags. Tags
+# are not branch-protected, so tagging and publishing need no bypass. No human types the number —
+# the script computes it (Slice 18 requirement 4).
 #
 # The tag trigger is GONE on purpose (Slice 18 requirement 6). Two producers in one `v*` namespace
-# is the trap: `claude plugin tag` writes into it, and so does this job. If a hand-pushed tag also
-# fired a release, it would cut a *second* release of a version this job already published.
-# workflow_dispatch stays as the rehearsal-and-recovery path.
-#
-# The write-back to main uses GITHUB_TOKEN, and a GITHUB_TOKEN push does NOT trigger workflows.
-# That is load-bearing twice over: no `[skip ci]` marker is needed on the plugin.json commit, and
-# the `v<version>` tag this job pushes cannot fire a second workflow — which is exactly why the
-# tag/pack/release steps live in THIS job rather than in a tag-triggered one.
+# is the trap: `claude plugin tag` writes into it, and so would a tag-triggered release. The
+# `v<version>` tag this job pushes uses GITHUB_TOKEN, which does not trigger further workflows, so
+# it cannot fire a second run. workflow_dispatch stays as the rehearsal-and-recovery path.
 #
 # NEVER add `npm run acceptance` here, under any trigger. It calls live Scryfall and MCP-PRD §3.4
 # makes rate limits a hard constraint (ci.yml says the same). Automated releases therefore ship
@@ -40,8 +42,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # Full history and tags: the bump script's range is `<newest v* tag>..HEAD`, and the
-          # commit/tag write-back pushes back to main.
+          # Full history and tags: --check compares the committed version against the newest tag and
+          # verifies v<version> is not already tagged.
           fetch-depth: 0
           fetch-tags: true
 
@@ -74,31 +76,22 @@ jobs:
             exit 1
           fi
 
-      # Compute the next version from the commit range and write it into plugin.json. On a
-      # documentation-only range this reports no release and exits 0, and every step below is gated
-      # on release == 'true', so the job simply ends green here. On workflow_dispatch the script
-      # still runs and writes plugin.json in the runner workspace, but the push-gated steps are
-      # skipped, so nothing is committed — that is the rehearsal.
-      - name: Compute the version
+      # Read the version the merged PR already carries and decide whether it is releasable — a new,
+      # valid semver, not already tagged, ahead of the newest tag. This writes nothing and pushes
+      # nothing. A documentation-only merge (version unchanged, already tagged) reports no release
+      # and every step below, gated on release == 'true', simply does not run — the job ends green.
+      - name: Decide whether to release
         id: bump
-        run: node scripts/bump-version.mjs
+        run: node scripts/bump-version.mjs --check
 
       # --- everything below is irreversible; it runs only when a release is warranted -----------
-
-      - name: Commit the bumped plugin.json to main
-        if: steps.bump.outputs.release == 'true' && github.event_name == 'push'
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .claude-plugin/plugin.json
-          git commit -m "chore: release v${{ steps.bump.outputs.version }} — set plugin.json version [bot]"
-          # GITHUB_TOKEN push: does not re-trigger this workflow (see the header comment).
-          git push origin HEAD:main
+      # Note: no commit/push to main. The version is already on main via the PR (see the header).
 
       - name: Tag the release
         if: steps.bump.outputs.release == 'true' && github.event_name == 'push'
         run: |
           git tag "v${{ steps.bump.outputs.version }}"
+          # GITHUB_TOKEN tag push: does not re-trigger any workflow, and tags are not branch-protected.
           git push origin "v${{ steps.bump.outputs.version }}"
 
       # pack:mcpb stamps the bundle from MANABASE_BUNDLE_VERSION and asserts the packed

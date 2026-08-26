@@ -4,9 +4,17 @@
 // "what version is next," runnable identically on a developer's machine and on the runner —
 // the same reason PC-03 criterion 7 lives inside pack-mcpb.mjs rather than in a workflow step.
 //
-// It does one thing: read the conventional-commit prefixes across `<newest v* tag>..HEAD`,
-// map them to a semver bump, and — unless --dry-run — write the result into
-// .claude-plugin/plugin.json in place. No dependency, nothing that reaches the network.
+// It has two modes, because `main` is branch-protected and the release job may not push to it:
+//   * default / --dry-run / --set  — the AUTHOR runs this on a release branch. It reads the
+//     conventional-commit prefixes across `<newest v* tag>..HEAD`, maps them to a semver bump, and
+//     (unless --dry-run) writes the result into .claude-plugin/plugin.json in place. That write is
+//     committed INTO the PR, so the version reaches `main` through the normal PR flow.
+//   * --check                      — the release JOB runs this on `push: main`, after the versioned
+//     plugin.json is already merged. It computes nothing and writes nothing; it only decides whether
+//     the committed version is a new, releasable semver (present, valid, not already tagged, ahead of
+//     the newest tag) and emits that decision. The job then tags and publishes without ever touching
+//     the protected branch.
+// No dependency, nothing that reaches the network.
 //
 // Mapping (this spec's decision, not an inherited one; highest across the range wins):
 //   feat:                                              -> minor
@@ -92,6 +100,17 @@ export function isStrictSemver(v) {
   return /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+].+)?$/.test(v);
 }
 
+/** Compare two semver numeric cores. Returns -1, 0, or 1. Ignores any prerelease/build suffix. */
+export function compareSemver(a, b) {
+  const core = (v) => v.split(/[-+]/, 1)[0].split('.').map((n) => Number.parseInt(n, 10));
+  const pa = core(a);
+  const pb = core(b);
+  for (let i = 0; i < 3; i++) {
+    if (pa[i] !== pb[i]) return pa[i] < pb[i] ? -1 : 1;
+  }
+  return 0;
+}
+
 /**
  * The next version from a base and a bump level. The 0.x clamp lives here: a "major" bump while
  * the base major is 0 becomes a minor, never a major. Returns null for "none" (no release).
@@ -171,8 +190,46 @@ function emitOutputs(outputs) {
   appendFileSync(file, `${lines}\n`);
 }
 
+/**
+ * CI decision path (`--check`): the release job runs this AFTER the versioned plugin.json is
+ * already on `main` via the merged PR. It never computes from the range and never writes anything —
+ * it only decides whether the committed version is a new, releasable one. This is what lets the job
+ * avoid pushing to a branch-protected `main`: the version rides in the PR, the job just reads it.
+ */
+function check() {
+  const version = readPluginVersion();
+  if (version === null) {
+    console.log('bump-version: plugin.json carries no version — nothing to release.');
+    emitOutputs({ release: 'false', version: '', bump: 'none' });
+    process.exit(0);
+  }
+  if (!isStrictSemver(version)) {
+    fail(`plugin.json version is not semver: ${version} (a leading zero in a component is rejected).`);
+  }
+  if (git(['tag', '-l', `v${version}`]) !== '') {
+    console.log(`bump-version: v${version} is already tagged — already released, nothing to do.`);
+    emitOutputs({ release: 'false', version: '', bump: 'none' });
+    process.exit(0);
+  }
+  const newestTag = git(['describe', '--tags', '--abbrev=0']);
+  const newestVersion = newestTag ? newestTag.replace(/^v/, '') : null;
+  if (newestVersion && compareSemver(version, newestVersion) <= 0) {
+    fail(
+      `plugin.json version ${version} is not ahead of the newest tag v${newestVersion} — ` +
+        'refusing to release a non-advancing version.',
+    );
+  }
+  console.log(`bump-version: plugin.json version ${version} is releasable (newest tag ${newestTag || 'none'}).`);
+  emitOutputs({ release: 'true', version, bump: 'committed' });
+  process.exit(0);
+}
+
 function main() {
   const argv = process.argv.slice(2);
+  if (argv.includes('--check')) {
+    check();
+    return;
+  }
   const dryRun = argv.includes('--dry-run');
   const setIndex = argv.indexOf('--set');
   const override = setIndex !== -1 ? argv[setIndex + 1] : undefined;
