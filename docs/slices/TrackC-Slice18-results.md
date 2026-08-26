@@ -176,7 +176,13 @@ user-facing half is **unchanged in disposition** — this observation lives here
 
 - **Built and locally verified here:** 1, 2, 3 (unit + guard-demo), 4, 5 (guard demonstrated), 6,
   13's *before* side, 14 (this doc), 15 (PLUGIN-PRD amendment + one §9 row), 16.
-- **Awaiting the live sequence (author):** 7, 8, 9, 10, 11, 12, 13's *after* side, 17.
+- **Verified by the live `v0.2.0` release (2026-08-26 — see the addendum below):** 8, and criterion
+  **17's merge 1** — `v0.2.0` came out as the range predicted, with the recorded discrepancy that it
+  fired from the fix PR (#55) rather than the slice PR (#54).
+- **Awaiting the remaining live sequence (author):** 7 (the canonical no-release merge 2 —
+  corroborated green by [PR #56](https://github.com/njohnb/Manabase/pull/56)'s merge, but not the
+  sequence's own docs-only merge), 9, 10, 11, 12 (only the in-CI sha256 assertion has run, not a
+  downloaded-asset check by a human), 13's *after* side, and criterion **17's merges 2 and 3**.
 
 ## Addendum 2026-08-25 — first live merge failed on branch protection; the mechanism was revised
 
@@ -215,3 +221,52 @@ clean, `npm test` 240/240, `lint:docs` OK.
 (written by the script), so merging it both installs the revised workflow and, via the same merge,
 lets the job read `0.2.0` and cut the withheld **`v0.2.0`** release. The live update-semantics tests
 (requirement 8) then run against that release exactly as the table above lays out.
+
+## Addendum 2026-08-26 — `v0.2.0` shipped: the recovery happened
+
+The prediction above played out. Recorded here as the outcome — the mechanism is the 2026-08-25
+addendum above and the [`PC-03`](../PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab)
+"Corrected 2026-08-25" bullet, not restated.
+
+**The failed run first.** [PR #54](https://github.com/njohnb/Manabase/pull/54)'s merge ran
+[`release.yml`](../../.github/workflows/release.yml) on `push: main` (run `32917489462`,
+2026-08-26T01:03Z) and **failed** — `GH006`, the protected-branch push of the bumped
+[`plugin.json`](../../.claude-plugin/plugin.json) rejected. No tag, no Release, no bundle; a clean
+failure, `v0.1.0`/`v0.1.1` untouched.
+
+**Then `v0.2.0`.** [PR #55](https://github.com/njohnb/Manabase/pull/55)
+(`fix/release-branch-protection`, merge commit `ddbfd4c`) carried
+[`plugin.json`](../../.claude-plugin/plugin.json) at `0.2.0`, written by the script and merged
+through the protected-PR flow. Its merge ran [`release.yml`](../../.github/workflows/release.yml)
+(run `32918776980`, `push: main`, **success**) and published the first automated release: tag
+**`v0.2.0`** on `ddbfd4c`, GitHub Release published **2026-08-26T01:23:37Z**, `targetCommitish`
+`main`, **not** draft, **not** prerelease, marked **Latest**, asset **`manabase.mcpb` = 117,883
+bytes**. [`plugin.json`](../../.claude-plugin/plugin.json) on `main` now carries `version: 0.2.0` —
+the [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme) switchover, the first time `plugin.json` is
+version-bearing. The pack step's byte-identity assertion
+([`PC-03`](../PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7) passed inside CI, or
+the job would have failed before publishing — corroboration, not a status change.
+
+**The skip path, observed live.** [PR #56](https://github.com/njohnb/Manabase/pull/56)
+(`ci/release-advisory`, merge `b4b2b34`, run `32919514504`, `push: main`, **success**) carried only
+ci/docs changes and no version bump, and correctly produced **no** new tag, Release or bundle —
+`v0.2.0` was already tagged and the range was non-releasable. This is real evidence the skip path
+works on a live merge; it is **not** the sequence's canonical docs-only merge 2, which is still to
+come.
+
+**Criteria this moves** (the status section above is updated to match): criterion **8** is verified —
+one run produced the tag, the Release carrying `manabase.mcpb`, and a
+[`plugin.json`](../../.claude-plugin/plugin.json) on `main` matching the tag, with the `dist/` gate
+ahead of all of it. Criterion **17's merge 1** is verified with its discrepancy written down rather
+than smoothed over: the release fired from the **fix PR (#55)**, not the original slice PR (#54),
+because #54's run failed on branch protection — a finding about the deployment, not the bump script,
+which computed `0.2.0` correctly.
+
+**Still author-TODO:** the canonical no-release merge 2 (criterion 7) and the withheld-`v0.3.0`
+merge 3 (criterion 17's remainder); the three `/plugin update` update-semantics tests below
+(criteria 9–11); the downloaded-asset sha256 by hand (criterion 12 — only the in-CI assertion has
+run); and `claude plugin validate . --strict` on the *after* side (criterion 13's second half, which
+is [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9's evidence —
+[`plugin.json`](../../.claude-plugin/plugin.json) now has a `version` so the one warning should be
+gone, but nobody has run `--strict` yet, so it stays unobserved). The Positive A / Negative /
+Positive B rows in the table above stay author-TODO.

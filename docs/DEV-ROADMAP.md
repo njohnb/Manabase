@@ -1108,7 +1108,9 @@ landed. Slice 14 implements it.
   - The three update-semantics tests, absorbed from [Slice 13](./slices/TrackC-Slice13.md).
 - **Done when:**
   - ☐ A merge with no releasable commit produces no tag, no Release and no bundle, on a green run.
-  - ☐ A merge with a releasable commit produces a tag, a Release and a bundle from one run.
+  - ☑ A merge with a releasable commit produces a tag, a Release and a bundle from one run.
+    **[`v0.2.0`, 2026-08-26 — [PR #55](https://github.com/njohnb/Manabase/pull/55)'s merge, run
+    `32918776980`; see the note below]**
   - ☐ All three update-semantics tests recorded, the negative one with the string searched for named.
   - ☐ [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 verified —
     `claude plugin validate . --strict` recorded on both sides of the switchover.
@@ -1160,6 +1162,29 @@ landed. Slice 14 implements it.
   [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) moves in **neither** half.
   This slice does not close [Slice 13](./slices/TrackC-Slice13.md) and Phase 1 stays open behind
   [Slice 12](./slices/TrackC-Slice12.md). Evidence:
+  [`docs/slices/TrackC-Slice18-results.md`](./slices/TrackC-Slice18-results.md).
+- **First automated release shipped 2026-08-26 — `v0.2.0`, via the revised mechanism after
+  [PR #54](https://github.com/njohnb/Manabase/pull/54)'s run failed on branch protection.** `main`
+  gained `required_pull_request_reviews` after this slice verified its "`main` is not
+  branch-protected" precondition true, so #54's merge job could not push the bumped
+  [`plugin.json`](../.claude-plugin/plugin.json) back (`GH006`) and nothing published — a clean
+  failure. The job was revised to carry the version **in the PR** rather than push it (recorded in
+  the [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) "Corrected 2026-08-25" bullet and
+  the results-doc addendum), and [PR #55](https://github.com/njohnb/Manabase/pull/55)'s merge
+  (commit `ddbfd4c`, run `32918776980`) cut **`v0.2.0`**: tag on `ddbfd4c`, Release published
+  2026-08-26T01:23:37Z, asset `manabase.mcpb` at 117,883 bytes,
+  [`plugin.json`](../.claude-plugin/plugin.json) on `main` now version-bearing at `0.2.0` — the
+  [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover. That verifies the releasable-merge
+  done-when box above and [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criteria 12
+  (release path) and 13. The no-release box stays ☐: it is **corroborated** green by
+  [PR #56](https://github.com/njohnb/Manabase/pull/56)'s merge (no bump → no tag/Release/bundle) but
+  the sequence's own docs-only merge is still to come. **Still open:** the three `/plugin update`
+  tests, the withheld `v0.3.0` merge, and
+  [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9 (`--strict` after the switchover,
+  not yet run). Discrepancy recorded per acceptance criterion 17: the release fired from the **fix
+  PR (#55)**, not the slice PR (#54). Phase 1 stays open behind
+  [Slice 12](./slices/TrackC-Slice12.md); this slice does not close
+  [Slice 13](./slices/TrackC-Slice13.md). Evidence:
   [`docs/slices/TrackC-Slice18-results.md`](./slices/TrackC-Slice18-results.md).
 
 ## 5. Order and parallelism
