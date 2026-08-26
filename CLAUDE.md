@@ -42,7 +42,7 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (210 tests, 56 suites)
+npm test            # node --experimental-strip-types --test  (240 tests, 63 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
@@ -695,6 +695,18 @@ default/`--dry-run`/`--set` (author writes the version), `--check` (the release 
 as of PR #55, so merging it both installs the fix and lets the job cut the withheld `v0.2.0`.
 Evidence: the dated addendum in `docs/slices/TrackC-Slice18-results.md` and the `PC-03` correction in
 `docs/PLUGIN-PRD.md`.
+
+**Confirmed 2026-08-26 — `v0.2.0` shipped.** The revised job cut the withheld release on PR #55's
+merge (commit `ddbfd4c`): tag `v0.2.0`, a GitHub Release (not draft, not prerelease, Latest), asset
+`manabase.mcpb` at **117,883 bytes**, and `plugin.json` on `main` now carries `version` `0.2.0` —
+the first version-bearing `plugin.json`, the `P-08` switchover in fact. The release fired from the
+**fix PR (#55)**, not the slice PR (#54), whose run had failed on branch protection first. Slice 18
+acceptance criterion 8, and `PC-03` criterion 12's release-warranted path and criterion 13, are
+verified by it; a no-release merge (PR #56) was separately observed green cutting nothing,
+corroborating the skip path. **Still open:** the three `/plugin update` tests, the `v0.3.0` merge,
+and `PC-02` criterion 9 (`claude plugin validate . --strict` post-switchover — `plugin.json` now has
+a `version` so the one warning should be gone, but nobody has run it). `PQ-06` unmoved in both
+halves; `PQ-05` untouched; Phase 1 still open behind Slice 12, and this does not close Slice 13.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
