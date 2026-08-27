@@ -42,7 +42,7 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (240 tests, 63 suites)
+npm test            # node --experimental-strip-types --test  (325 tests, 77 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
@@ -63,23 +63,33 @@ src/http/client.ts      the one HTTP module: createHttpClient(spec, deps) — he
 src/scryfall/client.ts  spec: two lanes (500/100 ms), Scryfall's details reader. Thin factory
 src/spellbook/client.ts spec: one 500 ms lane, the Django-REST field-error details reader
 src/scryfall/prices.ts  resolvePrice() — the three price traps
+src/scryfall/collection.ts resolveNames() — POST /cards/collection batched at 75; the misses come
+                        back as unresolved names rather than being dropped
 src/scryfall/types.ts   minimal wire shapes; only fields actually read
 src/spellbook/types.ts  wire shapes that OMIT prices and every imageUri* field — the omission is
                         the mechanism: code cannot read a field the type does not declare
 src/spellbook/combos.ts ComboSummary, the normalized shape every later consumer reads, plus
-                        resolveFormat over Commander Spellbook's 16 legality keys (NOT Scryfall's 23)
+                        resolveFormat over Commander Spellbook's 16 legality keys (NOT Scryfall's
+                        23), and — since Slice 17 — BYTE_BUDGET, ENVELOPE_RESERVE and
+                        fillPage(summaries, extraReserve = 0), the ONE page budget both combo
+                        tools spend
 src/tools/card-search.ts  cardSearch() — query in, shaped CardSearchData out
-src/tools/combo-search.ts comboSearch() — one upstream request per call, limit 40 + true offset
+src/tools/combo-search.ts comboSearch() — one upstream request per call, byte-filled page, offset
+src/tools/combo-find-deck.ts comboFindDeck() — names resolved through Scryfall first, then ONE
+                        combo request carrying no limit and no offset; six buckets, capped after
 src/tools/register.ts     tool definitions + dispatchToolCall(clients, name, args) + registerTools
 tests/                  handlers called as plain functions; fixtures under tests/fixtures/
 dist/index.js           committed build output — NOT gitignored
 ```
 
 Data flows one way: `index.ts` builds config → creates both clients → `registerTools` wires the SDK
-handlers to `dispatchToolCall` → `cardSearch` / `comboSearch` → `client.get`. `dispatchToolCall`
-takes a `Clients` bundle rather than positional clients, and each handler receives the **one**
-client it needs, so no handler can reach a source it has no business calling. Nothing below
-`index.ts` touches global state, so every layer is testable by passing a fake.
+handlers to `dispatchToolCall` → `cardSearch` / `comboSearch` / `comboFindDeck` → `client.get` or
+`client.post`. `dispatchToolCall` takes a `Clients` bundle rather than positional clients, and each
+handler receives the client(s) it needs and no more, so no handler can reach a source it has no
+business calling. `comboFindDeck` is the **only** handler holding both — deliberately, because
+Commander Spellbook silently ignores a card name it does not know, so Scryfall resolves the names
+first and the misses are reported. Nothing below `index.ts` touches global state, so every layer is
+testable by passing a fake.
 
 ## Rules that are easy to violate by accident
 
@@ -99,8 +109,19 @@ top search result for Moxfield's API is a working `cloudscraper` proxy, and beca
 grants `User-Agent` whitelists through support — so identify honestly, and ask (`OQ-10`) rather
 than route around. Live probes during research obey the same rule: single spaced calls.
 
+**Commander Spellbook's stated usage limit is a SHAPE, not a rate** (MCP-PRD §4.4, from the admins
+2026-08-25). They sanction anonymous use, ask for "few http calls per user interaction", and ask
+explicitly that the paginated API not be used to bulk export — the bulk JSON file plus a periodic
+update task is the sanctioned route at that scale. So **never auto-page and never sweep a query to
+exhaustion**: `CAP-02` complies by construction with one upstream request per tool call and paging
+reported rather than resolved, and a capability that paged for the caller would violate a request
+from the source owner. **No rate was given**, so the 500 ms lane does not move and §3.7's
+conservative self-throttle still binds. `OQ-06` closed as **permitted, not licensed** — consuming is
+sanctioned, the data has no licence, and storing or redistributing combo data needs its own ask.
+
 **Every outbound request carries the app-naming `User-Agent` and an `Accept` header.** Default
-library agents are explicitly disallowed by Scryfall.
+library agents are explicitly disallowed by Scryfall, and Commander Spellbook's admins asked for
+the same thing in their own words.
 
 **Handlers never throw** (`D-10`). Every failure is a structured `Failure` carrying Scryfall's
 verbatim `details` so the model can fix a bad query and retry. The single deliberate exception is
@@ -643,6 +664,78 @@ fields, and `register.ts` has carried a `mcp__plugin_manabase_mtg__card_search` 
 tool was first registered), and its acceptance criterion 8 contradicts its own requirement 7 —
 case-insensitive matching **resolves** `standardbrawl` to `standardBrawl` rather than refusing it,
 and the implementation follows requirement 7.
+
+**Slice 17 (`combo_find_deck`) landed 2026-08-25 as commit `1024529` on
+`feat/slice17-combo-find-deck`, not yet a PR — and it CLOSES `CAP-02`.**
+`src/scryfall/collection.ts` batches `POST /cards/collection` at 75 identifiers and reads
+`not_found` into a required `unresolved_cards`; `src/tools/combo-find-deck.ts` issues one upstream
+combo request per call carrying **no `limit` and no `offset`**, classifies six buckets
+matched-first, and caps **after**; the `/find-my-combos` wire types joined `src/spellbook/types.ts`
+and `ScryfallCollection` joined `src/scryfall/types.ts`; `register.ts` gained a third tool.
+`tools/list` on the rebuilt bundle reports **three** tools. **All fourteen `CAP-02` criteria are
+verified and `Status` moved `specified` → `delivered`** — this slice verified 4, 5, 9, 10 and 13 in
+full plus the remaining halves of 1, 8 and 14, with 2, 3, 6, 7, 11 and 12 already Slice 15's and
+Slice 16's. Tests **215 → 297**, suites 56 → 70; typecheck clean; `npm run acceptance` 13/13 live,
+no 429; `lint:docs` OK. Evidence: `docs/slices/TrackA-Slice17-results.md`. **The Commands block above
+read "210 tests, 56 suites" and was already one step stale** — the true pre-17 baseline was 215,
+because the count moved again inside Slice 16's byte-budget follow-up; the dated records carrying
+210 stand as written. **`BYTE_BUDGET`, `ENVELOPE_RESERVE` and `fillPage` MOVED from
+`combo-search.ts` into `combos.ts`** and are shared, so the capability's one budget is one
+constant; the shared `fillPage(summaries, extraReserve = 0)` takes `ComboSummary[]`, and **the
+evidence the lift changed nothing is `tests/tools/combo-search.test.ts` passing unedited**.
+`combo_find_deck` spends `extraReserve` on `unresolved_cards`, which scales with the input where a
+flat 400-character envelope allowance cannot.
+
+**One new verified upstream finding, and it is this slice's trap.** Scryfall's
+`POST /cards/collection` **rejects the combined `Front // Back` name** of a double-faced card and
+accepts either face name alone — four real cards in the live deck reported unresolved because of
+it. **Note the asymmetry:** `/cards/search` accepts the combined form and a card's own `name` field
+*is* the combined form; only the batch lookup refuses it. It was **not** worked around — splitting
+`A // B` is decklist parsing and out of scope — and the tool description gained one clause telling
+the model to submit one face name, because `unresolved_cards` naming four real cards invites "your
+decklist has four typos", a claim the response does not establish (§3.6). Recorded as a dated
+`§4.1.2` addendum in `MCP-PRD.md`. **The live figures are one deck's and 640,684 is NOT the
+comparator** — the run used a real 100-card Azorius deck (commander Ranar the Ever-Watchful), a
+*different* deck from §4.4.1's 94-card one, whose decklist was not recoverable from the captured
+response. Both figures are that same deck's: **1,005,265 characters raw**, **1,073 shaped** under
+the default `include: "matched"`, and **48,660 shaped** for page 1 of `"matched+near"` (45 of 229
+combos, `next_offset: 45`). Never write any of it as a ratio against 640,684. One more design fact
+that does not transfer from `combo_search`: **`offset` indexes the CLASSIFIED list, not an upstream
+window** — every call re-fetches the whole result and re-slices locally, and offsets are stable
+because upstream classification is deterministic, which is a *different* verified fact from
+`combo_search`'s live `/variants/` ordering probe. Neither is evidence for the other.
+
+**No open question moved. `OQ-05`, `OQ-06` and `OQ-14` all stay OPEN by explicit decision** and the
+capability shipped with them open, each gaining a dated §7 paragraph. **One outstanding Discord
+message to the Commander Spellbook admins answers `OQ-05` and `OQ-06` together**; `OQ-14` needs the
+eval run `OQ-01`'s method prescribes, available for the first time now that both tools exist and
+deliberately not folded into a build slice. **Four deliberate deviations from the spec, recorded
+rather than smoothed:** the upstream body sends `quantity: 1` (requirement 12 wrote `{ card }`, but
+§4.4's **verified** `DeckRequest` carries `quantity` and the PRD outranks a slice spec); `fillPage`
+gained the optional `extraReserve`; `src/spellbook/types.ts` was modified though absent from the
+deliverables table; and the description clause above was added after the live run. **No `D-` was
+minted**, §2 and §3 of both PRDs are untouched and §4 gained one dated addendum, **no `PC-01`,
+`PC-02`, `PC-03` or `PC-04` criterion changed status**, no skill was edited, and `PQ-06` did not
+move in either half. **No tag, no `.mcpb` release and no `plugin.json` version** — `P-08` is still
+Slice 13's and still gated on Slice 12's second cold run, and `v0.1.0` and `v0.1.1` are both spent,
+so nothing anyone has installed carries the combo tools. `CAP-01` is undisturbed and its criterion
+15 is still unimplemented and unscheduled. No caching, no persistence, no `deck_read`, no
+Archidekt, no Moxfield.
+
+**The Commander Spellbook admins replied 2026-08-25 — docs only, nothing built, and it supersedes
+the "one outstanding Discord message" above and nothing else in that paragraph.** `MCP-PRD.md` §4.4
+carries the reply in full and the rule above states the part that binds. Precisely: **`OQ-06` is
+closed as permitted, NOT licensed** — explicit permission to consume, no licence text, no ToS page,
+MIT still covering the code alone, and consuming is not redistributing. **`OQ-05` is NOT closed** —
+it covers three sources since the 2026-08-07 widening and only one answered; Archidekt and Moxfield
+are unmoved. **No rate was given**, so the 500 ms lane does not move and §3.7 is undischarged; the
+lane is now a chosen conservatism against a known-friendly source rather than a default against
+silence. **No code changed** — `CAP-02` already satisfied the stated shape, so a decision taken for
+the context budget gains a second independent reason to hold. The admins recommending
+`@space-cow-media/spellbook-client` **does not reopen `D-16`**, which rejected it on this codebase's
+zero-runtime-dependency bundle and its deliberately incomplete wire types, never on doubt about the
+package — and §2 is locked. `CAP-02` stays `delivered`, no criterion moved, no `D-` was minted, and
+`OQ-14` is untouched and still open.
 
 **Slice 18 (automated release on merge to `main`, the `P-08` switchover automated) was built and
 rehearsed 2026-08-25 — build-and-rehearse only, uncommitted on `docs/slice18-auto-release` off

@@ -151,3 +151,62 @@ export function toComboSummary(
     legal: variant.legalities[formatKey] === true,
   };
 }
+
+/**
+ * A page is filled to a BYTE BUDGET, not to a fixed combo count.
+ *
+ * Fixed counts do not fit this source. 577 combos sampled across 15 queries on 2026-08-25 measured
+ * per-combo cost at 547 minimum, 1,390 median and 4,421 maximum — a 5.7x spread, because cost
+ * tracks how many cards a combo uses. Any single count is therefore wrong in both directions at
+ * once: a count safe for `cards>5` (a real query, measured at 99,311 characters for 40 combos —
+ * 85% of the 116,626 that breached a harness ceiling in issue #25) starves an ordinary
+ * `card:"..."` query of two thirds of the combos that would have fit.
+ *
+ * 50,000 matches CAP-01's delivered band and is under half the known-bad 116,626 — which is a
+ * value known to FAIL rather than the limit, the true ceiling being unknown and lower.
+ *
+ * ONE budget serves the whole capability. `combo_search` and `combo_find_deck` both fill against
+ * this constant through the one `fillPage` below; two copies would be two places it can drift.
+ */
+export const BYTE_BUDGET = 50_000;
+
+/**
+ * Reserved for the keys around `combos` — `total_combos`, `offset`, `next_offset`, `has_more`,
+ * `format` and the longest `note` either tool emits. Deliberately generous: overshooting the
+ * budget matters and under-filling a page by a few hundred bytes does not.
+ *
+ * It is a CONSTANT part of the envelope only. A caller whose envelope carries something that
+ * scales with its input — `combo_find_deck`'s `unresolved_cards`, which is one entry per submitted
+ * name that Scryfall did not resolve and reaches thousands of characters on a deck full of typos —
+ * passes that size as `extraReserve` rather than hoping 400 covers it.
+ */
+export const ENVELOPE_RESERVE = 400;
+
+/**
+ * Fill a page from already-shaped combos until the byte budget is spent.
+ *
+ * The `kept.length > 0` guard is load-bearing, not defensive tidiness: a single combo larger than
+ * the whole budget must still be returned, or `next_offset` never advances past it and the caller
+ * pages forever on an empty result. One oversized combo is a big response; a non-advancing offset
+ * is an infinite loop.
+ *
+ * It takes `ComboSummary[]` rather than a wire envelope because `combo_find_deck`'s input is
+ * already classified across six buckets and flattened — there is no single upstream list to hand
+ * it. `combo_search` therefore shapes its whole window before filling instead of shaping lazily
+ * inside the loop, spending at most `UPSTREAM_LIMIT` `toComboSummary` calls per request on combos
+ * it may discard. That cost is bounded and unmeasurable beside a 20 KB gzipped fetch, and it is
+ * the price of one budget rather than two.
+ */
+export function fillPage(summaries: ComboSummary[], extraReserve = 0): ComboSummary[] {
+  const kept: ComboSummary[] = [];
+  let bytes = ENVELOPE_RESERVE + extraReserve;
+
+  for (const summary of summaries) {
+    const cost = JSON.stringify(summary).length + 1; // +1 for the separating comma
+    if (kept.length > 0 && bytes + cost > BYTE_BUDGET) break;
+    kept.push(summary);
+    bytes += cost;
+  }
+
+  return kept;
+}

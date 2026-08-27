@@ -8,6 +8,7 @@ import type { SpellbookVariantList } from "../../src/spellbook/types.ts";
 import type { CardSearchData } from "../../src/tools/card-search.ts";
 import { cardSearch } from "../../src/tools/card-search.ts";
 import type { ComboSearchData } from "../../src/tools/combo-search.ts";
+import type { ComboFindDeckData } from "../../src/tools/combo-find-deck.ts";
 import { dispatchToolCall, toolDefinitions } from "../../src/tools/register.ts";
 import type { Clients } from "../../src/tools/register.ts";
 
@@ -19,6 +20,14 @@ function fixture(name: string): unknown {
 
 const searchPage1 = fixture("search-page-1.json") as ScryfallList;
 const variantsPage1 = fixture("spellbook/variants-page1.json") as SpellbookVariantList;
+const findMyCombosDeck = fixture("spellbook/find-my-combos-deck.json");
+
+/**
+ * Synthesized, not a fixture: an all-found `POST /cards/collection` reply. The handler reads only
+ * `data[].name` and `not_found[].name`, and these dispatch tests are about ROUTING — the real
+ * `collection-not-found.json` belongs to the suite that tests the reporting of misses.
+ */
+const collectionAllFound = { object: "list", not_found: [], data: [{ name: "Sol Ring" }] };
 
 interface RecordedCall {
   path: string;
@@ -59,6 +68,48 @@ function makeClients(): {
   };
 }
 
+interface PostedCall extends RecordedCall {
+  body: unknown;
+}
+
+/**
+ * Both clients with a WORKING post, for the one tool that uses the verb.
+ *
+ * `get` rejects on both: `combo_find_deck` reaches each source by POST only, and a lenient fake
+ * would let a wrong verb pass unnoticed. The two canned bodies are different shapes, so a
+ * mis-routed call produces a body the handler cannot read rather than a passing test.
+ */
+function makePostClients(spellbookBody: unknown = findMyCombosDeck): {
+  clients: Clients;
+  scryfallPosts: PostedCall[];
+  spellbookPosts: PostedCall[];
+} {
+  const scryfallPosts: PostedCall[] = [];
+  const spellbookPosts: PostedCall[] = [];
+
+  const refuseGet = (path: string): Promise<never> =>
+    Promise.reject(new Error(`fake client: combo_find_deck must not GET (${path})`));
+
+  const clients: Clients = {
+    scryfall: {
+      get: refuseGet,
+      post(path, body, query) {
+        scryfallPosts.push({ path, body, query });
+        return Promise.resolve({ ok: true, value: collectionAllFound });
+      },
+    },
+    spellbook: {
+      get: refuseGet,
+      post(path, body, query) {
+        spellbookPosts.push({ path, body, query });
+        return Promise.resolve({ ok: true, value: spellbookBody });
+      },
+    },
+  };
+
+  return { clients, scryfallPosts, spellbookPosts };
+}
+
 /** One source only, for the CAP-01 cases that predate the bundle. */
 function scryfallOnly(result: Result<unknown>): { clients: Clients; calls: RecordedCall[] } {
   const scryfall = makeFakeClient(result);
@@ -89,6 +140,23 @@ const EXPECTED_COMBO_DESCRIPTION =
   "refused rather than guessed. An invalid query returns Commander Spellbook's error text " +
   "verbatim — correct it and retry.";
 
+const EXPECTED_FIND_DECK_DESCRIPTION =
+  "Find which Magic: The Gathering combos a decklist already contains, and — with " +
+  '`include: "matched+near"` — the ones it is one card away from, classified by Commander ' +
+  "Spellbook. `cards` is main-deck card NAMES only: no quantities and no objects, so strip a " +
+  'leading count ("1 Sol Ring" will not resolve). `commanders` is separate and optional. Every ' +
+  "submitted name is checked against Scryfall first, and any it does not recognize is listed in " +
+  "`unresolved_cards`, which is always present — Commander Spellbook ignores an unknown name " +
+  "silently, so this is the only signal that a typo cost you combos. Submit a double-faced card " +
+  "by ONE face name: the combined `Front // Back` form is reported unresolved even though the " +
+  "card is real. Near-misses are the bulk of " +
+  "the data and are absent unless asked for. Pages are filled to a byte budget rather than to a " +
+  "combo count, so combos per page varies: pass the previous response's `next_offset` back as " +
+  "`offset`, never a computed one. Each call re-fetches and re-classifies the whole deck — there " +
+  "is no cursor — and changing `include` or the decklist changes what an offset means, so restart " +
+  "at 0. `format` names the single format legality is judged for (default `commander`); these " +
+  "format names are not Scryfall's, and an unrecognized one is refused rather than guessed.";
+
 const parseBody = (result: { content: Array<{ type: "text"; text: string }> }): unknown =>
   JSON.parse(result.content[0]!.text);
 
@@ -99,15 +167,39 @@ describe("toolDefinitions", () => {
     assert.equal(tool.description, EXPECTED_DESCRIPTION);
   });
 
-  test("[requirement 13] tools/list reports exactly TWO tools", () => {
-    assert.equal(toolDefinitions.length, 2);
-    assert.deepEqual(toolDefinitions.map((t) => t.name), ["card_search", "combo_search"]);
+  test("[Slice 17 #19] tools/list reports exactly THREE tools", () => {
+    assert.equal(toolDefinitions.length, 3);
+    assert.deepEqual(
+      toolDefinitions.map((t) => t.name),
+      ["card_search", "combo_search", "combo_find_deck"],
+    );
   });
 
   test("[requirement 14] combo_search carries the spec's description exactly", () => {
     // Asserted against a local constant on purpose: update this deliberately, never to make a
     // test pass. The description is resident context on every surface.
     assert.equal(toolDefinitions[1]!.description, EXPECTED_COMBO_DESCRIPTION);
+  });
+
+  test("[Slice 17 #19] combo_find_deck carries the spec's description exactly", () => {
+    // Same rule as above: change this deliberately, never to make a test pass.
+    assert.equal(toolDefinitions[2]!.description, EXPECTED_FIND_DECK_DESCRIPTION);
+  });
+
+  test("[Slice 17 requirement 11] the description tells the model to strip quantities", () => {
+    // Requirement 11: a pasted "1 Sol Ring" surfaces in `unresolved_cards`, which is loud and
+    // correct — but the model should not have to discover that by failing a call.
+    const description = toolDefinitions[2]!.description;
+    assert.match(description, /1 Sol Ring/);
+    assert.match(description, /NAMES only/);
+    // Requirement 9's two paging consequences: an offset means nothing under a different
+    // `include`, and there is no cursor to resume from.
+    assert.match(description, /no cursor/);
+    assert.match(description, /restart\s+at 0/);
+    // Measured live 2026-08-25: `POST /cards/collection` rejects the combined `Front // Back`
+    // name, so four real cards in a 100-card deck were reported unresolved. The signal stays
+    // honest only if the model knows the difference between that and a typo.
+    assert.match(description, /Front \/\/ Back/);
   });
 
   test("[requirement 14] no description names a scoped tool name", () => {
@@ -138,6 +230,35 @@ describe("toolDefinitions", () => {
     // almost nobody sets, and the handler's refusal names the valid set when it matters.
     assert.equal(schema.properties.format!.type, "string");
     assert.equal(schema.properties.format!.enum, undefined);
+  });
+
+  test("[Slice 17 #19] combo_find_deck input schema requires cards and declares the four optionals", () => {
+    const schema = toolDefinitions[2]!.inputSchema as {
+      type: string;
+      required: string[];
+      properties: Record<
+        string,
+        { type: string; enum?: string[]; minimum?: number; minItems?: number; items?: { type: string } }
+      >;
+    };
+
+    assert.equal(schema.type, "object");
+    assert.deepEqual(schema.required, ["cards"]);
+    assert.deepEqual(Object.keys(schema.properties), [
+      "cards", "commanders", "include", "offset", "format",
+    ]);
+    // `string[]`, not objects and not `{name, quantity}` — quantity carries no combo information
+    // (Slice 17 requirement 11).
+    assert.equal(schema.properties.cards!.type, "array");
+    assert.equal(schema.properties.cards!.items!.type, "string");
+    assert.equal(schema.properties.cards!.minItems, 1);
+    assert.equal(schema.properties.commanders!.type, "array");
+    // Additive and defaulting to cheap: forgetting it returns a smaller TRUE answer rather than
+    // failing a call invisibly (MCP-PRD OQ-13's direction).
+    assert.deepEqual(schema.properties.include!.enum, ["matched", "matched+near"]);
+    assert.equal(schema.properties.offset!.type, "integer");
+    assert.equal(schema.properties.offset!.minimum, 0);
+    assert.equal(schema.properties.format!.type, "string");
   });
 
   test("input schema requires q and declares the documented optionals", () => {
@@ -312,10 +433,13 @@ describe("dispatchToolCall — unknown tool name", () => {
     assert.equal(calls.length, 0);
   });
 
-  test("[requirement 13] an unknown name still throws now that there are two tools", async () => {
+  test("[Slice 17 #19] an unknown name still throws now that there are three tools", async () => {
     const { clients, scryfallCalls, spellbookCalls } = makeClients();
 
-    await assert.rejects(dispatchToolCall(clients, "combo_find_deck", { q: "x" }), /combo_find_deck/);
+    // Slice 16 used `combo_find_deck` here as the not-yet-real name. It is real now, so the probe
+    // moved to a name no slice will ever claim — a tool that exists must never be the evidence
+    // that unknown tools throw.
+    await assert.rejects(dispatchToolCall(clients, "deck_read", { q: "x" }), /deck_read/);
 
     assert.equal(scryfallCalls.length, 0);
     assert.equal(spellbookCalls.length, 0);
@@ -350,6 +474,93 @@ describe("dispatchToolCall — each tool reaches ONE source", () => {
     assert.equal(body.combos.length, 40); // the whole cheap fixture fits one byte-budgeted page
     assert.equal(body.total_combos, 96);
     assert.equal(body.format, "commander");
+  });
+
+  test("[Slice 17 #19] combo_find_deck is the ONE tool that reaches both sources", async () => {
+    const { clients, scryfallPosts, spellbookPosts } = makePostClients();
+
+    const result = await dispatchToolCall(clients, "combo_find_deck", {
+      cards: ["Demonic Consultation", "Thassa's Oracle"],
+    });
+
+    assert.ok(!("isError" in result) || result.isError !== true);
+    assert.equal(scryfallPosts.length, 1);
+    assert.equal(scryfallPosts[0]!.path, "/cards/collection");
+    assert.equal(spellbookPosts.length, 1);
+    assert.equal(spellbookPosts[0]!.path, "/find-my-combos");
+
+    const body = parseBody(result) as ComboFindDeckData;
+    assert.equal(body.include, "matched");
+    assert.equal(body.color_identity, "UBR");
+    assert.deepEqual(body.unresolved_cards, []);
+  });
+});
+
+describe("dispatchToolCall — combo_find_deck argument handling", () => {
+  test("[Slice 17 #8] a missing, empty or non-array cards is bad_request with no upstream call", async () => {
+    const badArgs: Array<[string, unknown]> = [
+      ["undefined", undefined],
+      ["null", null],
+      ["a string", "Sol Ring"],
+      ["an array", [["Sol Ring"]]],
+      ["an object with no cards", { format: "commander" }],
+      ["an empty cards array", { cards: [] }],
+      ["cards of only empty strings", { cards: ["", "   "] }],
+      ["a non-array cards", { cards: "Sol Ring" }],
+      ["cards of only non-strings", { cards: [1, 2, 3] }],
+    ];
+
+    for (const [label, args] of badArgs) {
+      const { clients, scryfallPosts, spellbookPosts } = makePostClients();
+
+      const result = await dispatchToolCall(clients, "combo_find_deck", args);
+
+      assert.equal(result.isError, true, label);
+      const body = parseBody(result) as { error: { code: string; message: string } };
+      assert.equal(body.error.code, "bad_request", label);
+      // Zero calls to EITHER source — not even name resolution.
+      assert.equal(scryfallPosts.length, 0, label);
+      assert.equal(spellbookPosts.length, 0, label);
+    }
+  });
+
+  test("[Slice 17 #19] well-typed optionals reach the handler; wrong-typed ones are dropped", async () => {
+    const { clients, spellbookPosts } = makePostClients();
+
+    const result = await dispatchToolCall(clients, "combo_find_deck", {
+      cards: ["Demonic Consultation", "Thassa's Oracle"],
+      commanders: ["Thrasios, Triton Hero"],
+      include: "matched+near",
+      offset: "2", // string, not integer — dropped, so the handler's 0 applies
+      format: 42, // not a string — dropped, so the handler's "commander" applies
+      q: "ignored", // an unknown key belonging to another tool
+    });
+
+    assert.ok(!("isError" in result) || result.isError !== true);
+    const body = parseBody(result) as ComboFindDeckData;
+    assert.equal(body.include, "matched+near");
+    assert.equal(body.offset, 0);
+    assert.equal(body.format, "commander");
+    assert.deepEqual(spellbookPosts[0]!.body, {
+      main: [{ card: "Demonic Consultation", quantity: 1 }, { card: "Thassa's Oracle", quantity: 1 }],
+      commanders: [{ card: "Thrasios, Triton Hero", quantity: 1 }],
+    });
+  });
+
+  test("[Slice 17 #9] an unknown format is a structured result, not a throw", async () => {
+    const { clients, scryfallPosts, spellbookPosts } = makePostClients();
+
+    const result = await dispatchToolCall(clients, "combo_find_deck", {
+      cards: ["Sol Ring"],
+      format: "historic",
+    });
+
+    assert.equal(result.isError, true);
+    const body = parseBody(result) as { error: { code: string; message: string } };
+    assert.equal(body.error.code, "bad_request");
+    assert.match(body.error.message, /historic/);
+    assert.equal(scryfallPosts.length, 0);
+    assert.equal(spellbookPosts.length, 0);
   });
 });
 
