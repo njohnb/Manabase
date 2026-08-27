@@ -170,8 +170,8 @@ first-time installer found the Code tab needed the bundle as well.
 **Download `manabase.mcpb` from the latest release:**
 [github.com/njohnb/Manabase/releases/latest](https://github.com/njohnb/Manabase/releases/latest).
 It is built by GitHub Actions from a clean checkout
-([`.github/workflows/release.yml`](./.github/workflows/release.yml)) — never hand-packed — and the
-build fails if the bundled server is not the `dist/index.js` this repo has committed.
+([`.github/workflows/ci-release.yml`](./.github/workflows/ci-release.yml)) — never hand-packed — and
+the build fails if the bundled server is not the `dist/index.js` this repo has committed.
 
 You do not need Node for this. Claude Desktop ships its own, so the bundle has no runtime
 prerequisite at all — unlike the plugin, which needs Node on your `PATH`.
@@ -221,8 +221,7 @@ payload until you reinstall — and the Chat tab has no shell to recover an over
 .claude/
   agents/doc-sync.md   dev-only doc reconciler — NOT a plugin component
 .github/
-  workflows/ci.yml       doc links, typecheck, test, rebuild dist/ — every PR, every push to main
-  workflows/release.yml  builds and publishes the MCPB bundle on a `v*` tag
+  workflows/ci-release.yml  one gated pipeline — verify (docs, typecheck, test, dist), then bump on a PR and release on merge to main
 .mcp.json              bundled stdio MCP server, key `mtg` (P-09, P-12)
 mcpb/
   manifest.json        MCPB manifest — the Chat tab's artifact (PC-03, P-14)
@@ -269,14 +268,14 @@ npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
 The tests run `.ts` files directly, so **development needs Node 22.6 or newer** — that is where
-`--experimental-strip-types` landed. `.nvmrc` pins the toolchain version both workflows use. The
+`--experimental-strip-types` landed. `.nvmrc` pins the toolchain version the CI/release workflow uses. The
 published server has no such floor: it ships as the
 plain-JavaScript `dist/` bundle, which is why `engines` stays at `>=18.0.0`.
 
 `dist/` is committed and is what the plugin actually starts, so **rebuild it with every `src/`
 change**. A stale bundle does not error; the tools are simply absent. Since 2026-08-09 CI enforces
-it: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) checks the documentation links,
-typechecks, tests, rebuilds `dist/` and fails the run if the rebuild changes anything, on every
+it: [`.github/workflows/ci-release.yml`](./.github/workflows/ci-release.yml) checks the documentation
+links, typechecks, tests, rebuilds `dist/` and fails the run if the rebuild changes anything, on every
 pull request and every push to `main`
 ([`docs/slices/TrackC-Slice11-results.md`](./docs/slices/TrackC-Slice11-results.md)). It reports a
 forgotten rebuild, it does not repair it. That covers commits only — a bundle already installed

@@ -14,7 +14,7 @@ Date: **2026-08-10**. Spec: [`TrackC-Slice13.md`](./TrackC-Slice13.md). Landed a
 
 **Outcome.** `https://github.com/njohnb/Manabase/releases/tag/v0.1.0` exists and carries
 `manabase.mcpb`. It is the first downloadable artifact this project has ever produced, and the
-first time [`.github/workflows/release.yml`](../../.github/workflows/release.yml) has executed at
+first time [`.github/workflows/release.yml`](../../.github/workflows/ci-release.yml) has executed at
 all. [`PC-03`](../PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criteria **7** and **10** are
 verified. The bundle was installed on Claude Desktop from the released artifact and answered a card
 question with a tool call.
@@ -73,7 +73,7 @@ script therefore unpacks the `.mcpb` it just wrote and hashes what came out.
 
 Three properties of that placement, each deliberate:
 
-- **One implementation, not two.** [`release.yml`](../../.github/workflows/release.yml) calls
+- **One implementation, not two.** [`release.yml`](../../.github/workflows/ci-release.yml) calls
   `npm run pack:mcpb`, so CI gets the assertion for free and there is no second copy to drift.
 - **It runs on Windows.** `@anthropic-ai/mcpb`'s own `unpack` subcommand does the extraction, so no
   zip reader and no runner-provided `unzip` is involved. This matters because criterion 10 was
@@ -98,7 +98,7 @@ reported the matching sha256 and wrote the artifact.
 
 ### `release.yml` action pins
 
-`checkout` and `setup-node` `@v4` → `@v7` (matching [`ci.yml`](../../.github/workflows/ci.yml),
+`checkout` and `setup-node` `@v4` → `@v7` (matching [`ci.yml`](../../.github/workflows/ci-release.yml),
 which [Slice 11](./TrackC-Slice11.md) left on `@v7`), and `upload-artifact` → `@v7`. Bumped
 **before** the workflow's first execution rather than after, so the run that cut the release was
 not also the run that discovered a toolchain problem.
@@ -111,7 +111,7 @@ than amended, so the wrong claim and its correction both stay in history.
 
 ## Rehearsing a workflow that had never run
 
-[`release.yml`](../../.github/workflows/release.yml) had **never executed once** — not on a tag,
+[`release.yml`](../../.github/workflows/ci-release.yml) had **never executed once** — not on a tag,
 not manually. Its `workflow_dispatch` trigger plus the `if: github.ref_type == 'tag'` guard on the
 *Attach to the Release* step make a branch dispatch a complete rehearsal: every step runs, nothing
 irreversible is created.
@@ -277,7 +277,7 @@ Nothing else moved. [`PC-01`](../PLUGIN-PRD.md#pc-01--scryfall-query-craft),
 ## Traps for the next session
 
 1. **`v0.1.0` is spent.** [Slice 13](./TrackC-Slice13.md) requirement 10's `claude plugin tag`
-   writes into the same `v*` namespace [`release.yml`](../../.github/workflows/release.yml)
+   writes into the same `v*` namespace [`release.yml`](../../.github/workflows/ci-release.yml)
    watches. If that command emits `v<semver>`, **it will fire the release workflow and cut a second
    bundle release.** Discover its tag format with `--dry-run` before pushing, as the spec already
    requires, and pick a version string that has not been used.

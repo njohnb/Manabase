@@ -374,7 +374,7 @@ four are **deferred, not dropped**, and the roadmap block now records this:
 
 **Updated 2026-08-10 — the first row landed.** PR #36 (`e6b2279`) added
 [`scripts/check-doc-links.mjs`](../../scripts/check-doc-links.mjs), the `npm run lint:docs` script,
-and one step in [`ci.yml`](../../.github/workflows/ci.yml) between `npm ci` and the typecheck, with
+and one step in [`ci.yml`](../../.github/workflows/ci-release.yml) between `npm ci` and the typecheck, with
 the `dist/` gate still last. It is recorded as this slice's deferral and carries no slice number of
 its own; nothing in this document is reopened by it, and the other three rows stand. The dated
 record above is left as written.

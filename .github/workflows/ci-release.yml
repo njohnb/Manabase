@@ -1,0 +1,245 @@
+name: CI and Release
+
+# One pipeline. The release is gated by the SAME run that checks the code, so the artifact that
+# passed the checks is the artifact that ships — no drift between "what CI tested" and "what release
+# built," and no duplicated pre-flight block kept in sync by hand across two files. This replaces the
+# former ci.yml + release.yml (Track C Slice 19, evolving Slice 18's mechanism).
+#
+# Three jobs, split by trigger, sharing one `verify` gate:
+#   pull_request       -> verify, then bump (write the version onto the PR branch)
+#   push: main         -> verify, then release (tag, pack, publish)
+#   workflow_dispatch  -> verify, then release as a rehearsal (dev bundle, no tag, no Release)
+#
+# What every redesign here must preserve, because it was paid for once already:
+#
+# * dist/index.js is committed on purpose (PLUGIN-PRD P-09) and is what .mcp.json actually starts.
+#   A stale or absent bundle makes the plugin's tools simply *absent* — no error anywhere, the least
+#   debuggable failure this project can ship. So: reinstall from the lockfile, rebuild, and fail if
+#   the result differs from what is committed. That is PQ-06's answer, and it runs ahead of every
+#   publishing step.
+#
+# * The release NEVER pushes to `main`. `main` is branch-protected; a job that committed the version
+#   back to it is rejected by the protection hook (GH006 — exactly what killed Slice 18's first run
+#   on 2026-08-25). The version rides in the PR: the `bump` job writes it onto the PR's OWN branch,
+#   and the `release` job only READS it (`--check`) and tags. Tags are not branch-protected, so
+#   tagging needs no bypass, and GITHUB_TOKEN tag pushes do not re-trigger a workflow.
+#
+# * Do NOT add `npm run acceptance` under any trigger. It calls live Scryfall and MCP-PRD §3.4 makes
+#   rate limits a hard constraint — a 429 locks access for ~30s and sustained overage risks a ban for
+#   every user of the app. Automated releases ship without a live pass, by design.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege at the workflow level: read-only. Only the jobs that write (bump, release) widen
+# it to `contents: write` for themselves, so `verify` — the job that runs on every PR — is provably
+# unable to write anything.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (lint docs, typecheck, test, prove dist/)
+    runs-on: ubuntu-latest
+    # Cancel a superseded run's verify on a PR (github.ref is refs/pull/<n>/merge, stable per PR), but
+    # NEVER on main or dispatch: there the group is keyed by run_id so it is unique per run. Without
+    # the run_id key a second merge would cancel the first's verify and — via `needs` — silently drop
+    # the first's release. This split is mandatory, not cosmetic.
+    concurrency:
+      group: verify-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history and tags so the release advisory below can compute `<newest v* tag>..HEAD`.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # npm ci, never npm install. --bundle inlines the dependency tree into dist/index.js, so the
+      # installed tree is a direct input to the bytes. package.json declares caret ranges; npm install
+      # may resolve them upward and rewrite the lockfile, producing a bundle that differs from the
+      # author's for reasons unrelated to src/.
+      - run: npm ci
+
+      # Documentation links first: the cheapest check here (Node builtins, no build, no network), and
+      # it catches a class of defect nothing else in this repo can see. GitHub does not error on a dead
+      # #anchor — it silently lands the reader at the top of the page.
+      - run: npm run lint:docs
+
+      # Typecheck and tests before the gate, deliberately. A broken src/ should report as a type error
+      # or a failing test, not as "dist is stale" — which it would also be.
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - name: Rebuild dist/ and verify it matches src/
+        run: |
+          npm run build
+          # git status --porcelain, not git diff. If dist/index.js were *absent* from the commit, the
+          # rebuild recreates it as an untracked file and git diff reports nothing at all — and
+          # absent-dist is exactly the failure P-09 fears. Porcelain catches modified, deleted and
+          # untracked in one invocation.
+          if [ -n "$(git status --porcelain -- dist/)" ]; then
+            echo "::error title=dist/ is stale::dist/ does not match src/ — run 'npm run build' and commit dist/index.js"
+            git --no-pager diff --stat -- dist/
+            git status --porcelain -- dist/
+            exit 1
+          fi
+
+      # Release advisory (pull_request only): a ::warning::, never a gate. The `bump` job below now
+      # writes the version automatically, so this warning should normally not fire — it remains as the
+      # backstop if `bump` is ever skipped (e.g. a fork PR whose token is read-only). See
+      # scripts/bump-version.mjs --advise. --advise and --pr compute from the same tag base, so they
+      # can never disagree on the number.
+      - name: Release advisory — flag a releasable PR with no version bump
+        if: github.event_name == 'pull_request'
+        run: node scripts/bump-version.mjs --advise
+
+  bump:
+    name: Write the plugin version onto the PR branch
+    needs: verify
+    # Pull requests from THIS repo only. A fork PR's GITHUB_TOKEN is read-only, so the push would fail;
+    # skipping the job (the advisory still warns) is the intended degradation. Single-maintainer repo,
+    # so forks are not expected — this is belt-and-braces.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    # Job-scoped write: the workflow default stays read, so `verify` cannot write. This is the ONLY
+    # PR-triggered job that can push, and it pushes only to the PR's own feature branch — never main.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The PR's OWN head branch, not the merge ref, so the bump commit can be pushed back to it.
+          ref: ${{ github.head_ref }}
+          # Full history and tags: --pr bases the version on the NEWEST TAG, which is what makes a
+          # per-push job idempotent (re-running after the bump lands recomputes the same number).
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Compute the next version from the conventional-commit range and write it into plugin.json.
+      # Idempotent by construction: writes at most once per releasable cycle, nothing on a docs-only
+      # range, nothing when the file already carries the expected version.
+      - name: Compute and write the plugin version
+        run: node scripts/bump-version.mjs --pr
+
+      # Commit ONLY if --pr actually changed plugin.json. A GITHUB_TOKEN push does not trigger another
+      # workflow run, so this cannot loop; and even if `synchronize` re-ran the job, --pr would be an
+      # idempotent no-op. The `chore(release):` subject never contributes to a future bump.
+      - name: Commit the bump onto the PR branch
+        run: |
+          if [ -z "$(git status --porcelain -- .claude-plugin/plugin.json)" ]; then
+            echo "plugin.json unchanged — no bump to commit."
+            exit 0
+          fi
+          VERSION="$(node -p "require('./.claude-plugin/plugin.json').version")"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .claude-plugin/plugin.json
+          git commit -m "chore(release): set plugin version ${VERSION}"
+          git push origin "HEAD:${{ github.head_ref }}"
+
+  release:
+    name: Release on merge to main
+    needs: verify
+    # Everything except a pull_request: push to main is the real release, workflow_dispatch is the
+    # rehearsal/recovery path. verify (which ran the full pre-flight for this same commit) has already
+    # passed, so this job does not repeat lint/typecheck/test — it rebuilds and proves dist/ in its own
+    # checkout, then reads the committed version and, if releasable, tags and publishes.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Job-scoped write: needed to push the tag and create the Release. Never used to push to main.
+    permissions:
+      contents: write
+    # Fixed group, cancel-in-progress:false — two merges landing close together must not race the same
+    # tag, and cancelling a run mid-publish is worse than queueing it behind the first.
+    concurrency:
+      group: release-main
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history and tags: --check compares the committed version against the newest tag and
+          # verifies v<version> is not already tagged.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # dist/ is committed on purpose (P-09). Rebuilding here and failing on a diff is the check that a
+      # released bundle can never carry a server the repo does not describe — ahead of every publishing
+      # step below. (lint/typecheck/test are not repeated: `needs: verify` already ran them.)
+      - name: Rebuild and prove dist/ is not stale
+        run: |
+          npm run build
+          # Porcelain, not `git diff --exit-code`: an *absent* dist/index.js is recreated by the
+          # rebuild as an untracked file, which git diff does not report at all.
+          if [ -n "$(git status --porcelain -- dist/)" ]; then
+            echo "::error title=dist/ is stale::dist/ is stale — run 'npm run build' and commit dist/index.js (P-09, PQ-06)."
+            git --no-pager diff --stat -- dist/
+            git status --porcelain -- dist/
+            exit 1
+          fi
+
+      # Read the version the merged PR already carries and decide whether it is releasable — a new,
+      # valid semver, not already tagged, ahead of the newest tag. Writes nothing, pushes nothing. A
+      # documentation-only merge (version unchanged, already tagged) reports no release and every step
+      # below, gated on release == 'true', simply does not run — the job ends green.
+      - name: Decide whether to release
+        id: bump
+        run: node scripts/bump-version.mjs --check
+
+      # --- everything below is irreversible; it runs only when a release is warranted -----------
+      # Note: no commit/push to main. The version is already on main via the PR (see the header).
+
+      - name: Tag the release
+        if: steps.bump.outputs.release == 'true' && github.event_name == 'push'
+        run: |
+          git tag "v${{ steps.bump.outputs.version }}"
+          # GITHUB_TOKEN tag push: does not re-trigger any workflow, and tags are not branch-protected.
+          git push origin "v${{ steps.bump.outputs.version }}"
+
+      # pack:mcpb stamps the bundle from MANABASE_BUNDLE_VERSION and asserts the packed server/index.js
+      # is byte-identical to the committed dist/index.js (PC-03 criterion 7). On a dispatch rehearsal
+      # the version is empty, so it stamps a dev bundle rather than a release one.
+      - name: Pack the bundle
+        if: steps.bump.outputs.release == 'true'
+        env:
+          MANABASE_BUNDLE_VERSION: ${{ github.event_name == 'push' && format('v{0}', steps.bump.outputs.version) || '' }}
+        run: npm run pack:mcpb
+
+      # v7, not v5: upload-artifact v4 and v5 both declare `using: node20`; v6 is the first major on
+      # node24. Uploaded on both push and dispatch so a rehearsal bundle can be inspected.
+      - uses: actions/upload-artifact@v7
+        if: steps.bump.outputs.release == 'true'
+        with:
+          name: manabase-mcpb
+          path: build/manabase.mcpb
+
+      - name: Attach to the Release
+        if: steps.bump.outputs.release == 'true' && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${{ steps.bump.outputs.version }}" build/manabase.mcpb --generate-notes --title "v${{ steps.bump.outputs.version }}"

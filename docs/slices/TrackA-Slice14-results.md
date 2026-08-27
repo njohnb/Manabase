@@ -168,7 +168,7 @@ numbers changed. The frontmatter is byte-identical, so
 The slice shipped no tag; the release was cut immediately afterwards as a separate deliberate act,
 on the author's instruction. PR #41 merged to `main` (CI green on the head commit), then tag
 `v0.1.1` on the merge commit ran
-[`release.yml`](../../.github/workflows/release.yml) and published `manabase.mcpb`, **113,631
+[`release.yml`](../../.github/workflows/ci-release.yml) and published `manabase.mcpb`, **113,631
 bytes**. Verified against the *downloaded* asset rather than the local pack: manifest `version`
 `0.1.1`, `display_name` `Manabase`, `PAGE_SIZE = 88` present, `legalities_included` present, no
 stale "175 cards per page" string, and the released `server/index.js` **sha256-matches the committed
