@@ -1,0 +1,148 @@
+{
+  "skill_name": "spellbook-combo-craft",
+  "note": "OQ-14 measurement for CAP-02's combo_search. Graded on the emitted tool calls and their arguments from the transcript, never on the prose answer. The combo_search tool DESCRIPTION already names Commander Spellbook syntax, card:\"...\" as the common case, the total_combos/has_more/next_offset paging contract, and the format refusal — so, exactly as OQ-01 found for card_search, a without-skill baseline is well-equipped. These cases target the three things the tool description cannot teach: which tool to reach for (cross-tool), operators beyond card:, and paging discipline (narrow vs walk).",
+  "evals": [
+    {
+      "id": 1,
+      "category": "tool-selection",
+      "prompt": "ive got thassa's oracle in my deck and i keep hearing its part of some busted combo. what can i actually do with it?",
+      "expected_output": "A combo_search call (not card_search) whose q searches for combos involving Thassa's Oracle, then an answer read off that call's combos.",
+      "expectations": [
+        "At least one combo_search tool call is made.",
+        "A combo_search q targets Thassa's Oracle by name, in the form card:\"Thassa's Oracle\" (a card: term naming the card).",
+        "The combo question is answered from combo_search, not from card_search: if the only search tool called is card_search, this expectation fails.",
+        "The final answer names at least one specific combo partner or result that appears in a combo_search payload in this transcript, not from the model's own knowledge."
+      ]
+    },
+    {
+      "id": 2,
+      "category": "tool-selection",
+      "prompt": "i need cheap red creatures, one or two mana, under a dollar each, for a standard aggro deck",
+      "expected_output": "A card_search call (not combo_search) — this is a card-finding request, not a combo request.",
+      "expectations": [
+        "At least one card_search tool call is made.",
+        "No combo_search tool call is made: this is a request for cards matching properties, not for combos, and reaching for combo_search here fails this expectation.",
+        "The card_search q carries a red colour constraint, a mana-value comparison, and a USD price ceiling."
+      ]
+    },
+    {
+      "id": 3,
+      "category": "tool-selection",
+      "prompt": "find me the two-card combos that go with kiki-jiki, and roughly what the second piece costs so i know if theyre in budget",
+      "expected_output": "A combo_search call for Kiki-Jiki combos, then card_search calls to price the combo pieces — combos come from combo_search, prices from card_search.",
+      "expectations": [
+        "At least one combo_search tool call is made whose q names Kiki-Jiki (a card: term).",
+        "The combos themselves come from combo_search, not card_search.",
+        "At least one card_search call is made to obtain a price, because combo_search never returns prices.",
+        "The price figures in the answer appear in a card_search payload in this transcript, not stated from the model's own knowledge."
+      ]
+    },
+    {
+      "id": 4,
+      "category": "query-craft",
+      "prompt": "what are the cheapest, simplest infinite mana combos that only need two cards? id like ones without a ton of setup",
+      "expected_output": "A combo_search call whose q constrains the card count to two and the produced result to infinite mana, optionally limiting steps or prerequisites.",
+      "expectations": [
+        "At least one combo_search tool call is made.",
+        "A combo_search q contains a card-count constraint limiting the combo to two cards (for example cards<=2 or cards=2).",
+        "That same q, or another combo_search q in the transcript, constrains the produced result to infinite mana (a result: term such as result:\"infinite mana\").",
+        "The two-card and infinite-mana constraints are expressed inside q and sent to combo_search, not applied by the model filtering a broad combo result itself."
+      ]
+    },
+    {
+      "id": 5,
+      "category": "query-craft",
+      "prompt": "im in temur colors. show me combos that just win the game outright, and keep it to short ones — like two or three steps max",
+      "expected_output": "A combo_search call whose q carries a Temur color-identity constraint, a win-the-game result, and a step-count ceiling.",
+      "expectations": [
+        "At least one combo_search tool call is made.",
+        "A combo_search q contains a color-identity constraint for Temur (for example ci:temur or coloridentity:temur or ci:gur).",
+        "That same q constrains the result to winning the game (a result: term such as result:\"win the game\").",
+        "That same q constrains the number of steps (a steps comparison such as steps<=3 or steps<3).",
+        "All three constraints appear inside q sent to combo_search rather than being applied by the model to a broad result set."
+      ]
+    },
+    {
+      "id": 6,
+      "category": "query-craft",
+      "prompt": "my commander is kenrith, the returned king. what combos are built around him specifically?",
+      "expected_output": "A combo_search call whose q uses the commander: operator naming Kenrith (not merely a card: term).",
+      "expectations": [
+        "At least one combo_search tool call is made.",
+        "A combo_search q uses a term that scopes to the commander — commander:\"Kenrith, the Returned King\" — rather than only a generic card: term.",
+        "The answer's combos come from a combo_search payload in this transcript."
+      ]
+    },
+    {
+      "id": 7,
+      "category": "paging-discipline",
+      "prompt": "i just want to browse — show me combos that produce infinite tokens. give me a sense of whats out there",
+      "expected_output": "A combo_search call; if the total is large, the model narrows the query or pages by next_offset rather than requesting page after page into context.",
+      "expectations": [
+        "At least one combo_search tool call is made whose q constrains the result to infinite tokens (a result: term).",
+        "If the first response reports a large total_combos with has_more true, the model either narrows the query with an added constraint OR requests the next page by passing the response's next_offset back as offset — it does NOT compute an offset from a page number or a fixed step.",
+        "The transcript shows the model making at most a few combo_search calls, not walking every page of a large result set into context. Fetching more than about three pages of a browsing query fails this expectation.",
+        "No combo_search call passes an offset value that was not taken from a prior response's next_offset field."
+      ]
+    },
+    {
+      "id": 8,
+      "category": "paging-discipline",
+      "prompt": "give me the full list of every combo thassa's oracle is in — i want all of them, not just the first page",
+      "expected_output": "A combo_search call for Thassa's Oracle; when has_more is true the model follows next_offset across pages, echoing it as offset rather than computing one.",
+      "expectations": [
+        "At least one combo_search tool call is made whose q names Thassa's Oracle.",
+        "If the first response has has_more true, the model makes a follow-up combo_search call whose offset equals the exact next_offset value returned by the previous response.",
+        "No follow-up combo_search call uses an offset that was computed (for example page number times a fixed size) rather than read from a prior response's next_offset.",
+        "Paging stops when a response omits next_offset / reports has_more false; the model does not keep requesting past the last page."
+      ]
+    },
+    {
+      "id": 9,
+      "category": "format",
+      "prompt": "are there any combos with isochron scepter that are actually legal in pioneer?",
+      "expected_output": "A combo_search call whose format parameter is pioneer (not the commander default), naming Isochron Scepter in q.",
+      "expectations": [
+        "At least one combo_search tool call is made whose q names Isochron Scepter (a card: term).",
+        "A combo_search call sets the format parameter to pioneer rather than leaving it at the commander default.",
+        "If any combo_search call is refused for an unknown format, the model's next combo_search call uses one of the valid format names named in the refusal rather than repeating the rejected value or giving up.",
+        "The legality stated in the answer comes from the legal field of a combo_search payload in this transcript, not from the model's own knowledge."
+      ]
+    },
+    {
+      "id": 10,
+      "category": "error-recovery",
+      "prompt": "run this combo query for me exactly: card:\"Thassa's Oracle\" produces:win — i copied it off a forum",
+      "expected_output": "The first call is likely refused with a verbatim Commander Spellbook error; the model reads details and retries with a valid operator (result: rather than produces:).",
+      "expectations": [
+        "A combo_search call is made whose q contains the token produces:.",
+        "If that call returns an error result carrying Commander Spellbook's verbatim details, the model's next action is a revised combo_search call rather than a message to the user asking how to proceed.",
+        "Any revised combo_search q replaces the rejected token with a valid operator (for example result:) rather than repeating produces:.",
+        "The final answer presents combo results from a successful combo_search call, not only a report of the failure."
+      ]
+    },
+    {
+      "id": 11,
+      "category": "empty-result",
+      "prompt": "are there any two-card combos that win the game for zero mana? like literally free",
+      "expected_output": "A combo_search call whose q encodes the constraints; if it returns total_combos 0 the model treats it as a valid empty result and loosens, never as an error.",
+      "expectations": [
+        "At least one combo_search tool call is made whose q encodes a two-card constraint and a win / mana constraint.",
+        "If a combo_search call returns total_combos 0, the model treats it as a successful empty search — it either loosens the query and calls again or plainly reports that none match, and never describes the tool as broken or errored.",
+        "The model does not fabricate a combo to satisfy the request when the search returns nothing."
+      ]
+    },
+    {
+      "id": 12,
+      "category": "tool-selection",
+      "prompt": "does demonic consultation combo with anything to just win on the spot, and is that combo legal in commander?",
+      "expected_output": "A combo_search call for Demonic Consultation combos with the format left at (or set to) commander, and legality read from the combo's legal field.",
+      "expectations": [
+        "At least one combo_search tool call is made whose q names Demonic Consultation.",
+        "The combo question is answered from combo_search rather than card_search.",
+        "The commander-legality claim in the answer comes from the legal field of a combo_search payload judged for commander (the default format), not from the model's own knowledge.",
+        "The answer names a specific combo partner that appears in a combo_search payload in this transcript."
+      ]
+    }
+  ]
+}

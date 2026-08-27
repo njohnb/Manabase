@@ -332,6 +332,28 @@ established is available, and this slice did not run it. No
 The source-file and test rows below carry this slice's figures. Evidence:
 [`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md).
 
+**The [OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+plugin-side combo-query eval ran 2026-08-25 — measurement only, not a slice and no status change.**
+Run the way [Slice 9](./slices/TrackB-Slice9.md) measured
+[OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model): a clean-room
+subject with no `Skill` tool, 12 cases × two configurations, 24 subagents dispatched one at a time,
+~48 sequential live calls and no 429. Without the `spellbook-combo-craft` skill **37/46**
+expectations pass (7/12 cases); with it **45/46** (11/12). The skill helps decisively on query craft
+beyond `card:` (the `result:`/`steps:`/`commander:`/`ci:` operators) and on error recovery, and
+**not at all** on tool selection or paging, where the baseline was already correct — the same
+pattern [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) found for
+[CAP-01](./MCP-PRD.md#cap-01--card-search). This supersedes the paragraph above's "this slice did
+not run it": the measurement has now run, and
+[OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) **is
+still not resolved** — both halves stay open, its MCP-PRD tool-description half now with data to
+inform it (the [`combo_search`](../src/tools/register.ts) description names `card:"…"` but not those
+four operators). No [CAP-02](./MCP-PRD.md#cap-02--combo-discovery),
+[CAP-01](./MCP-PRD.md#cap-01--card-search), [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status, and the skill
+and eval harness are uncommitted working-tree artifacts. Evidence:
+[`docs/slices/OQ14-combo-eval-results.md`](./slices/OQ14-combo-eval-results.md).
+
 **[Slice 17](./slices/TrackA-Slice17.md) landed 2026-08-25 — the capability, closed.** Commit
 `1024529`: `src/scryfall/collection.ts` batches `POST /cards/collection` at 75 identifiers
 ([§4.1.2](./MCP-PRD.md#412-batch-resolution)) and reads `not_found` into a required
