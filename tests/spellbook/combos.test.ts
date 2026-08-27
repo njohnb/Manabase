@@ -6,10 +6,14 @@ import type {
   SpellbookVariantList,
 } from "../../src/spellbook/types.ts";
 import {
+  BYTE_BUDGET,
+  ENVELOPE_RESERVE,
   SPELLBOOK_LEGALITY_KEYS,
+  fillPage,
   resolveFormat,
   toComboSummary,
 } from "../../src/spellbook/combos.ts";
+import type { ComboSummary } from "../../src/spellbook/combos.ts";
 
 // Loaded at runtime rather than imported, like every other suite here: no `resolveJsonModule`,
 // and identical behaviour under type stripping and under the esbuild bundle.
@@ -287,5 +291,107 @@ describe("the trim, measured", () => {
     for (const variant of page1.results) {
       assert.equal(toComboSummary(variant, "commander").description, variant.description);
     }
+  });
+});
+
+/**
+ * `fillPage` lives here, beside `ComboSummary`, because BOTH tools of CAP-02 fill against it —
+ * `combo_search` over one upstream window, `combo_find_deck` over a classified and flattened list.
+ * The capability specifies ONE budget, and two copies would be two places it can drift
+ * (Slice 17 requirement 9).
+ *
+ * `tests/tools/combo-search.test.ts` passing UNEDITED after the lift is the evidence that moving
+ * it changed no behaviour; these tests are the shared function's own.
+ */
+describe("fillPage — the one byte budget", () => {
+  /** Padded summaries at a known cost each. No committed fixture reaches the measured maximum. */
+  const costly = (n: number, chars: number): ComboSummary[] =>
+    Array.from({ length: n }, (_, i) => ({
+      ...toComboSummary(oracleCombo, "commander"),
+      id: `costly-${i + 1}`,
+      description: "x".repeat(chars),
+    }));
+
+  const bytesOf = (page: ComboSummary[]): number =>
+    page.reduce((total, summary) => total + JSON.stringify(summary).length + 1, ENVELOPE_RESERVE);
+
+  test("an empty list fills an empty page", () => {
+    assert.deepEqual(fillPage([]), []);
+  });
+
+  test("everything that fits is kept, in order", () => {
+    const summaries = costly(5, 100);
+
+    const page = fillPage(summaries);
+
+    assert.equal(page.length, 5);
+    assert.deepEqual(page.map((c) => c.id), summaries.map((c) => c.id));
+  });
+
+  test("the page stops when the budget is spent, and stays under it", () => {
+    const page = fillPage(costly(60, 5_000));
+
+    assert.ok(page.length > 1);
+    assert.ok(page.length < 60, "the budget did not bite");
+    assert.ok(bytesOf(page) <= BYTE_BUDGET, `page measured ${bytesOf(page)}`);
+  });
+
+  test("one combo larger than the WHOLE budget is still returned", () => {
+    // The `kept.length > 0` guard is the whole thing. Returning zero would leave `next_offset`
+    // equal to `offset` and the caller would page forever on an empty result: an oversized
+    // response is a bad page, a non-advancing offset is an infinite loop.
+    const page = fillPage(costly(3, BYTE_BUDGET * 2));
+
+    assert.equal(page.length, 1);
+    assert.ok(JSON.stringify(page).length > BYTE_BUDGET);
+  });
+
+  test("the oversized combo is followed by an advancing offset, not a stall", () => {
+    // Walked the way a handler walks it: slice by what the previous page returned.
+    const all = costly(3, BYTE_BUDGET * 2);
+    let offset = 0;
+    const seen: string[] = [];
+
+    for (let guard = 0; guard < 10 && offset < all.length; guard += 1) {
+      const page = fillPage(all.slice(offset));
+      assert.ok(page.length > 0, "a page of zero would stall the caller");
+      seen.push(...page.map((c) => c.id));
+      offset += page.length;
+    }
+
+    assert.deepEqual(seen, ["costly-1", "costly-2", "costly-3"]);
+  });
+
+  test("[Slice 17 requirement 9] extraReserve is spent before the first combo", () => {
+    // `combo_find_deck` passes the size of `unresolved_cards`, which scales with its input and so
+    // cannot be covered by the flat envelope allowance.
+    const summaries = costly(60, 1_000);
+
+    const plain = fillPage(summaries);
+    const reserved = fillPage(summaries, 20_000);
+
+    assert.ok(reserved.length < plain.length, "a reserve of 20,000 characters must cost combos");
+    assert.ok(bytesOf(reserved) + 20_000 <= BYTE_BUDGET);
+  });
+
+  test("extraReserve never starves the page below one combo", () => {
+    // Even a reserve larger than the budget: the same guard applies, for the same reason.
+    const page = fillPage(costly(5, 1_000), BYTE_BUDGET * 2);
+
+    assert.equal(page.length, 1);
+  });
+
+  test("the default reserve is 0, so combo_search's call is unchanged by the lift", () => {
+    const summaries = costly(60, 1_000);
+
+    assert.deepEqual(fillPage(summaries), fillPage(summaries, 0));
+  });
+
+  test("the budget matches the capability's stated figure", () => {
+    // 50,000 matches CAP-01's delivered band and is under half the known-bad 116,626 that breached
+    // a harness tool-result ceiling in issue #25. It is an estimate from measurement, never a
+    // guarantee: one live page measured 63,688 characters at 1,592 per combo (MCP-PRD §4.4.1).
+    assert.equal(BYTE_BUDGET, 50_000);
+    assert.equal(ENVELOPE_RESERVE, 400);
   });
 });

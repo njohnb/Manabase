@@ -49,3 +49,25 @@ export interface ScryfallList {
   has_more: boolean;
   data: ScryfallCard[];
 }
+
+/**
+ * The `POST /cards/collection` envelope (MCP-PRD §4.1.2).
+ *
+ * NOT `ScryfallList`, and reusing that type here would not compile: this envelope carries neither
+ * `total_cards` nor `has_more`, and it carries `not_found`, which the search envelope has no
+ * equivalent of.
+ *
+ * `not_found` is the whole reason CAP-02 touches Scryfall at all. Commander Spellbook ignores an
+ * unrecognized card name silently — HTTP 200, no warning, no echo of the input (MCP-PRD §4.4) —
+ * so this is the only mechanism by which a caller ever learns a submitted name matched nothing.
+ */
+export interface ScryfallCollection {
+  object: "list";
+  /**
+   * The identifier OBJECTS submitted, echoed back — `[{"name":"Zzzz Not A Real Card 9999"}]`, never
+   * a bare string (verified 2026-08-24, MCP-PRD §4.4). `name` is optional because this codebase
+   * cannot prove Scryfall echoes it for identifier kinds it does not submit.
+   */
+  not_found: Array<{ name?: string }>;
+  data: ScryfallCard[];
+}

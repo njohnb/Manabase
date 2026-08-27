@@ -5,8 +5,9 @@
 > by section. If this document and a PRD ever disagree, **the PRD wins** — fix this file.
 > The boundary rule in `PLUGIN-PRD.md` [§1](./PLUGIN-PRD.md#1-overview) still governs which PRD owns which question.
 
-**Document status:** created 2026-08-03; **Track A closed 2026-08-04** — and reopened twice since,
-by [Slice 14](./slices/TrackA-Slice14.md) and [Slice 15](./slices/TrackA-Slice15.md). Covers
+**Document status:** created 2026-08-03; **Track A closed 2026-08-04** — and reopened four times
+since, by [Slice 14](./slices/TrackA-Slice14.md), [Slice 15](./slices/TrackA-Slice15.md),
+[Slice 16](./slices/TrackA-Slice16.md) and [Slice 17](./slices/TrackA-Slice17.md). Covers
 Phase 1 of both PRDs as **14** slices (1–14; the count read 13 until
 [Slice 14](./slices/TrackA-Slice14.md) was added 2026-08-10) plus Phase 2's three in
 [§7](#7-phase-2-slices--combo-discovery), **17 in all**, and unscheduled slice packs for everything
@@ -331,6 +332,96 @@ established is available, and this slice did not run it. No
 The source-file and test rows below carry this slice's figures. Evidence:
 [`docs/slices/TrackA-Slice16-results.md`](./slices/TrackA-Slice16-results.md).
 
+**[Slice 17](./slices/TrackA-Slice17.md) landed 2026-08-25 — the capability, closed.** Commit
+`1024529`: `src/scryfall/collection.ts` batches `POST /cards/collection` at 75 identifiers
+([§4.1.2](./MCP-PRD.md#412-batch-resolution)) and reads `not_found` into a required
+`unresolved_cards`; `src/tools/combo-find-deck.ts` issues **one** upstream combo request per call
+carrying **no `limit` and no `offset`**, classifies the six buckets matched-first and caps
+**after**; the `/find-my-combos` wire types join `src/spellbook/types.ts`, `ScryfallCollection`
+joins `src/scryfall/types.ts`, and [`src/tools/register.ts`](../src/tools/register.ts) gains a
+third tool definition. `BYTE_BUDGET`, `ENVELOPE_RESERVE` and the page filler **moved** out of
+`src/tools/combo-search.ts` into `src/spellbook/combos.ts` and now serve both tools, so the
+capability's one budget is one constant; the evidence the lift changed nothing is
+`tests/tools/combo-search.test.ts` passing **unedited**. `tools/list` on the rebuilt bundle
+reports **three** tools. [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria **4, 5, 9, 10 and
+13 are verified in full**, and the remaining halves of **1, 8 and 14** with them; 2, 3, 6, 7, 11
+and 12 were already [15](./slices/TrackA-Slice15.md)'s and [16](./slices/TrackA-Slice16.md)'s, so
+**all fourteen are verified and `Status` moves `specified` → `delivered`**. Phase 2 is complete in
+[`MCP-PRD.md` §6](./MCP-PRD.md#6-phases)'s sense and no further — the capability's two tools
+registered and verified is not the same as the product being shippable, and
+[`PLUGIN-PRD.md`](./PLUGIN-PRD.md) still owns whether a second query language earns a skill or a
+reference file. `npm test` **70 suites / 297 tests**; `npm run typecheck` clean;
+`npm run acceptance` 13/13 live with no 429; `npm run lint:docs` OK. **One correction to the rows
+below and to the paragraph above:** the pre-slice baseline measured **215** tests, not 210 — the
+210 predates [16](./slices/TrackA-Slice16.md)'s own byte-budget follow-up, and the dated records
+that carry it stand as written.
+
+**No open question moved, and three stayed open by explicit decision.**
+[OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits),
+[OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
+and
+[OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+each gained a dated paragraph recording that the capability **shipped with them open**: the first
+two resolve only when a third party replies — **one outstanding Discord message to the Commander
+Spellbook admins answers both** — and the third needs an eval run that a build slice would take
+badly. The live run used a **different deck** from
+[§4.4.1](./MCP-PRD.md#441-the-combo-payload-is-enormous--measured)'s and measured **its own** raw
+figure beside its shaped ones, because that section's 94-card list was not recoverable from a
+captured response: **1,005,265** characters raw, **1,073** shaped under the default
+`include: "matched"`, and **48,660** for page 1 of `"matched+near"` (45 of 229 combos,
+`next_offset: 45`). **640,684 belongs to a different deck and is not the comparator.** A new
+Scryfall finding came with it, recorded as a dated addendum in
+[§4.1.2](./MCP-PRD.md#412-batch-resolution): `POST /cards/collection` **rejects** the combined
+`Front // Back` name of a double-faced card while accepting either face alone, which put four real
+cards in `unresolved_cards` beside the one invented name. It was **not** worked around — splitting
+`A // B` is decklist parsing — and the tool description gained one clause instead, so the report
+does not imply four typos it cannot establish ([§3.6](./MCP-PRD.md#36-error-surface)). Four
+deliberate deviations from [`TrackA-Slice17.md`](./slices/TrackA-Slice17.md) are recorded rather
+than smoothed: the upstream body sends `quantity: 1`, because
+[§4.4](./MCP-PRD.md#44-commander-spellbook)'s **verified** `DeckRequest` carries it and the PRD
+outranks a slice spec; `fillPage` gained an optional `extraReserve`, which `combo_find_deck` spends
+on `unresolved_cards` because that field scales with its input; `src/spellbook/types.ts` was
+modified though the deliverables table omits it; and the description clause above was added after
+the live run. **No `D-` was minted**, [§2](./MCP-PRD.md#2-locked-decisions) and
+[§3](./MCP-PRD.md#3-constraints) of both PRDs are untouched, **no tag and no `.mcpb` release was
+cut** so [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is still
+[13](./slices/TrackC-Slice13.md)'s and still waits on [12](./slices/TrackC-Slice12.md), no
+[CAP-01](./MCP-PRD.md#cap-01--card-search),
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server),
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) or
+[PC-04](./PLUGIN-PRD.md#pc-04--card-viewer) criterion changed status, and
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) is untouched in both halves.
+The source-file, test and `dist/` rows below carry this slice's figures. Evidence:
+[`docs/slices/TrackA-Slice17-results.md`](./slices/TrackA-Slice17-results.md).
+
+**The Commander Spellbook admins replied 2026-08-25 — documentation only, nothing built. It
+supersedes the "one outstanding Discord message" in the paragraph above and nothing else in it.**
+The message outstanding since 2026-07-29 was answered, and
+[`MCP-PRD.md` §4.4](./MCP-PRD.md#44-commander-spellbook) carries the reply in full.
+[OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
+is **closed**, and closed as **permitted, not licensed**: explicit permission to consume the API,
+no licence text, no ToS page, MIT still covering the code alone — and permission to consume is not
+a grant to redistribute, so a later capability that stores or ships combo data needs its own ask.
+[OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is **answered
+for the Commander Spellbook third only and is NOT closed** — it covers three sources since the
+2026-08-07 widening, and Archidekt and Moxfield are unmoved. **No rate was given:** the reply is a
+usage *shape* rather than a figure — *"few http calls per user interaction"*, plus an explicit
+request to refrain from bulk-exporting through the paginated API, with the bulk JSON file named as
+the sanctioned route at that scale — so
+[§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis)'s conservative
+self-throttle is **not** discharged and the 500 ms lane **does not move**; what changed is that it
+is now a chosen conservatism against a known-friendly source rather than a default against silence.
+**No code changed** — [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) already satisfies that shape by
+construction, one upstream request per tool call with paging reported and never auto-resolved, so a
+decision taken for the model's context budget gains a second and independent reason to hold. The
+admins' recommendation of the npm client **does not reopen**
+[D-16](./MCP-PRD.md#d-16--no-npm-commander-spellbook-client-dependency), which sits in the locked
+[§2](./MCP-PRD.md#2-locked-decisions). [CAP-02](./MCP-PRD.md#cap-02--combo-discovery)'s `Status`
+stays `delivered` and **no criterion changed status**, no `D-` was minted, and
+[OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+is untouched and still open.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -339,9 +430,9 @@ The source-file and test rows below carry this slice's figures. Evidence:
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)) |
 | README | install instructions in `owner/repo` form with the raw-URL trap warning ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), version floor, disclaimer |
-| Server source | `config.ts`, `index.ts`, `result.ts`, `http/client.ts`, `scryfall/{client,prices,types}.ts`, `spellbook/{client,combos,types}.ts`, `tools/{card-search,combo-search,register}.ts` — **thirteen** files since [Slice 16](./slices/TrackA-Slice16.md) (2026-08-25), which added the three Commander Spellbook and tool modules to the ten [Slice 15](./slices/TrackA-Slice15.md) left. [Slice 15](./slices/TrackA-Slice15.md) made `http/client.ts` **the one transport** and left `scryfall/client.ts` and `spellbook/client.ts` as source specs over it |
-| Tests | 56 suites, **210 tests, 210 passing**; `tsc --noEmit` clean — re-run 2026-08-25 ([Slice 16](./slices/TrackA-Slice16.md) took it from 39 suites and 150 tests, [Slice 15](./slices/TrackA-Slice15.md) from 27 and 101, [Slice 14](./slices/TrackA-Slice14.md) from 21 and 73). **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so a change to a shared interface passes it and fails only `npm run typecheck`, which is how [Slice 15](./slices/TrackA-Slice15.md) found three test fakes broken by `ScryfallClient` becoming an alias. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
-| `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules`. Since [Slice 16](./slices/TrackA-Slice16.md) (2026-08-25) the rebuilt bundle lists **two** tools, `card_search` and `combo_search` |
+| Server source | `config.ts`, `index.ts`, `result.ts`, `http/client.ts`, `scryfall/{client,collection,prices,types}.ts`, `spellbook/{client,combos,types}.ts`, `tools/{card-search,combo-find-deck,combo-search,register}.ts` — **fifteen** files since [Slice 17](./slices/TrackA-Slice17.md) (2026-08-25), which added `scryfall/collection.ts` and `tools/combo-find-deck.ts` to the thirteen [Slice 16](./slices/TrackA-Slice16.md) left, itself up from the ten [Slice 15](./slices/TrackA-Slice15.md) left. [Slice 15](./slices/TrackA-Slice15.md) made `http/client.ts` **the one transport** and left `scryfall/client.ts` and `spellbook/client.ts` as source specs over it; [Slice 17](./slices/TrackA-Slice17.md) moved the byte budget and the shared page filler into `spellbook/combos.ts`, so both combo tools spend **one** constant |
+| Tests | 70 suites, **297 tests, 297 passing**; `tsc --noEmit` clean — re-run 2026-08-25 ([Slice 17](./slices/TrackA-Slice17.md) took it from 56 suites and **215** tests, [Slice 16](./slices/TrackA-Slice16.md) from 39 and 150, [Slice 15](./slices/TrackA-Slice15.md) from 27 and 101, [Slice 14](./slices/TrackA-Slice14.md) from 21 and 73). **The 215 corrects a 210 this row carried**: the count moved again inside [Slice 16](./slices/TrackA-Slice16.md)'s byte-budget follow-up and the row was not re-measured, so 210 was one step behind rather than wrong when written. **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so a change to a shared interface passes it and fails only `npm run typecheck`, which is how [Slice 15](./slices/TrackA-Slice15.md) found three test fakes broken by `ScryfallClient` becoming an alias. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
+| `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules`. Since [Slice 17](./slices/TrackA-Slice17.md) (2026-08-25) the rebuilt bundle lists **three** tools, `card_search`, `combo_search` and `combo_find_deck` — [Slice 16](./slices/TrackA-Slice16.md) earlier the same day took it from one to two |
 | CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` **ran for the first time 2026-08-10** on tag `v0.1.0` (run `31421682409`), after its `actions/checkout`, `setup-node` and `upload-artifact` pins were bumped to `@v7` — `upload-artifact@v6` is the first major on `node24`, so `@v5` still carried the Node-20 deprecation annotation that prompted the bump |
 | Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
@@ -1387,6 +1478,23 @@ switchover is reproduced in [18](./slices/TrackC-Slice18.md)'s requirement 1, un
 [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) did not move in either half,
 and no `P-` or `D-` was minted.
 
+**Superseded a fourth time 2026-08-25: [17](./slices/TrackA-Slice17.md) has landed, the Phase 2
+chain is complete, and the unblocked set is [12](./slices/TrackC-Slice12.md) alone.** Phase 1's
+remaining path is still 12 → 13 and **no Phase 1 status moved** — [12](./slices/TrackC-Slice12.md)
+is once again the only unblocked slice and next on the critical path, exactly as it was before
+Phase 2 opened. [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) is `delivered` against all fourteen
+criteria, so `S15 --> S16 --> S17` in the graph above is exhausted; the edges are unchanged and
+only the statuses are. **What this does not do is close anything in Phase 1.** No component
+criterion moved, no tag was cut, [P-08](./PLUGIN-PRD.md#p-08--version-scheme)'s switchover still
+waits on [12](./slices/TrackC-Slice12.md)'s second cold run, and a released `.mcpb` carries none
+of this until someone cuts a tag — the two tracks were parallel going in and they are still
+parallel coming out. The next Phase 2-shaped work is
+[OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)'s
+eval run, which is **not** a slice in this document and is deliberately post-delivery: both tools
+now exist, so the measurement method
+[OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) established is
+finally available.
+
 ## 6. Beyond Phase 1 — queued slice packs
 
 Both PRDs deliberately refuse to schedule anything past Phase 1 (`MCP-PRD.md` [§6](./MCP-PRD.md#6-phases),
@@ -1397,7 +1505,7 @@ happens in those spec sessions.
 
 | Pack | First slice (spec/research) | Blocking questions | Sequencing constraints |
 |---|---|---|---|
-| Combo discovery | **Superseded 2026-08-24 — this pack left the queue.** Its spec slice happened: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) is specified and assigned Phase 2, `/variants/` and `/find-my-combos` are verified live, and the build slices are scoped in [§7](#7-phase-2-slices--combo-discovery). **The Discord message is still outstanding** and is the only part of the original row not discharged | [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) — **both still open**, and [Slice 17](./slices/TrackA-Slice17.md) ships the capability with them open by explicit decision | Anonymous, stateless — a natural early pick, and it was: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) needs no credential, no persistence and no other CAP |
+| Combo discovery | **Superseded 2026-08-24 — this pack left the queue, and as of 2026-08-25 it is built.** Its spec slice happened: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) was specified and assigned Phase 2, `/variants/` and `/find-my-combos` were verified live, and the build slices were scoped in [§7](#7-phase-2-slices--combo-discovery) and **all three have landed** — [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) is `delivered` against all fourteen criteria. **The Discord message was answered 2026-08-25** — [§4.4](./MCP-PRD.md#44-commander-spellbook) carries the reply — so the last undischarged part of the original row is discharged | [Slice 17](./slices/TrackA-Slice17.md) shipped the capability with both open, and the admins answered 2026-08-25: [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) is **closed** — *permitted, not licensed*, so redistribution is still unasked — and [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is answered **for the Commander Spellbook third only**, still open for Archidekt and Moxfield. **No rate was given**, so the 500 ms lane does not move | Anonymous, stateless — a natural early pick, and it was: [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) needs no credential, no persistence and no other CAP |
 | Archidekt deck reading | Read decks containing tokens, custom cards, spoilers to answer [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read); draft the three-way-ambiguous 404 error text per [§3.6](./MCP-PRD.md#36-error-surface) | [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read) | **First of the two deck platforms** ([D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)). Prerequisite for deck analysis, Arena export, and deck pricing workflows. **Owns [OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)** — it sets the normalized deck shape both platforms return, so its spec must check each field against the Moxfield record in [§4.8.1](./MCP-PRD.md#481-the-deck-payload-is-enormous--measured) rather than design for Archidekt alone |
 | Moxfield deck reading | Read a public deck and **decide the trim** — [§4.8.1](./MCP-PRD.md#481-the-deck-payload-is-enormous--measured) measured 1.63 MB for one deck, ~14× the payload that already broke a harness tool-result ceiling, so a passthrough is not on the table. Read the author's own public, unlisted and private decks anonymously to answer [OQ-11](./MCP-PRD.md#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id) (three requests). Contact Moxfield support per [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms) **before** shipping, not after — [§3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis) makes asking part of the spec work | [OQ-10](./MCP-PRD.md#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms), [OQ-11](./MCP-PRD.md#oq-11--does-moxfield-mask-private-and-unlisted-decks-behind-the-same-404-as-an-unknown-id) | **Second** ([D-13](./MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)), and it *consumes* [OQ-12](./MCP-PRD.md#oq-12--what-is-the-normalized-deck-shape-and-does-one-tool-serve-both-platforms-or-two)'s answer rather than setting it. Neither blocks the other's spec: if Archidekt stalls on [OQ-07](./MCP-PRD.md#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read), this is not held hostage to it. No credential, no npm dependency ([D-14](./MCP-PRD.md#d-14--no-npm-moxfield-api-dependency)) |
 | Decklist pricing | Spec against `POST /cards/collection` (75/batch); inherits every [§4.1.3](./MCP-PRD.md#413-price-fields--three-verified-traps) price trap | — | Pairs naturally with deck reading |
@@ -1446,7 +1554,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 |---|---|---|---|
 | 15 | Transport generalization & the POST verb | A — server | ☑ |
 | 16 | `combo_search` | A — server | ☑ |
-| 17 | `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) | A — server | ☐ |
+| 17 | `combo_find_deck` — closes [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) | A — server | ☑ |
 
 ---
 
@@ -1527,11 +1635,51 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
   [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
   and [OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model),
   then `doc-sync`.
-- **Done when:** ☐ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 1, 4, 5, 9, 10, 13 and
-  the remainder of 8 and 14 verified · ☐ one live run of a real decklist carrying a deliberately
-  invented name, with the shaped character count recorded beside the 640,684 raw figure · ☐
-  `dist/` rebuilt in the same commit · ☐ `doc-sync` dispatched **and its diff reviewed** before
+- **Done when:** ☑ [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 1, 4, 5, 9, 10, 13 and
+  the remainder of 8 and 14 verified · ☑ one live run of a real decklist carrying a deliberately
+  invented name, with the shaped character count recorded beside the 640,684 raw figure · ☑
+  `dist/` rebuilt in the same commit · ☑ `doc-sync` dispatched **and its diff reviewed** before
   committing.
+- **Done 2026-08-25.** Results:
+  [`TrackA-Slice17-results.md`](./slices/TrackA-Slice17-results.md). Commit `1024529` on
+  `feat/slice17-combo-find-deck`. `npm test` 56 suites / **215** tests → **70 / 297**;
+  `npm run typecheck` clean; `npm run acceptance` 13/13 live with no 429; `npm run lint:docs` OK;
+  `tools/list` on the rebuilt bundle reports **three** tools. Verified precisely:
+  [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria **4, 5, 9, 10 and 13 in full** and the
+  remaining halves of **1, 8 and 14** — with [15](./slices/TrackA-Slice15.md)'s and
+  [16](./slices/TrackA-Slice16.md)'s, **all fourteen**, so `Status` moves `specified` →
+  `delivered` and Phase 2 is complete. **The second done-when item was met with a substitution
+  recorded rather than smoothed:** the 640,684 deck was not recoverable from a captured response,
+  so the run measured **its own** deck's raw figure beside its shaped ones — **1,005,265** raw,
+  **1,073** under the default `include: "matched"`, **48,660** for page 1 of `"matched+near"` —
+  and 640,684 is not the comparator. `BYTE_BUDGET`, `ENVELOPE_RESERVE` and the page filler moved
+  into `src/spellbook/combos.ts` and serve both tools; the evidence the lift changed nothing is
+  `tests/tools/combo-search.test.ts` passing unedited. **No open question moved** —
+  [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits),
+  [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
+  and
+  [OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+  each gained a dated paragraph and all three stay open by explicit decision. Four deviations from
+  [`TrackA-Slice17.md`](./slices/TrackA-Slice17.md) are recorded in §4 of the results: `quantity: 1`
+  in the upstream body (requirement 12 said `{ card }`, but
+  [§4.4](./MCP-PRD.md#44-commander-spellbook)'s verified `DeckRequest` carries it and the PRD wins),
+  an optional `extraReserve` on `fillPage`, an edit to `src/spellbook/types.ts` the deliverables
+  table omits, and one clause added to the tool description after the live run.
+- **Post-slice, 2026-08-25 — the admins replied, and two of the three open questions moved.** The
+  Discord message the bullet above records as outstanding was answered later the same day, after
+  this slice had landed; that bullet stands as written and this one carries the change.
+  [OQ-06](./MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code)
+  is **closed** as *permitted, not licensed* — consuming the API is explicitly sanctioned, nothing
+  licenses the data and nothing grants redistribution.
+  [OQ-05](./MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) is answered
+  **for the Commander Spellbook third only** and stays open for Archidekt and Moxfield, and **no
+  rate was given** — the reply is a usage shape in calls per user interaction, so the 500 ms lane
+  **does not move**.
+  [OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
+  is untouched. **No code changed, no criterion moved and `Status` stays `delivered`** — this
+  slice's one-request-per-call, paging-reported shape already satisfies what the admins asked for.
+  The reply is at [§4.4](./MCP-PRD.md#44-commander-spellbook) and
+  [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) carries a dated open-question note.
 - **Binding refs:** [CAP-02](./MCP-PRD.md#cap-02--combo-discovery) criteria 5, 10 and 13,
   [§4.4](./MCP-PRD.md#44-commander-spellbook) (the `limit` trap, the silently-ignored card name,
   the no-deck `GET`), [§4.1.2](./MCP-PRD.md#412-batch-resolution),

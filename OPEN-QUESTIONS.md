@@ -38,8 +38,8 @@ five rows added 2026-08-24 apply the same test on that date.
 | [OQ-02](#oq-02--how-verbose-should-a-search-result-be) | How verbose should a search result be? | **Closed 2026-08-10** | Done — decided, implemented, issue #25 fixed |
 | [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) | Bulk-data storage strategy, and when? | Partly answered | Location half recorded 2026-08-07 |
 | [OQ-04](#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api) | Archidekt write API behavior and blast radius? | Open | No — deferred by design |
-| [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) | Do Spellbook / Archidekt / Moxfield rate-limit? | Open | No — third party must reply |
-| [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) | Is Spellbook's combo *data* licensed? | Open | No — third party must reply |
+| [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) | Do Spellbook / Archidekt / Moxfield rate-limit? | **Spellbook third answered 2026-08-25; still open** | Partly — Archidekt and Moxfield must still reply |
+| [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) | Is Spellbook's combo *data* licensed? | **Closed 2026-08-25** | Done — the admins replied |
 | [OQ-07](#oq-07--how-is-intentionallyskippedcarddata-populated-in-archidekt-deck-payloads-and-what-does-its-presence-mean-for-a-deck-read) | What populates `intentionallySkippedCardData`? | Open | **Yes — a few HTTP calls** |
 | [OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled) | Can the CR page list more than one TXT? | Half answered 2026-08-07 | Rest needs a release boundary |
 | [OQ-09](#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists) | EUR fallback when no USD price exists? | **Decided 2026-08-07 — no** | Done — in the PRD |
@@ -266,27 +266,44 @@ specifying Archidekt deck writing — not before.
 **Moxfield is a third source in the same position**, and is covered by this question despite not
 appearing in its heading, which cannot be renamed without breaking every link into it.
 
-**A. Open. Absence of evidence is not absence of limits** — all three are recorded as *verified
-absent, meaning unknown*. Until one of them answers,
-[§3.7](./docs/MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis) is the standing rule:
-identify honestly, self-throttle conservatively, treat a block as an answer.
+**A. One of the three answered 2026-08-25; the question stays open for the other two.**
 
-Moxfield differs from the other two in having a plausible channel to ask, which is
+**Commander Spellbook:** the admins replied, and there is **no rate**. No requests-per-second
+figure, no rate-limit header — what they gave instead is a usage *shape*: "few http calls per user
+interaction with your tool", and an explicit request to refrain from bulk-exporting through the
+paginated API, with the bulk JSON file plus a periodic update task named as the route for anything
+at that scale. **The 500 ms lane does not move** — a calls-per-interaction guideline is not a rate
+to loosen toward, so [§3.7](./docs/MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis)
+still applies; what changed is that the lane is now a chosen conservatism rather than a default
+against silence. [CAP-02](./docs/MCP-PRD.md#cap-02--combo-discovery) already met the stated shape
+and **no code changed**.
+
+**Archidekt and Moxfield:** unmoved, still *verified absent, meaning unknown*. Moxfield differs in
+having a plausible channel to ask, which is
 [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms).
 
-**Resolves by:** asking the Commander Spellbook admins via their Discord — their About page
-directs API questions there — and conservative self-throttling meanwhile.
+**Resolves by:** the Commander Spellbook third is done. The remaining two resolve when Archidekt
+or Moxfield answers, with conservative self-throttling meanwhile.
 **Owning entry:** [`MCP-PRD` OQ-05](./docs/MCP-PRD.md#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits).
 
 ### OQ-06 — Is Commander Spellbook's combo *data* licensed, as distinct from its code?
 
 **Q.** The code is MIT. The data has no stated license and there is no ToS page.
 
-**A. Open, low urgency.** The data is served anonymously by a project that exists to distribute
-it, and EDHREC already consumes it.
+**A. Closed 2026-08-25 — PERMITTED, not licensed, and the distinction is the answer.** The admins
+replied: anonymous use of the HTTP API is sanctioned outright, and both bulk-file URLs were offered
+by name for larger use. **They did not state a licence.** There is still no licence text and no ToS
+page, and MIT still covers the code alone — so what the reply retires is the `[inferred]` marker on
+[§4.4](./docs/MCP-PRD.md#44-commander-spellbook)'s working treatment, which is now the source
+owner's own position rather than this project's reading of the circumstances.
 
-**Resolves by:** asking the project admins — same Discord as
-[OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), so one message covers both.
+**Permission to consume is not a grant to redistribute.** Fetching combos per call and returning
+them to a user is sanctioned; storing or shipping the corpus is not addressed, and a later
+capability that does either needs its own ask.
+
+**Resolves by:** done — the admins answered, on the same Discord message that answered the
+Commander Spellbook third of
+[OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits).
 **Owning entry:** [`MCP-PRD` OQ-06](./docs/MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code).
 
 ### OQ-07 — How is `intentionallySkippedCardData` populated in Archidekt deck payloads, and what does its presence mean for a deck read?

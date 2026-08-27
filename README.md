@@ -48,6 +48,18 @@ updates itself, so **if you installed `v0.1.0` you still carry the old payload**
 `manabase.mcpb` from the [latest release](https://github.com/njohnb/Manabase/releases/latest) and
 reinstall through Settings → Extensions to pick it up.
 
+**Phase 2 — combo discovery — is delivered in this repository as of 2026-08-25, and is not yet in
+anything you can install.** The server now registers three tools rather than one: `card_search`,
+plus `combo_search` (what combos a card is part of) and `combo_find_deck` (what combos a decklist
+already contains, and the ones it is one card away from) — both reading
+[Commander Spellbook](https://commanderspellbook.com).
+[CAP-02](./docs/MCP-PRD.md#cap-02--combo-discovery) is delivered against all fourteen of its
+acceptance criteria, closed by
+[Slice 17](./docs/slices/TrackA-Slice17.md)
+([`docs/slices/TrackA-Slice17-results.md`](./docs/slices/TrackA-Slice17-results.md)). **What that
+does not mean:** the work is still on a branch, no new bundle has been released, and the newest
+one — `v0.1.1` — carries `card_search` alone. Nothing installed anywhere has the combo tools today.
+
 ## Where it runs
 
 Manabase is a Claude Code plugin, and a plugin does not reach every surface the same way. Surface
@@ -225,7 +237,7 @@ evals/                 PC-01 behavioral and trigger eval cases (Slice 9)
 docs/
   MCP-PRD.md           what the server does — tools, data sources, capabilities
   PLUGIN-PRD.md        what the user installs — packaging, install, skills
-  DEV-ROADMAP.md       sequencing only — the 14 Phase 1 slices and their status
+  DEV-ROADMAP.md       sequencing only — 17 slices (Phase 1's 1-14, Phase 2's 15-17) and status
   slices/              per-slice specs, and the live acceptance results
   prompts/             planning prompts for Claude Code sessions
 CLAUDE.md              working agreements for Claude Code sessions in this repo
@@ -421,11 +433,18 @@ none — but the report will get more precise: a distinct "no USD price" reason 
 figure, decided 2026-08-07 and not yet built
 ([OQ-09](./docs/MCP-PRD.md#oq-09--should-price-resolution-fall-back-to-eur-when-no-usd-price-exists)).
 
+Combo data via [Commander Spellbook](https://commanderspellbook.com), reached by `combo_search` and
+`combo_find_deck` since 2026-08-25. No bulk file is downloaded and nothing is stored — every combo
+is fetched per call. **The project explicitly permits consuming its API this way**, confirmed by its
+admins on 2026-08-25; they state no licence for the combo data, and permission to consume is not
+permission to redistribute, so nothing here republishes it
+([`docs/MCP-PRD.md` OQ-06](./docs/MCP-PRD.md#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code),
+closed).
+
 **Planned sources**, for capabilities that are queued and unassigned — none of these are
-reached today: [Commander Spellbook](https://commanderspellbook.com) for combo data,
-[Archidekt](https://archidekt.com) and [Moxfield](https://moxfield.com) for deck data, and
-Scryfall's Tags API for tag discovery. Deck reading is planned for Archidekt first and Moxfield
-second ([`docs/MCP-PRD.md` D-13](./docs/MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)); neither
+reached today: [Archidekt](https://archidekt.com) and [Moxfield](https://moxfield.com) for deck
+data, and Scryfall's Tags API for tag discovery. Deck reading is planned for Archidekt first and
+Moxfield second ([`docs/MCP-PRD.md` D-13](./docs/MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)); neither
 needs an account, and reading a private deck is not something the plugin will be able to do.
 Comprehensive Rules text is © Wizards of the Coast; when rules lookup lands, the plugin will
 resolve and fetch the official published file at runtime rather than redistribute a copy

@@ -1,7 +1,12 @@
 import type { Result } from "../result.ts";
 import type { HttpClient } from "../http/client.ts";
 import type { SpellbookVariantList } from "../spellbook/types.ts";
-import { SPELLBOOK_LEGALITY_KEYS, resolveFormat, toComboSummary } from "../spellbook/combos.ts";
+import {
+  SPELLBOOK_LEGALITY_KEYS,
+  fillPage,
+  resolveFormat,
+  toComboSummary,
+} from "../spellbook/combos.ts";
 import type { ComboSummary } from "../spellbook/combos.ts";
 
 export interface ComboSearchParams {
@@ -37,21 +42,6 @@ export interface ComboSearchData {
 }
 
 /**
- * A page is filled to a BYTE BUDGET, not to a fixed combo count.
- *
- * Fixed counts do not fit this source. 577 combos sampled across 15 queries on 2026-08-25 measured
- * per-combo cost at 547 minimum, 1,390 median and 4,421 maximum — a 5.7x spread, because cost
- * tracks how many cards a combo uses. Any single count is therefore wrong in both directions at
- * once: a count safe for `cards>5` (a real query, measured at 99,311 characters for 40 combos —
- * 85% of the 116,626 that breached a harness ceiling in issue #25) starves an ordinary
- * `card:"..."` query of two thirds of the combos that would have fit.
- *
- * 50,000 matches CAP-01's delivered band and is under half the known-bad 116,626 — which is a
- * value known to FAIL rather than the limit, the true ceiling being unknown and lower.
- */
-const BYTE_BUDGET = 50_000;
-
-/**
  * How many variants to ask upstream for. Not the page size — the page size is whatever fits.
  *
  * 60 fills the budget for every query except the very cheapest, and costs 20.4 KB gzipped against
@@ -66,13 +56,6 @@ const BYTE_BUDGET = 50_000;
  * rather than 5.
  */
 const UPSTREAM_LIMIT = 60;
-
-/**
- * Reserved for the keys around `combos` — `total_combos`, `offset`, `next_offset`, `has_more`,
- * `format` and the longest `note` this module emits. Deliberately generous: overshooting the
- * budget matters and under-filling a page by a few hundred bytes does not.
- */
-const ENVELOPE_RESERVE = 400;
 
 /**
  * `offset` reaches here from `dispatchToolCall`, which admits any integer, and from direct calls
@@ -163,29 +146,6 @@ const DERIVED_TOTAL_NOTE =
   "`total_combos` is derived from this page and may understate the true number; `has_more` " +
   "reflects upstream's own next-page link.";
 
-/**
- * Shape variants until the byte budget is spent.
- *
- * The `kept.length > 0` guard is load-bearing, not defensive tidiness: a single combo larger than
- * the whole budget must still be returned, or `next_offset` never advances past it and the caller
- * pages forever on an empty result. One oversized combo is a big response; a non-advancing offset
- * is an infinite loop.
- */
-function fillPage(list: SpellbookVariantList, formatKey: string): ComboSummary[] {
-  const kept: ComboSummary[] = [];
-  let bytes = ENVELOPE_RESERVE;
-
-  for (const variant of list.results) {
-    const summary = toComboSummary(variant, formatKey);
-    const cost = JSON.stringify(summary).length + 1; // +1 for the separating comma
-    if (kept.length > 0 && bytes + cost > BYTE_BUDGET) break;
-    kept.push(summary);
-    bytes += cost;
-  }
-
-  return kept;
-}
-
 /** The total and the window shown, plus where to go next. */
 function rangeNote(offset: number, shown: number, total: number, nextOffset: number | undefined): string {
   const range = `${total} combos match; showing combos ${offset + 1}-${offset + shown}`;
@@ -269,7 +229,11 @@ export async function comboSearch(
     return missingLegalityFailure(formatKey);
   }
 
-  const combos = fillPage(list, formatKey);
+  // Shaped before filling rather than lazily inside the loop: `fillPage` is shared with
+  // `combo_find_deck`, whose input is already classified, so it takes summaries rather than a wire
+  // envelope. At most `UPSTREAM_LIMIT` shaping calls per request, some on combos this page
+  // discards — bounded, and unmeasurable beside the fetch that delivered them.
+  const combos = fillPage(list.results.map((variant) => toComboSummary(variant, formatKey)));
 
   // Three independent reasons more may exist, and the first is the one a fixed cap never had:
   // the budget can end a page inside a window we already hold.
