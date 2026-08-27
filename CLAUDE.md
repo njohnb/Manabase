@@ -42,7 +42,7 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (297 tests, 70 suites)
+npm test            # node --experimental-strip-types --test  (322 tests, 77 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
@@ -736,6 +736,70 @@ the context budget gains a second independent reason to hold. The admins recomme
 zero-runtime-dependency bundle and its deliberately incomplete wire types, never on doubt about the
 package — and §2 is locked. `CAP-02` stays `delivered`, no criterion moved, no `D-` was minted, and
 `OQ-14` is untouched and still open.
+
+**Slice 18 (automated release on merge to `main`, the `P-08` switchover automated) was built and
+rehearsed 2026-08-25 — build-and-rehearse only, uncommitted on `docs/slice18-auto-release` off
+`main` at `c33f735`, and nothing was merged.** It **executes** `P-08`, it does not amend it — no new
+`P-`/`D-`, and §2/§3/§4 of both PRDs are untouched or append-only. `scripts/bump-version.mjs`
+computes the next version from the conventional-commit range (last `v*` tag → `HEAD`; `feat:` minor,
+`fix:`/`perf:` patch, else no release), writes `plugin.json` in place, and is a pure parser behind a
+main-guard: `--dry-run` computes `0.2.0`, `--set 0.1.1` refuses as already-tagged, `--set 0.1.01`
+refuses as non-semver. `release.yml` is rewritten to fire on `push: branches: [main]` +
+`workflow_dispatch` with the `v*` tag trigger **removed**, `permissions: contents: write`, a
+non-cancelling `release-main` concurrency group, and every irreversible step (commit+push
+`plugin.json` to `main`, tag, pack, release) gated last behind the Slice 11 `dist/` check.
+`mcpb/manifest.json` now declares both registered tools with matching descriptions (was one stale
+entry) and `tests/manifest.test.ts` fails on tool-set drift from `register.ts` in either direction
+and on `APP_VERSION` ≠ `package.json`; `tsconfig.json` gained `allowJs`/`checkJs:false` so the test
+can import the `.mjs`; `package.json` gained a `bump-version` script and its `version` stays
+`0.0.0`. Local verification: typecheck clean, `npm test` **237/237** (was 210), `lint:docs` OK,
+`npm run acceptance` 13/13 live with no 429, `dist/` current (no `src/` change). **No `PC-01`,
+`PC-02` or `PC-03` criterion is verified by this pass** — `PC-03` criteria 12–14 are recorded
+build-and-rehearse, with the three-merge live sequence (`v0.2.0` → no release → `v0.3.0`) and the
+interactive `/plugin update` tests deferred to the author, and `PC-02` criterion 9 waits on the
+switchover's live run, so `plugin.json` still carries no committed `version`. **`PQ-06` moved in
+neither half** — its user-facing half is sharpened, not closed — `PQ-05` is untouched, and Phase 1
+is **not** closed: Slice 12's second cold run and Slice 13's remnant still gate it, and this slice
+does not close Slice 13. The reorder to 18 → 12 → 13 was already recorded in `docs/DEV-ROADMAP.md`
+§5 by `c33f735`. Because the branch is uncommitted, the headline test count in the Commands block
+above still reads 210 (it tracks `main`); 237 is this slice's local figure. Evidence:
+`docs/slices/TrackC-Slice18-results.md`.
+
+**Slice 18 merged 2026-08-25 (PR #54) and its first live release run FAILED — the mechanism was
+then revised (PR #55), and the corrected form is what binds.** `main` had gained branch protection
+(`required_pull_request_reviews`) between this slice's scoping — when its precondition "`main` is not
+branch-protected" was verified true — and its merge, so the release job's `GITHUB_TOKEN` push of the
+bumped `plugin.json` back to `main` was rejected (`GH006`, protected-branch hook). The tag/pack/
+release steps never ran, so **nothing was published** — `v0.1.0`/`v0.1.1` untouched, `v0.2.0` never
+cut; a clean failure. **The release job no longer pushes to `main` at all. The version rides in the
+PR:** run `npm run bump-version` on a releasable branch — it computes the number from the commit
+range and writes `plugin.json`'s `version` (never typed by hand) — and commit that into the PR. On
+merge the job runs `scripts/bump-version.mjs --check` (read-only: is the committed version a new,
+valid, untagged semver ahead of the newest tag?) and, if so, creates the tag, packs, and publishes.
+**Tags are not branch-protected, so tagging needs no bypass; `main` is, so never re-add a
+push-to-`main` step or a `v*` tag trigger to `release.yml`.** This revises Slice 18 requirement 5
+(its write-back step is removed) and holds whether or not protection is later removed — it never
+depended on the push. **Consequence that binds every release:** a releasable PR (a `feat:`/`fix:`/
+`perf:` in range) that forgets the bump ships **nothing** on merge rather than something wrong — a
+safe failure — and `ci.yml`'s `--advise` step warns about exactly that at PR time (a `::warning::`,
+never a gate). A docs-only merge ships nothing by design. `bump-version.mjs` now has three modes —
+default/`--dry-run`/`--set` (author writes the version), `--check` (the release job decides), and
+`--advise` (CI's PR warning); tests are 240 on this branch. `plugin.json` carries `version` `0.2.0`
+as of PR #55, so merging it both installs the fix and lets the job cut the withheld `v0.2.0`.
+Evidence: the dated addendum in `docs/slices/TrackC-Slice18-results.md` and the `PC-03` correction in
+`docs/PLUGIN-PRD.md`.
+
+**Confirmed 2026-08-26 — `v0.2.0` shipped.** The revised job cut the withheld release on PR #55's
+merge (commit `ddbfd4c`): tag `v0.2.0`, a GitHub Release (not draft, not prerelease, Latest), asset
+`manabase.mcpb` at **117,883 bytes**, and `plugin.json` on `main` now carries `version` `0.2.0` —
+the first version-bearing `plugin.json`, the `P-08` switchover in fact. The release fired from the
+**fix PR (#55)**, not the slice PR (#54), whose run had failed on branch protection first. Slice 18
+acceptance criterion 8, and `PC-03` criterion 12's release-warranted path and criterion 13, are
+verified by it; a no-release merge (PR #56) was separately observed green cutting nothing,
+corroborating the skip path. **Still open:** the three `/plugin update` tests, the `v0.3.0` merge,
+and `PC-02` criterion 9 (`claude plugin validate . --strict` post-switchover — `plugin.json` now has
+a `version` so the one warning should be gone, but nobody has run it). `PQ-06` unmoved in both
+halves; `PQ-05` untouched; Phase 1 still open behind Slice 12, and this does not close Slice 13.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions

@@ -34,7 +34,15 @@
   "tools": [
     {
       "name": "card_search",
-      "description": "Search Magic: The Gathering cards with Scryfall query syntax."
+      "description": "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall itself — supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, `art:`, and regex (`o:/…/`). Returns per-card gameplay fields, format legalities, and a USD price with finish. 88 cards per page; the response reports `total_cards` and `has_more`. Legalities are trimmed to the format the query names (`legalities` to widen); formats absent from `legalities_included` were not returned and are not claims about legality."
+    },
+    {
+      "name": "combo_search",
+      "description": "Find Magic: The Gathering combos using Commander Spellbook query syntax, evaluated by Commander Spellbook itself — `card:\"Thassa's Oracle\"` is the common case. Returns each combo's cards, what it produces, mana needed, prerequisites, and a step-by-step description. Pages are sized by bytes, not by a fixed count, so combos per page varies; the response reports `total_combos`, `has_more` and `next_offset` — pass `next_offset` back as `offset` for the next page, never a computed one. `format` names the single format legality is judged for (default `commander`); these format names are not Scryfall's, and an unrecognized one is refused rather than guessed. An invalid query returns Commander Spellbook's error text verbatim — correct it and retry."
+    },
+    {
+      "name": "combo_find_deck",
+      "description": "Find which Magic: The Gathering combos a decklist already contains, and — with `include: \"matched+near\"` — the ones it is one card away from, classified by Commander Spellbook. `cards` is main-deck card NAMES only: no quantities and no objects, so strip a leading count (\"1 Sol Ring\" will not resolve). `commanders` is separate and optional. Every submitted name is checked against Scryfall first, and any it does not recognize is listed in `unresolved_cards`, which is always present — Commander Spellbook ignores an unknown name silently, so this is the only signal that a typo cost you combos. Submit a double-faced card by ONE face name: the combined `Front // Back` form is reported unresolved even though the card is real. Near-misses are the bulk of the data and are absent unless asked for. Pages are filled to a byte budget rather than to a combo count, so combos per page varies: pass the previous response's `next_offset` back as `offset`, never a computed one. Each call re-fetches and re-classifies the whole deck — there is no cursor — and changing `include` or the decklist changes what an offset means, so restart at 0. `format` names the single format legality is judged for (default `commander`); these format names are not Scryfall's, and an unrecognized one is refused rather than guessed."
     }
   ],
   "compatibility": {

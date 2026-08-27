@@ -3,6 +3,67 @@
 > Self-contained implementation spec. You do not need to read the PRDs to build this slice;
 > everything binding is inlined. PRD references are pointers for deeper context only.
 
+> **Amended 2026-08-25 — this slice is re-pointed, and it now runs AFTER
+> [Slice 18](./TrackC-Slice18.md). Read this before the 2026-08-09 block below.**
+>
+> The 2026-08-11 partial run is recorded in
+> [`TrackC-Slice12-results.md`](./TrackC-Slice12-results.md) and stands as written. It closed the
+> docs half — **acceptance criteria 1–5, 9, 10 and 11 are met** — and left criterion 8 failing
+> outright with 6 and 7 partial. **What remains of this slice is one cold run and nothing else.**
+>
+> **Four things change, and none of them is a change of intent.**
+>
+> 1. **The run moves behind [Slice 18](./TrackC-Slice18.md), which did not exist when this was
+>    written.** The reason is the artifact: `v0.1.0` and `v0.1.1` both predate
+>    [Slices 15–17](../DEV-ROADMAP.md#7-phase-2-slices--combo-discovery), so a cold run today
+>    installs a bundle carrying **one** tool while `main` already registers two and
+>    [PR #53](https://github.com/njohnb/Manabase/pull/53) makes it three. Sending a stranger at a
+>    knowingly stale artifact spends the one resource this project cannot buy twice. After
+>    [Slice 18](./TrackC-Slice18.md) and that PR there is a `v0.3.0` bundle carrying all three,
+>    produced by the automated pipeline, and **that** is what the cold reader installs.
+> 2. **This slice no longer gates [Slice 13](./TrackC-Slice13.md)'s
+>    [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme) switchover.**
+>    [Slice 18](./TrackC-Slice18.md) absorbs it, deliberately inverting the order, and that slice's
+>    *Why this slice exists* section carries the argument. The Goal paragraph below still says the
+>    dry run gates [Slice 13](./TrackC-Slice13.md); **that sentence is superseded.** What this slice
+>    still gates is [Slice 13](./TrackC-Slice13.md)'s Phase 1 closing row, which cannot honestly be
+>    written while a `PC` criterion is unverified for want of a cold reader.
+> 3. **Requirement 4 and acceptance criterion 2 read `/doctor`; the friend runs `/context`.** The
+>    2026-08-09 block below already made that substitution and the README already says `/context`.
+>    Restated here because the 2026-08-11 run never collected it and it is the single most
+>    forgettable item on the list.
+> 4. **Acceptance criterion 10's `--strict` clause changes meaning.** It has been failing on exactly
+>    one warning — [`P-08`](../PLUGIN-PRD.md#p-08--version-scheme)'s unset `version`. After
+>    [Slice 18](./TrackC-Slice18.md) that warning is gone, so criterion 10 becomes achievable in
+>    full and must be re-run rather than assumed. That also clears
+>    [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 9, which
+>    [Slice 18](./TrackC-Slice18.md) records.
+>
+> **What the re-run must collect**, from
+> [`TrackC-Slice12-results.md`](./TrackC-Slice12-results.md)'s own closing list, plus two items
+> [Slice 18](./TrackC-Slice18.md) adds:
+>
+> 1. The handover message, sent and kept **verbatim**.
+> 2. Three or four Magic questions in the friend's own words, and whether a tool call appeared.
+> 3. `/context` once, pasted back — on whichever surface they are on.
+> 4. Whether **anything** prompted at either install —
+>    [`PC-02`](../PLUGIN-PRD.md#pc-02--bundled-mcp-server) criterion 2 and
+>    [`PC-03`](../PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion **8**, the latter
+>    still the only unverified criterion on that component.
+> 5. Hesitations written down **as they happen**, including the ten-second ones.
+> 6. **New — whether the two installed artifacts report the same version**, now that the plugin
+>    carries an explicit one. A friend who can read a version is the first person who could ever
+>    notice a stale bundle, which is
+>    [`PQ-06`](../PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)'s open user-facing half.
+> 7. **New — whether a combo question reaches `combo_search` or `combo_find_deck`.** The skill
+>    ([`PC-01`](../PLUGIN-PRD.md#pc-01--scryfall-query-craft)) teaches Scryfall query craft and says
+>    nothing about combos, so this observes an unskilled tool on a stranger's phrasing.
+>
+> **Two conditions that have not changed.** The first installer is **spent as a cold reader** —
+> requirement 9's re-run clause requires a different person. And **the author must not be on a
+> call**: that is what cost the 2026-08-11 run criteria 6, 7 and 8, and nothing on the list above
+> needs the author present.
+
 > **Amended 2026-08-09 — read this before acting on the requirements below.** This spec was written
 > 2026-08-04 and five slices landed between then and the session that opened it. Its original text is
 > left exactly as written; five things about it are no longer true, and none of them is a change of
