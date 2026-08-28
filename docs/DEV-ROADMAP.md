@@ -204,7 +204,7 @@ landed on — `docs/slice12-link-and-disclaimer-recheck` was opened for unrelate
 [Slice 12](./slices/TrackC-Slice12.md) re-checks and reused, so its name misstates the work. PR #36
 (`e6b2279`) adds [`scripts/check-doc-links.mjs`](../scripts/check-doc-links.mjs), an
 `npm run lint:docs` script, and one step in
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) between `npm ci` and the typecheck; the
+[`.github/workflows/ci.yml`](../.github/workflows/ci-release.yml) between `npm ci` and the typecheck; the
 `dist/` gate still runs last. It resolves every relative link in [`README.md`](../README.md) and in
 every markdown file under this directory except [`prompts/`](./prompts), which carry zero links by
 design, and every heading anchor those links target; it also fails any file under
@@ -226,7 +226,7 @@ both halves; [Slice 11](./slices/TrackC-Slice11.md) stays landed and closed and
 **[Slice 13](./slices/TrackC-Slice13.md)'s
 [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) half was executed 2026-08-10, ahead of
 [Slice 12](./slices/TrackC-Slice12.md): a release exists.** Tag `v0.1.0` on `2c7196c` (PR #37) ran
-[`.github/workflows/release.yml`](../.github/workflows/release.yml) for the first time it has ever
+[`.github/workflows/release.yml`](../.github/workflows/ci-release.yml) for the first time it has ever
 executed, and published a Release carrying `manabase.mcpb` at 111,760 bytes — the first artifact
 this project has produced that a user downloads rather than builds, installed on Claude Desktop
 from that artifact and observed calling the tool.
@@ -443,6 +443,38 @@ admins' recommendation of the npm client **does not reopen**
 stays `delivered` and **no criterion changed status**, no `D-` was minted, and
 [OQ-14](./MCP-PRD.md#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)
 is untouched and still open.
+
+**Slice 19 (combine CI and Release into one gated pipeline, and auto-commit the version bump) was
+built and locally verified 2026-08-26 — build-and-verify only, uncommitted on
+`feat/slice19-combine-ci-release` off `main` at `9b216bc` (the PR #59 merge; newest tag `v0.3.0`),
+and nothing was merged.** It **evolves** [Slice 18](./slices/TrackC-Slice18.md)'s release mechanism
+into one workflow and **executes** [P-08](./PLUGIN-PRD.md#p-08--version-scheme) — it does not amend
+it, and no `P-`/`D-` was minted. [`ci.yml`](../.github/workflows/ci-release.yml) and
+[`release.yml`](../.github/workflows/ci-release.yml) are deleted and folded into one
+[`.github/workflows/ci-release.yml`](../.github/workflows/ci-release.yml): a `verify` gate feeds a
+`bump` job on `pull_request` and a `release` job on `push: main` + `workflow_dispatch`, both
+`needs: verify`, so the release is gated by the **same** run that checks the code. The bump
+*criteria* are unchanged (conventional-commit prefixes); the one code change is a `--pr` write mode
+in [`scripts/bump-version.mjs`](../scripts/bump-version.mjs) that computes the version from the
+newest-`v*`-tag range and writes it onto the PR branch — based on the tag, not
+[`plugin.json`](../.claude-plugin/plugin.json), so a re-push recomputes the same number and the
+per-push job is idempotent. Local verification: `npm run typecheck` clean, `npm test`
+**330/330, 79 suites** (was 325/77 — five new `--pr`/writer cases), `dist/` clean (no `src/`
+change), `npm run lint:docs` 0 broken after the 33 historical links to the two deleted workflows
+were repointed to `ci-release.yml` (target only, wording preserved). **The live pipeline is
+author-TODO** — GitHub Actions cannot run on the dev machine, so the PR auto-commit, the merge
+release and the concurrency behavior are unconfirmed and wait on the first real PR and merge. **No
+[CAP-01](./MCP-PRD.md#cap-01--card-search), [CAP-02](./MCP-PRD.md#cap-02--combo-discovery),
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status, no open
+question was resolved, and [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest)
+moves in neither half** — automating the release makes more bundles that never self-update,
+sharpening its user-facing half rather than closing it. Phase 1 stays open behind
+[Slice 12](./slices/TrackC-Slice12.md)'s second cold run and
+[Slice 13](./slices/TrackC-Slice13.md)'s remnant, which this slice does not close. The Tests and CI
+rows below carry the pre-slice figures, and the CI row's `ci.yml` naming is left as historical.
+Evidence: [`docs/slices/TrackC-Slice19-results.md`](./slices/TrackC-Slice19-results.md).
 
 | Area | State |
 |---|---|
@@ -751,7 +783,7 @@ landed. Slice 14 implements it.
   [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.**
 - **Released as `v0.1.1`, 2026-08-10 — a separate deliberate act after PR #41 merged**, not part of
   the slice. The tag on the merge commit ran
-  [`release.yml`](../.github/workflows/release.yml) and published `manabase.mcpb` (113,631 bytes);
+  [`release.yml`](../.github/workflows/ci-release.yml) and published `manabase.mcpb` (113,631 bytes);
   the released `server/index.js` sha256-matches the committed
   [`dist/index.js`](../dist/index.js). `v0.1.0` was **not moved or deleted** — a released bundle
   cannot be withdrawn, so a defect ships as a new tag. The tag versions the **bundle**, not the
@@ -1045,7 +1077,7 @@ landed. Slice 14 implements it.
   - ☑ A packed `.mcpb` whose `dist/` does not match its commit fails the check. **Deferred to
     [Slice 13](./slices/TrackC-Slice13.md)** — see the scope note below — and **done there
     2026-08-10**, inside [`scripts/pack-mcpb.mjs`](../scripts/pack-mcpb.mjs) rather than as a
-    workflow step, so [`release.yml`](../.github/workflows/release.yml) inherits it through
+    workflow step, so [`release.yml`](../.github/workflows/ci-release.yml) inherits it through
     `npm run pack:mcpb` ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab)
     criterion 7).
   - ◐ [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) closed in the PRD —
@@ -1056,7 +1088,7 @@ landed. Slice 14 implements it.
     ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 10). **Deferred to
     [Slice 13](./slices/TrackC-Slice13.md)**, and **done there 2026-08-10** — tag `v0.1.0` on
     `2c7196c`, run `31421682409`, the first execution
-    [`.github/workflows/release.yml`](../.github/workflows/release.yml) has ever had.
+    [`.github/workflows/release.yml`](../.github/workflows/ci-release.yml) has ever had.
   - ☑ `README.md`'s Chat-tab instructions point at that download instead of a local build.
     **Deferred to [Slice 12](./slices/TrackC-Slice12.md)**, which owns the README, and written
     2026-08-10 (`710f569`) once the download existed. The deferral's own reason is what inverted:
@@ -1083,7 +1115,7 @@ landed. Slice 14 implements it.
 - **One of those four landed 2026-08-10 — the doc-link checker is no longer unscheduled.** PR #36
   (`e6b2279`) added [`scripts/check-doc-links.mjs`](../scripts/check-doc-links.mjs) and
   `npm run lint:docs`, and wired it into
-  [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) between `npm ci` and the typecheck,
+  [`.github/workflows/ci.yml`](../.github/workflows/ci-release.yml) between `npm ci` and the typecheck,
   with the `dist/` gate still last — the Work sub-bullet above, satisfied outside a slice rather
   than inside one. **It reopens nothing here and takes no slice number of its own**; the branch
   name it landed on names [Slice 12](./slices/TrackC-Slice12.md) and is not its attribution. The
@@ -1160,7 +1192,7 @@ landed. Slice 14 implements it.
   [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover. What ran instead: PR #37 (merge
   `2c7196c`) added [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab)'s criterion 7
   assertion to [`scripts/pack-mcpb.mjs`](../scripts/pack-mcpb.mjs) and bumped
-  [`release.yml`](../.github/workflows/release.yml)'s action pins to `@v7`; tag `v0.1.0` on that
+  [`release.yml`](../.github/workflows/ci-release.yml)'s action pins to `@v7`; tag `v0.1.0` on that
   commit ran the workflow for the first time (run `31421682409`) and published a Release carrying
   `manabase.mcpb`. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criteria **7 and
   10 are verified**, leaving criterion 8 as its only unverified one; the pre-flight in requirement
@@ -1180,7 +1212,7 @@ landed. Slice 14 implements it.
   `plugin.json` is untouched, while the [P-08](./PLUGIN-PRD.md#p-08--version-scheme) switchover is
   gated on it, since [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)'s remaining evidence *is*
   the friend dry-run. **`v0.1.0` is spent**, and requirement 10's `claude plugin tag` writes into
-  the same `v*` namespace [`release.yml`](../.github/workflows/release.yml) watches — if it emits
+  the same `v*` namespace [`release.yml`](../.github/workflows/ci-release.yml) watches — if it emits
   `v<semver>` it will fire the release workflow and cut a second bundle release. Discover its tag
   format with `--dry-run` before pushing, as this block's Work list already requires, and pick a
   version string that has not been used. Note also that
@@ -1212,7 +1244,7 @@ landed. Slice 14 implements it.
     bump; `feat:` minor, `fix:`/`perf:` patch, everything else and unprefixed no release. Node
     builtins, `--dry-run` and `--set`, real semver validation, and a refusal to reuse a tagged
     version.
-  - [`release.yml`](../.github/workflows/release.yml) moves to `push: branches: [main]` and **loses
+  - [`release.yml`](../.github/workflows/ci-release.yml) moves to `push: branches: [main]` and **loses
     its tag trigger**; the [Slice 11](./slices/TrackC-Slice11.md) `dist/` gate stays ahead of every
     publishing step.
   - Fix the two defects that would otherwise ship: [`mcpb/manifest.json`](../mcpb/manifest.json)
@@ -1260,7 +1292,7 @@ landed. Slice 14 implements it.
   declaring both registered tools, [`tests/manifest.test.ts`](../tests/manifest.test.ts) (tool-set
   equality both directions versus [`register.ts`](../src/tools/register.ts), plus `APP_VERSION` =
   `package.json` version) and [`tests/bump-version.test.ts`](../tests/bump-version.test.ts), and the
-  [`release.yml`](../.github/workflows/release.yml) rewrite (trigger `push: main` + `workflow_dispatch`,
+  [`release.yml`](../.github/workflows/ci-release.yml) rewrite (trigger `push: main` + `workflow_dispatch`,
   `v*` tag trigger removed, `contents: write`, a non-cancelling `release-main` concurrency group,
   every irreversible step gated behind the [Slice 11](./slices/TrackC-Slice11.md) `dist/` check) are
   all written and verified locally — `npm run typecheck` clean, `npm test` **237/237** (was 210),
@@ -1516,6 +1548,17 @@ eval run, which is **not** a slice in this document and is deliberately post-del
 now exist, so the measurement method
 [OQ-01](./MCP-PRD.md#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) established is
 finally available.
+
+**Slice 19 added 2026-08-26 — a Track C follow-on to [Slice 18](./slices/TrackC-Slice18.md), off
+the critical path and moving no Phase 1 status.** It combines the two workflows into one
+[`.github/workflows/ci-release.yml`](../.github/workflows/ci-release.yml) and auto-commits the
+version bump onto the PR branch, evolving [18](./slices/TrackC-Slice18.md)'s release mechanism
+without changing the sequence: Phase 1's remaining path is still **12 → 13**. It depends only on
+[11](./slices/TrackC-Slice11.md)'s `dist/` gate and [18](./slices/TrackC-Slice18.md)'s release job,
+both landed, so it was independently buildable; it is built and locally verified but unmerged, and
+the live pipeline is the author's to confirm. **No component criterion moved, no open question was
+resolved, and [PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) did not move in
+either half.** Evidence: [`docs/slices/TrackC-Slice19-results.md`](./slices/TrackC-Slice19-results.md).
 
 ## 6. Beyond Phase 1 — queued slice packs
 

@@ -24,7 +24,7 @@
 | [`mcpb/manifest.json`](../../mcpb/manifest.json) | `tools` now declares `card_search` **and** `combo_search`, descriptions matching the registered ones | fixed |
 | [`tests/manifest.test.ts`](../../tests/manifest.test.ts) | new | tool-name set equality both directions; `APP_VERSION` == `package.json` version |
 | [`tests/bump-version.test.ts`](../../tests/bump-version.test.ts) | new | 20 cases over the subject parser; never shells out to `git log` |
-| [`.github/workflows/release.yml`](../../.github/workflows/release.yml) | rewritten | trigger `push: branches: [main]` + `workflow_dispatch`; tag trigger removed |
+| [`.github/workflows/release.yml`](../../.github/workflows/ci-release.yml) | rewritten | trigger `push: branches: [main]` + `workflow_dispatch`; tag trigger removed |
 | [`package.json`](../../package.json) | one `scripts` entry `bump-version`; `version` still `0.0.0` | done |
 | [`tsconfig.json`](../../tsconfig.json) | `allowJs: true`, `checkJs: false` — so the test can import the `.mjs` script without deep-checking its plain-JS body | done |
 
@@ -109,7 +109,7 @@ major, while the base is `0.x`) lives in `nextVersion` and is unit-tested.
 
 ## The workflow (requirements 5 & 6)
 
-[`release.yml`](../../.github/workflows/release.yml) is now one merge-triggered job. Trigger
+[`release.yml`](../../.github/workflows/ci-release.yml) is now one merge-triggered job. Trigger
 `push: branches: [main]` + `workflow_dispatch`; the **`v*` tag trigger is removed**, with the reason
 in the file header: two producers in one `v*` namespace (`claude plugin tag` and this job) would
 double-cut. `permissions: contents: write`; `concurrency: { group: release-main,
@@ -229,7 +229,7 @@ addendum above and the [`PC-03`](../PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-cha
 "Corrected 2026-08-25" bullet, not restated.
 
 **The failed run first.** [PR #54](https://github.com/njohnb/Manabase/pull/54)'s merge ran
-[`release.yml`](../../.github/workflows/release.yml) on `push: main` (run `32917489462`,
+[`release.yml`](../../.github/workflows/ci-release.yml) on `push: main` (run `32917489462`,
 2026-08-26T01:03Z) and **failed** — `GH006`, the protected-branch push of the bumped
 [`plugin.json`](../../.claude-plugin/plugin.json) rejected. No tag, no Release, no bundle; a clean
 failure, `v0.1.0`/`v0.1.1` untouched.
@@ -237,7 +237,7 @@ failure, `v0.1.0`/`v0.1.1` untouched.
 **Then `v0.2.0`.** [PR #55](https://github.com/njohnb/Manabase/pull/55)
 (`fix/release-branch-protection`, merge commit `ddbfd4c`) carried
 [`plugin.json`](../../.claude-plugin/plugin.json) at `0.2.0`, written by the script and merged
-through the protected-PR flow. Its merge ran [`release.yml`](../../.github/workflows/release.yml)
+through the protected-PR flow. Its merge ran [`release.yml`](../../.github/workflows/ci-release.yml)
 (run `32918776980`, `push: main`, **success**) and published the first automated release: tag
 **`v0.2.0`** on `ddbfd4c`, GitHub Release published **2026-08-26T01:23:37Z**, `targetCommitish`
 `main`, **not** draft, **not** prerelease, marked **Latest**, asset **`manabase.mcpb` = 117,883

@@ -4,7 +4,7 @@
 // "what version is next," runnable identically on a developer's machine and on the runner —
 // the same reason PC-03 criterion 7 lives inside pack-mcpb.mjs rather than in a workflow step.
 //
-// It has two modes, because `main` is branch-protected and the release job may not push to it:
+// It has these modes, because `main` is branch-protected and the release job may not push to it:
 //   * default / --dry-run / --set  — the AUTHOR runs this on a release branch. It reads the
 //     conventional-commit prefixes across `<newest v* tag>..HEAD`, maps them to a semver bump, and
 //     (unless --dry-run) writes the result into .claude-plugin/plugin.json in place. That write is
@@ -17,6 +17,14 @@
 //   * --advise                     — CI runs this on pull_request. It warns (never errors) when a
 //     PR's range is releasable but plugin.json was not bumped, so a forgotten `npm run bump-version`
 //     is caught at PR time rather than silently shipping nothing on merge. Always exits 0.
+//   * --pr                         — CI runs this on pull_request too, in a write-scoped job, to
+//     AUTOMATE what the author used to do by hand. It computes the SAME number --advise reports —
+//     base is the newest tag, never plugin.json's current version, so it is IDEMPOTENT: re-running
+//     after the bump commit lands reads the same tag base and computes the same number, never a
+//     double-bump — and WRITES it into plugin.json when the file differs. The job then commits that
+//     onto the PR's own branch (never `main`). It writes nothing when the range is not releasable or
+//     the file already carries the expected version. Always exits 0; the workflow inspects
+//     `git status` to decide whether a commit is needed.
 // No dependency, nothing that reaches the network.
 //
 // Mapping (this spec's decision, not an inherited one; highest across the range wins):
@@ -263,10 +271,59 @@ function advise() {
   process.exit(0);
 }
 
+/**
+ * PR auto-commit path (`--pr`): runs in CI on pull_request, in a write-scoped job, and does what the
+ * author used to do by hand — compute the next version and put it in plugin.json. It computes exactly
+ * the way `advise()` does (base = newest tag, NOT plugin.json's current version), which is what makes
+ * it IDEMPOTENT: after the bump commit lands, a later run over the same range reads the same tag base
+ * and computes the same number, so it never double-bumps on a re-push. It then WRITES that number
+ * when plugin.json differs from it, and the workflow commits the change onto the PR branch — never
+ * `main`, which is branch-protected. Writes nothing when the range is not releasable, or when
+ * plugin.json already carries the expected version. Always exits 0: a write and a no-op are both
+ * success, and the workflow reads `git status` to decide whether to commit. Because `--pr` and
+ * `--advise` share this computation, the advisory warning and the auto-commit can never disagree.
+ */
+function prWrite() {
+  const newestTag = git(['describe', '--tags', '--abbrev=0']);
+  const baseVersion = newestTag ? newestTag.replace(/^v/, '') : '0.0.0';
+  const logArgs = newestTag ? ['log', `${newestTag}..HEAD`, '--format=%s'] : ['log', 'HEAD', '--format=%s'];
+  const rawLog = git(logArgs);
+  const subjects = rawLog ? rawLog.split('\n').filter((s) => s.length > 0) : [];
+  const bump = classifyBump(subjects);
+  const expected = nextVersion(baseVersion, bump);
+  const current = readPluginVersion();
+
+  if (expected === null) {
+    console.log('bump-version: no releasable commit since the last tag — nothing to write.');
+    process.exit(0);
+  }
+  if (current === expected) {
+    console.log(`bump-version: plugin.json already at ${expected} for this range — no write, no commit.`);
+    process.exit(0);
+  }
+  // nextVersion always yields a strict core from a valid base, so this is an assertion, not a path
+  // the range can normally reach — but it mirrors the default path's refusal rather than trusting it.
+  if (!isStrictSemver(expected)) {
+    fail(`refusing a non-semver version: ${expected}.`);
+  }
+  const before = readFileSync(pluginJsonPath, 'utf8');
+  const after = writePluginVersion(before, expected);
+  writeFileSync(pluginJsonPath, after);
+  console.log(
+    `bump-version: wrote version ${expected} (${bump}) into ${pluginJsonPath} for the PR branch ` +
+      `(base ${baseVersion} from ${newestTag || 'no tag'}).`,
+  );
+  process.exit(0);
+}
+
 function main() {
   const argv = process.argv.slice(2);
   if (argv.includes('--advise')) {
     advise();
+    return;
+  }
+  if (argv.includes('--pr')) {
+    prWrite();
     return;
   }
   if (argv.includes('--check')) {

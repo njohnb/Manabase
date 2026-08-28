@@ -53,7 +53,7 @@ requirement 1 below, unchanged.
 ## Preconditions
 
 - **[Slice 11](./TrackC-Slice11.md) — the `dist/` honesty mechanism (done).**
-  [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) must be green on the exact commit
+  [`.github/workflows/ci.yml`](../../.github/workflows/ci-release.yml) must be green on the exact commit
   this slice releases from. This slice adds an irreversible publish step downstream of that gate; a
   gate that has not run is not a gate.
 - **[Slice 13](./TrackC-Slice13.md)'s [`PC-03`](../PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab)
@@ -77,8 +77,8 @@ one source ([`P-14`](../PLUGIN-PRD.md#p-14--two-distribution-targets-one-source)
 plugin, and an `.mcpb` bundle for the Claude Desktop Chat tab.
 
 **Releasing is currently a hand-pushed tag, and the evidence that this is a defect is the tag list.**
-[`release.yml`](../../.github/workflows/release.yml) fires only on `push: tags: v*`;
-[`ci.yml`](../../.github/workflows/ci.yml) runs on every push to `main` and never releases. Two tags
+[`release.yml`](../../.github/workflows/ci-release.yml) fires only on `push: tags: v*`;
+[`ci.yml`](../../.github/workflows/ci-release.yml) runs on every push to `main` and never releases. Two tags
 exist, `v0.1.0` and `v0.1.1`, both from 2026-08-10, and everything merged since has reached nobody —
 including [Slice 16](./TrackA-Slice16.md)'s `combo_search`, half of
 [`CAP-02`](../MCP-PRD.md#cap-02--combo-discovery). An installed `.mcpb` never re-pulls, so nothing
@@ -248,7 +248,7 @@ a script authors it.
    - **Do not add `npm run acceptance` to this workflow, under any trigger.** It calls live Scryfall
      and [`MCP-PRD.md` §3.4](../MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance) makes
      rate limits a hard constraint;
-     [`ci.yml`](../../.github/workflows/ci.yml) already says so in a comment and the reason is
+     [`ci.yml`](../../.github/workflows/ci-release.yml) already says so in a comment and the reason is
      unchanged. **State in the results doc that automated releases therefore ship without a live
      pass** — by design, and it removes the human who currently runs one before a deliberate release.
 

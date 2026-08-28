@@ -42,7 +42,7 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (325 tests, 77 suites)
+npm test            # node --experimental-strip-types --test  (330 tests, 79 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
@@ -821,6 +821,35 @@ data; the skill's irreducible value is the recovery loop and the zero-match-is-s
 `OQ-14`'s MCP-PRD tool-description half stays open, and the skill, protocol, eval cases and
 clean-room agent are working-tree artifacts — the combo skill is uncommitted and has no `PC`.
 Evidence: `docs/slices/OQ14-combo-eval-results.md`.
+
+**Slice 19 (combine CI and Release into one gated pipeline, and auto-commit the version bump) was
+built and locally verified 2026-08-26 — build-and-verify only, uncommitted on
+`feat/slice19-combine-ci-release` off `main` at `9b216bc` (the PR #59 merge; newest tag `v0.3.0`,
+`plugin.json` `0.3.0`), and nothing was merged.** It **evolves** Slice 18's release mechanism and
+**executes** `P-08` — it does not amend it, and no `P-`/`D-` was minted. `.github/workflows/ci.yml`
+and `release.yml` are deleted and folded into one `.github/workflows/ci-release.yml`: a `verify`
+gate feeds a `bump` job on `pull_request` and a `release` job on `push: main` + `workflow_dispatch`,
+both `needs: verify`, so the release is gated by the **same** run that checks the code. The bump
+*criteria* are unchanged (conventional-commit prefixes); the one code change is a `--pr` write mode
+in `scripts/bump-version.mjs` that computes the version from the newest-`v*`-tag range and writes it
+onto the PR's own head branch — **based on the tag, not `plugin.json`, so a re-push recomputes the
+same number** and the per-push job is idempotent. `verify` inherits `contents: read`; only `bump`
+and `release` declare `contents: write`; `bump` is same-repo-only (a fork PR skips it) and commits
+`chore(release): set plugin version <v>` only when `git status --porcelain` shows `plugin.json`
+moved; `release` keeps the `release-main` non-cancelling group and does not re-run
+lint/typecheck/test because `needs: verify` already did. Local verification: typecheck clean,
+`npm test` **330/330, 79 suites** (was 325/77 — five new `--pr`/writer cases), `dist/` clean (no
+`src/` change), `npm run lint:docs` 0 broken after 33 historical links to the two deleted workflows
+were repointed to `ci-release.yml` (target only, wording preserved). **The live pipeline is
+author-TODO** — Actions cannot run on the dev machine, so the PR auto-commit, the merge release and
+the concurrency behavior are unconfirmed; every runner-dependent claim waits on the first real PR
+and merge. **No `CAP-01`, `CAP-02`, `PC-01`, `PC-02` or `PC-03` criterion changed status, no open
+question was resolved, and `PQ-06` moved in neither half** — automating the release ships more
+bundles that never self-update, sharpening its user-facing half, not closing it. `PQ-05` untouched;
+Phase 1 stays open behind Slice 12's second cold run and Slice 13's remnant, which this slice does
+not close. **The Commands-block header above read `325 tests, 77 suites` and is corrected to
+330/79; the dated records keep their figures.** Evidence:
+`docs/slices/TrackC-Slice19-results.md`.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
