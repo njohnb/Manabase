@@ -71,7 +71,9 @@ its criteria).
 install.** A fifth tool, `rules_lookup`, returns a rule by number — `702.19` and every subrule
 under it — with the rules version it came from and a link to Wizards' dated document
 ([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), still `specified`). Searching the
-rules by keyword and the weekly check for a newer version are not built yet.
+rules by keyword is not built yet. The weekly check for a newer version is built (on a branch,
+2026-11-15): if Wizards' site cannot be reached, lookups keep answering from the cached copy and
+say how old it is.
 
 ## Where it runs
 
@@ -278,7 +280,7 @@ npm run typecheck   # tsc --noEmit
 npm run lint:docs   # every doc link and heading anchor resolves — no network
 npm test            # node --test, with TypeScript stripped at runtime
 npm run acceptance  # 14 live harness checks against real Scryfall — slow on purpose
-npm run acceptance:rules  # 10 live rules-lookup checks — two Wizards requests, no Scryfall
+npm run acceptance:rules  # 11 live rules-lookup checks — two Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -324,7 +326,9 @@ implemented and settled, so the first capability that needs persistence inherits
 
 **Rules lookup is that first capability** (built on a branch 2026-11-15, not yet released). Its
 first call downloads the Comprehensive Rules — about 1 MB — and caches the file under `rules/` in
-that directory; later calls read the cache. Where `${CLAUDE_PLUGIN_DATA}` is not set, the directory is the platform's user cache directory instead (`manabase`
+that directory, as `cr-<date>.txt` beside a small `meta.json`; later calls read the cache. A call
+made seven or more days after the last check asks Wizards whether a newer version exists and
+downloads it only if so; nothing is checked at startup. Where `${CLAUDE_PLUGIN_DATA}` is not set, the directory is the platform's user cache directory instead (`manabase`
 under `%LOCALAPPDATA%` on Windows, `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache`
 elsewhere).
 

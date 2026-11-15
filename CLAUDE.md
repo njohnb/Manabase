@@ -44,7 +44,7 @@ npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
 npm test            # node --experimental-strip-types --test  (347 tests, 82 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 14 LIVE checks against real Scryfall
-npm run acceptance:rules # scripts/cr-live.mjs — 10 LIVE checks, 2 Wizards requests, no Scryfall
+npm run acceptance:rules # scripts/cr-live.mjs — 11 LIVE checks, 2 Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -67,7 +67,8 @@ src/spellbook/client.ts spec: one 500 ms lane, the Django-REST field-error detai
 src/wizards/client.ts   two text clients, one per Wizards host (site, media), 500 ms lane each
 src/rules/source.ts     resolveCrSource() — newest .txt by date stamp, same-stamp PDF citation
 src/rules/parser.ts     parseRules() — the CR TXT into a RulesIndex
-src/rules/store.ts      ensureRules() — download once, cache under <cacheDir>/rules/, injected fs
+src/rules/store.ts      ensureRules() — download on first use, cache under <cacheDir>/rules/,
+                        revalidate weekly, serve the cache `stale` on failure; injected fs
 src/rules/lookup.ts     lookupRule() — rule plus descendants on a number boundary, 50,000 budget
 src/scryfall/prices.ts  resolvePrice() — the three price traps
 src/scryfall/collection.ts resolveNames() — POST /cards/collection batched at 75; the misses come
@@ -887,6 +888,19 @@ Branch figures: `npm test` **392 tests, 97 suites**, typecheck clean, `lint:docs
 from `feat/mtg-rules`, `rules_lookup` is the **fifth** tool and the merged branch runs **409 tests,
 100 suites**; the Commands-block count keeps ticket 01's 347/82. Evidence: the `CAP-04` criteria in
 `MCP-PRD.md`; there is no results doc.
+
+**Rules plan ticket 04 (weekly CR refresh and stale fallback) landed 2026-11-15 as `a9378e4` (code)
+and `8aeddbc` (docs) on `ticket/04-rules-refresh` — unmerged, no PR, not a roadmap slice.** `CAP-04`
+criterion 11 is **verified by unit tests with a fake clock and fake I/O, never live** — a failed
+check cannot be provoked honestly. Under 7 days since the last check: no request. At 7+: one
+landing-page GET, re-download only on a changed stamp, an unchanged stamp only moves `checkedAt`.
+**Any failed check serves the cache as a SUCCESS with `stale: true`** and the check time does not
+move; only a first run with no cache stays a failure. Cache files are now `rules/cr-<YYYYMMDD>.txt`,
+`meta.json` switched last, writes go through a renamed temp file, and a ticket-02 `cr.txt` cache is
+still read. Responses gain `checked_at` and `stale`. Nothing at startup, no hook (`PQ-03`, answered
+in practice for the CR only). `OQ-03` stays open for tag discovery; `Status` stays `specified`
+because criterion 10 (ticket 03) is not built. `npm test` **425 tests, 105 suites**, typecheck
+clean, `npm run acceptance:rules` 11/11 live. No `D-`/`P-` minted, no `PC` moved, version not bumped.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
