@@ -1478,6 +1478,19 @@ two" is a claim about a year of behavior and one GET is the weakest possible evi
 the parser must still take the most recent `.txt` **by its date stamp** rather than the first match
 in document order. **[verified for the single observation; the "ever" question stays open.]**
 
+**Addendum — the 20261106 file, and three format details the 2026-07-29 record did not list.
+[verified 2026-11-15]** The landing page listed one DOCX/PDF/TXT trio, all stamped `20261106`,
+as absolute hrefs on `media.wizards.com` with the literal space unencoded in the `href`. The TXT
+was 985,613 bytes, still UTF-8 with BOM and CRLF, effective November 6, 2026. Three details matter
+to a parser and were found while building [CAP-04](#cap-04--comprehensive-rules-lookup):
+**subrule letters run past `z`** (`704.5aa` exists), **at least one subrule carries a stray
+trailing period** (`119.1d.`), and **some continuation lines are indented** with leading spaces
+rather than starting with `Example:`. Separately, `Response.text()` strips the BOM during UTF-8
+decoding, so a downloaded body has none while the same text read back from disk may; the parser
+accepts both. One more single-listing observation for
+[OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled),
+which it does not answer.
+
 ### 4.7 WotC Fan Content Policy
 
 **Date verified:** 2026-07-29
@@ -2151,6 +2164,114 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   the model's context budget and now has a second, independent reason to hold. **No criterion
   changed status and `Status` stays `delivered`.**
 
+### CAP-04 — Comprehensive Rules lookup
+
+- **Status:** specified
+- **Phase:** unassigned
+- **User need:** When I ask how a rule works, I want the Comprehensive Rules' actual text with its
+  rule number and the version it came from, and a link to Wizards' own document, so I can trust the
+  answer and show it to my playgroup instead of trusting a recollection of rules that change every
+  few months.
+- **Behavior:**
+  - **One tool, `rules_lookup`, two inputs over time.** `rule` takes a section, rule or subrule
+    number (`"7"`, `"702"`, `"702.19"`, `"702.19a"`) and returns that rule and every rule under it,
+    in document order. Descendants are decided on a number **boundary**, never a bare prefix:
+    `702.190` is not under `702.19`. Input is normalised — a trailing period, surrounding spaces, a
+    capital letter and a leading `rule` are accepted. A keyword `query` over the glossary and then
+    the full text is part of this capability and is not yet built.
+  - **The source is Wizards of the Coast, on two hosts**
+    ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)). The landing page on `magic.wizards.com`
+    names the dated files, which live on `media.wizards.com`. A source spec carries one base URL,
+    so this is **one client per host**, the pattern the server already uses for Scryfall and
+    Commander Spellbook — each sending the app-naming `User-Agent` and an `Accept` header
+    (`text/html` and `text/plain`), each on its own 500 ms lane, which is
+    [§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s strictest-lane rule applied to a
+    source that publishes no limit. The two requests of a first use are issued in sequence, never
+    in parallel. **The media client is handed a path on its own host, never a scraped absolute
+    URL**: a TXT link pointing at any other host is reported as a changed page and is not fetched.
+    The shared HTTP client gained an optional `Accept` and a text body mode for this; JSON sources
+    are unchanged.
+  - **The newest `.txt` is chosen by its date stamp, never the first match**
+    ([OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)'s
+    open half). The PDF carrying the same stamp is the citation; when none is listed, the TXT is
+    cited. The literal space in the filename is percent-encoded.
+  - **The parser reads the TXT's verified format** ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)):
+    an optional UTF-8 BOM, CRLF or LF, the effective date from the document's own "effective as
+    of" line, the contents section skipped (the body runs from after the contents' closing
+    `Credits` to the body's `Glossary` heading, so numbered glossary definitions never parse as
+    sections), subrule letters matched as any run of lowercase letters (they skip `l` and `o`, and
+    run past `z` to `aa`), and `Example:` and indented continuation lines joined to the rule above.
+    A file that does not parse is a failure and is never cached.
+  - **Fetched at runtime, cached locally, never bundled**
+    ([D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)). The first call
+    downloads the CR (about 1 MB) and blocks on it; the TXT and a small metadata file are written
+    under `<cacheDir>/rules/`, the location [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s
+    shipped half already resolves. A later call reads the cache and makes no request. Nothing is
+    fetched at startup. A cache write the disk refuses costs the cache, not the answer.
+  - **Every success carries `cr_effective_date`, `fetched_at`, `cache_age_days` and
+    `citation_url`.** The age is the download's, not the call's.
+  - **A broad rule is bounded.** Rules are filled to a 50,000-character budget, the figure the
+    combo tools use, for the same reason (issue #25). The requested rule is always returned; when
+    rules under it are cut, `truncated` is true, `next_rule` names the first one omitted, and a
+    `note` says so. Never a silent cut.
+  - **Failures are structured** ([D-10](#d-10--tool-handlers-never-throw)). Input that is not a
+    rule number is `bad_request`, refused before any download. An unknown number is `not_found`,
+    naming it. A Wizards refusal (HTTP 401 or 403) keeps its status and says it is reported and not
+    worked around ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)); a page with no
+    dated `.txt` link, a challenge page, or a TXT that does not parse is `unexpected`, naming a
+    changed shape.
+  - **Revalidation is part of this capability and is not yet built.** The decided trigger
+    ([OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)): the
+    landing page is re-checked at most once every seven days, the CR is re-downloaded only when
+    the date stamp changed, and on any failure the cached copy is served with its age and a
+    `stale` flag.
+- **Depends on:** Wizards of the Coast's CR landing page and dated TXT
+  ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)); the resolved cache directory
+  ([OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s location
+  half); the shared HTTP client. No other CAP.
+- **Serves via:** `rules_lookup`.
+- **Acceptance criteria:**
+  1. `rules_lookup` with `rule: "702.19"` returns `702.19` and its subrules in document order, and
+     not `702.190`. **Verified 2026-11-15** — unit tests on a synthetic CR, and live: `702.19`
+     through `702.19g` from the 20261106 file.
+  2. Every success carries `cr_effective_date`, `fetched_at`, `cache_age_days` and
+     `citation_url`, the citation being Wizards' dated PDF, else the TXT. **Verified 2026-11-15**
+     — live `2026-11-06` and `…/MagicCompRules%2020261106.pdf`.
+  3. The resolver takes the newest `.txt` by date stamp, pairs the same-stamp PDF, encodes the
+     space, and falls back to citing the TXT. **Verified 2026-11-15** by unit tests including two
+     stamps listed oldest-first and a year boundary; the live page listed one trio.
+  4. The parser handles the BOM, CRLF, the contents section, the `l`/`o` letter skip, double
+     letters, a trailing period after a subrule letter, and numbered glossary definitions; its
+     tests use short synthetic fixtures only and the CR is never committed or bundled.
+     **Verified 2026-11-15.**
+  5. The first call downloads and caches under the resolved cache directory, and a later call
+     makes no request; all I/O is injected ([D-03](#d-03--testability-handlers-callable-as-plain-functions)).
+     **Verified 2026-11-15** — unit tests with recording fakes, and live: a second server process
+     on the same cache answered with the first download's `fetched_at`.
+  6. An unknown rule number is a structured `not_found` naming it; input that is not a rule
+     number is `bad_request` with no download. **Verified 2026-11-15.**
+  7. A Wizards block or a changed page is a structured failure, never a workaround, and a TXT link
+     on another host is not fetched. **Verified 2026-11-15 against mocks only**, permanently — a
+     real block cannot be provoked honestly, the same footing as [CAP-01](#cap-01--card-search)'s
+     429 criterion.
+  8. Every request carries the app-naming `User-Agent` and an `Accept` header, and each Wizards
+     host self-throttles to 500 ms. **Verified 2026-11-15** by unit tests.
+  9. A broad rule is filled to the 50,000-character budget with `truncated`, `next_rule` and a
+     `note`. **Verified 2026-11-15** by unit tests; against the 20261106 file, rule `7` returns 187
+     rules in 49,823 characters with `next_rule` `701.31b`.
+  10. `query` returns glossary hits first, then full-text rule matches with their numbers, filled
+      to a byte budget. **Not implemented.**
+  11. The landing page is revalidated at most once every seven days, the CR is re-downloaded only
+      when the stamp changed, and a failed revalidation serves the cache with `stale` and its age.
+      **Not implemented.**
+  12. The tool is registered, the MCPB manifest declares it, and `dist/` is rebuilt.
+      **Verified 2026-11-15.**
+  13. A spaced live check (`npm run acceptance:rules`, [`scripts/cr-live.mjs`](../scripts/cr-live.mjs)) fetches the real CR
+      once and looks up a known rule, contacting Wizards exactly twice and never Scryfall.
+      **Verified 2026-11-15**, 10/10.
+- **Open questions:** [OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)'s
+  "ever" half stays open; the resolver complies with it rather than answering it.
+
 ---
 
 ## 6. Phases
@@ -2229,7 +2350,7 @@ that specify them, not here. They are, with the dependencies already visible fro
 | Archidekt deck writing | Archidekt write API ([§4.5](#45-archidekt)) | **last** per [D-09](#d-09--archidekt-writes-land-last); [OQ-04](#oq-04--what-is-the-behavior-and-blast-radius-of-archidekts-write-api) unresolved |
 | Moxfield deck writing | Moxfield write API ([§4.8](#48-moxfield)) | **blocked upstream, not scheduled** ([D-15](#d-15--moxfield-writes-are-blocked-upstream-not-merely-last)) — no working third-party auth path. Unblocks via [OQ-10](#oq-10--will-moxfield-grant-this-application-approved-access-and-under-what-terms) |
 | Tag discovery | Scryfall `oracle_tags` / `art_tags` bulk ([§4.3](#43-scryfall-tags-api)) | first capability needing bulk + local storage |
-| Comprehensive Rules lookup | WotC CR TXT ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)) | first capability needing runtime fetch + cache ([D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)) |
+| Comprehensive Rules lookup | WotC CR TXT ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)) | first capability needing runtime fetch + cache ([D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)). **Specified 2026-11-15 as [CAP-04](#cap-04--comprehensive-rules-lookup)**, phase unassigned |
 
 Four observations that should inform later phase assignment. **Tag discovery and Rules lookup
 are the first capabilities that require local persistence** — everything before them is
@@ -2248,6 +2369,15 @@ And **the two deck-writing rows are queued for different reasons and must not be
 Archidekt writing is deferred by choice and is buildable today; Moxfield writing is not buildable
 by any means [§3.7](#37-undocumented-and-bot-protected-third-party-apis) permits. A future session that reads "both are last" and schedules them
 together will discover the difference at the worst possible moment.
+
+**Added 2026-11-15: the Comprehensive Rules lookup row is now [CAP-04](#cap-04--comprehensive-rules-lookup),
+specified and partly built, with no phase assigned.** Its rule-number path is built and verified;
+keyword search and weekly revalidation are specified and not built, so `Status` stays `specified`.
+It is the first capability to hold local state, ahead of tag discovery, which is why
+[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s refresh and
+first-run halves were answered by it rather than by tag discovery as that entry expected. Phase
+assignment is left to the session that schedules the remaining work. The table above is otherwise
+unchanged, and no other capability's position moved.
 
 ---
 
@@ -2442,6 +2572,25 @@ plugin side — never a `SessionStart` hook,
 *Resolves by:* unchanged — the tag-discovery capability spec. It should use the
 bundled-manifest-comparison pattern rather than testing for file existence, and read
 `jsonl_download_uri` from the API rather than constructing bulk URLs ([§4.2](#42-scryfall-bulk-data)).
+
+**Answered 2026-11-15 for the Comprehensive Rules cache: the refresh trigger and the first-run
+half.** Specifying [CAP-04](#cap-04--comprehensive-rules-lookup) settled both for the CR.
+**Refresh is lazy:** the CR is downloaded on the first `rules_lookup` call and never at startup —
+consistent with
+[`docs/PLUGIN-PRD.md` PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)'s
+no-`SessionStart`-hook ruling — and the landing page is re-checked **at most once every seven
+days**, re-downloading only when its date stamp changed and serving the cached copy, with its age,
+on any failure. **First run blocks, yes, on one download** of about 1 MB: measured 2026-11-15 at
+1,249 ms for a cold-cache `rules_lookup` of `702.19`, the landing page and the TXT included. The
+cold-cache path is built and verified; the seven-day check and the stale fallback are decided and
+not yet built.
+
+**Correction to "*Resolves by:* … the tag-discovery capability, which is the first to need it."**
+That expectation did not hold: the CR lookup was specified first and is the first capability to
+persist anything. The text above is left as written. Tag discovery's bulk files are a different
+corpus with a different update signal (Scryfall's bulk manifest,
+[§4.2](#42-scryfall-bulk-data)), so **this question stays open for tag discovery only**, and the
+bulk-manifest guidance above still applies to that capability.
 
 ### OQ-04 — What is the behavior and blast radius of Archidekt's write API?
 
@@ -3015,6 +3164,8 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-25 | **Track A [Slice 17](./slices/TrackA-Slice17.md) landed `combo_find_deck` and [CAP-02](#cap-02--combo-discovery) is DELIVERED** — `Status` `specified` → `delivered`, all fourteen criteria verified, and [§6](#6-phases)'s Phase 2 entry updated from "not built". The capability gained a dated delivery note; [§4.1.2](#412-batch-resolution) gained a dated addendum recording that a `name` identifier **rejects the combined `Front // Back` form** of a double-faced card while accepting either face alone. [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) and [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) each gained a dated paragraph and **all three stay open**. No `D-` minted; [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | The three upstream behaviours this tool exists to defeat are all silent, so the shape follows from them rather than from taste: `limit` on `/find-my-combos` **does not prioritize the combos the deck contains**, so the cap is applied after classification and never sent upstream; an unrecognized card name is **ignored with an HTTP 200 and no signal from any endpoint**, which is the only reason the capability touches Scryfall at all; and a request with no deck returns the entire combo corpus as near-misses, so an empty decklist is refused before any call. **The live run substituted a different deck and measured its own raw figure beside its shaped one** rather than comparing a shaped number against [§4.4.1](#441-the-combo-payload-is-enormous--measured)'s 640,684 — the 94-card list there was not recoverable from a captured response, and a cross-deck ratio would have been a number that looks like evidence and is not. The three open questions are recorded as shipped-with-open rather than left silent, because two of them resolve only when a third party replies and the third needs an eval run that a build slice would take badly. |
 | 2026-08-25 | **The Commander Spellbook admins replied — [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) CLOSED, [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) answered for the Commander Spellbook third only, and no code changed.** [§4.4](#44-commander-spellbook) gains a dated addendum carrying the reply: anonymous use sanctioned, *"few http calls per user interaction"*, an explicit request to **refrain from bulk-exporting through the paginated API** with the bulk JSON file named as the sanctioned route instead, and the app-naming `User-Agent` confirmed as the source's own ask. [CAP-02](#cap-02--combo-discovery) gains a dated open-question note; `Status` stays `delivered` and no criterion moved. | **The reply is a usage SHAPE, not a rate, and conflating the two would be the mistake here.** No requests-per-second figure was given and no rate-limit header exists, so [§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s "self-throttle conservatively where no limit is published" is not discharged and **the 500 ms lane does not move** — what changed is that it is now a chosen conservatism against a source known to be friendly rather than a default against one that had said nothing. [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) covers **three** sources and one has answered, so it is not closed; Archidekt and Moxfield are unmoved. [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) closes as **permitted, not licensed**: permission to consume is not a grant to redistribute, and a later capability that stores or ships combo data needs its own ask. The admins recommending `@space-cow-media/spellbook-client` **does not reopen** [D-16](#d-16--no-npm-commander-spellbook-client-dependency) — that decision rested on this codebase's zero-runtime-dependency bundle and its deliberately incomplete wire types, never on doubt about the package, and [§2](#2-locked-decisions) is locked. |
 | 2026-08-25 | **[OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)'s plugin-side half measured against a no-help baseline — and it stays open.** The [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) method run one source over now that [`combo_search`](../src/tools/register.ts) exists ([Slice 16](./slices/TrackA-Slice16.md)): a clean-room subject with no `Skill` tool, 12 cases from [`evals/combo-evals.json`](../evals/combo-evals.json) × two configurations = 24 subagents dispatched one at a time, ~48 sequential live calls, no 429. The `spellbook-combo-craft` skill lifts expectations **37/46 → 45/46** and fully-passed cases **7/12 → 11/12**, flipping four cases (4, 5, 6, 10) fail→pass — each of them either query craft the tool description names no operator for (`result:`, `steps:`, `commander:`, `ci:`) or recovery from a loud upstream 400. It changes **nothing** on tool selection or paging, where the baseline was already correct — the same result [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) reached for [CAP-01](#cap-01--card-search). **Neither half is resolved:** the plugin-side skill-versus-reference choice belongs to [`docs/PLUGIN-PRD.md`](./PLUGIN-PRD.md), and the tool-description half stays open here — now with data pointing at the [`combo_search`](../src/tools/register.ts) description, which names `card:"…"` but not the four operators above, as the strongest lever. **Nothing was implemented and no [CAP-02](#cap-02--combo-discovery), [CAP-01](#cap-01--card-search) or [`PC-01`](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion changed status**; the skill and eval harness are uncommitted working-tree artifacts. Evidence: [`docs/slices/OQ14-combo-eval-results.md`](./slices/OQ14-combo-eval-results.md). | The measurement method [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)'s 2026-08-24 open-row named could not run until the tool existed, and [Slice 16](./slices/TrackA-Slice16.md) left it explicitly un-run; running it turns *concrete* into *evidenced* without spending the question. Recorded as a measurement rather than an answer because [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) asks for a decision — enrich the description, keep the skill, or both — and the data informs that decision without being it: the case-10 recovery loop and the zero-match-as-success handling are the part a one-line schema description cannot absorb, so the skill is not made redundant even under the richest description the data argues for. |
+| 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) appended — Comprehensive Rules lookup, `Status` `specified`, phase unassigned — with its rule-number path built.** `rules_lookup` takes `rule` and returns that rule and every rule under it, `cr_effective_date`, `fetched_at`, `cache_age_days` and `citation_url`. Wizards of the Coast joins as a source on **two hosts, one client each**, 500 ms per host; the shared HTTP client gained an optional `Accept` and a text body mode. Criteria **1–9, 12 and 13 verified**, 7 against mocks only and permanently; **10 (keyword `query`) and 11 (seven-day revalidation and the stale fallback) are not implemented**, which is why `Status` stays `specified`. [§6](#6-phases)'s queued-table row now points at the block. [§4.6](#46-comprehensive-rules-wizards-of-the-coast) gains a dated addendum: the 20261106 file, subrule letters past `z` (`704.5aa`), a stray period after `119.1d`, and indented continuation lines. `npm test` 79 suites / 330 tests → 97 / 392; `npm run typecheck` clean; `npm run acceptance:rules` 10/10 live, two Wizards requests and no Scryfall call. No `D-` minted; [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | The two-host question was the one design call the plan left open. One client per host was chosen over a single client with an absolute-URL escape hatch because it is the pattern the server already uses for its other two sources, keeps the `SourceSpec` contract (one base URL) intact, and lets the media client refuse any host it was not built for: the TXT link is scraped from a page, and a scraped URL must not be able to steer a request elsewhere. The budget reuses the combo tools' 50,000 characters because section 7 alone is hundreds of kilobytes and issue #25 already measured what an unbounded payload costs. [OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled) is complied with, not answered: one more single-listing observation is weak evidence about a year of behaviour. |
+| 2026-11-15 | **[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) answered for the Comprehensive Rules cache: its refresh-trigger and first-run halves.** Refresh is lazy (first `rules_lookup` call, never at startup) with the landing page re-checked at most once every seven days; first run blocks on one ~1 MB download, measured at 1,249 ms cold. A dated paragraph corrects the entry's "resolves by tag discovery" expectation without rewriting it. The question **stays open for tag discovery only**. | [CAP-04](#cap-04--comprehensive-rules-lookup) turned out to be the first capability to persist anything, not tag discovery, so the question was answered by the capability that actually needed it. Tag discovery's bulk files are a different corpus with a different update signal (Scryfall's bulk manifest, [§4.2](#42-scryfall-bulk-data)), so an answer for the CR does not transfer to them and the entry is not closed. The seven-day check and the stale fallback are decided here and built later; the cold-cache path is built and verified. |
 
 ---
 
