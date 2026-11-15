@@ -549,6 +549,30 @@ unchanged), no `D-` was minted, no `PC` criterion changed status, and the plugin
 deliberately not bumped — the CI bump job writes it on the PR to `main`. The table below still
 carries pre-ticket figures.
 
+**Unscheduled work, 2026-11-15 — ticket 05 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[the `mtg-rules` skill](./plans/2026-11-15-mtg-rules-prd/slices/05-mtg-rules-skill.md), landed as
+`b73ec0a` (skill and tests) and `e72c440` (PRD block) on `ticket/05-mtg-rules-skill`, based on
+`feat/mtg-rules`; unmerged, no PR.** **Not a slice in this document** and given no slice number.
+It writes [`skills/mtg-rules/SKILL.md`](../skills/mtg-rules/SKILL.md) and appends
+[`PLUGIN-PRD.md` PC-06](./PLUGIN-PRD.md#pc-06--rules-and-rulings) — the plan's working name was
+PC-05, an ID already taken on `main` by a component this branch does not carry, so the block is
+PC-06 and is not renumbered. `Status` **`specified`**, phase unassigned; criteria 1–5 verified
+2026-11-15, all static (613 frontmatter characters, frontmatter and scoped-tool-string tests, a
+zero-flag no-facts review by a reviewer with no authoring context, no-fallback taught); criterion 6
+**combo half only** — the deck skill is not on this branch; **7 (loads in a real session's skill
+listing) and 8 (always-on cost measured) are author-TODO**, and 9 is
+[ticket 06](./plans/2026-11-15-mtg-rules-prd/slices/06-rules-eval-run.md)'s eval run, not run.
+Evidence: `npm test` 105 suites / 433 tests → **107 / 445**, typecheck clean, `npm run lint:docs`
+OK, no `src/` change and `dist/` unchanged; there is no results doc — the dated criterion notes in
+the block are the record. **No open question resolved**
+([PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed)
+gains a dated addendum noting a third always-on description, not an answer), no `CAP` criterion
+moved, no `D-` or `P-` minted, and no
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |

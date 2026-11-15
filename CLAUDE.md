@@ -908,6 +908,21 @@ No open question moved (`OQ-03`, `OQ-08` unmoved), no `D-` minted, plugin versio
 bumped (the CI bump job writes it on the PR to `main`). The Commands-block test count still keeps
 ticket 01's 347/82, as ticket 02 left it.
 
+**Rules plan ticket 05 (the `mtg-rules` skill) landed 2026-11-15 as `b73ec0a` (skill and tests) and
+`e72c440` (PRD block) on `ticket/05-mtg-rules-skill`, based on `feat/mtg-rules` — unmerged, no PR,
+not a roadmap slice.** `skills/mtg-rules/SKILL.md` teaches look-up-then-cite over `card_rulings` and
+`rules_lookup`; the combo skill gained a pointer to it. The block is **`PC-06`, not the plan's
+`PC-05`** — `PC-05` is taken on `main` by the Commander deck-ratios component this branch does not
+carry — and it is not renumbered. `Status` **`specified`**, phase unassigned: criteria 1–5 verified,
+**all static** (613 frontmatter characters, a zero-flag no-facts review by a fresh reviewer,
+no-fallback taught); 6 is the **combo half only**, the deck skill not being on this branch; **7
+(loaded in a real session's skill listing) and 8 (always-on cost measured) are author-TODO**, and 9
+is ticket 06's eval run. A skill passing static checks is not a skill that loads — see Slice 8.
+New `tests/skills.test.ts` fails any `mcp__…` or `Manabase:…` string under `skills/`, so `P-12`'s
+trap is now a red test. The skill teaches `stale` to `CAP-04`'s spec while ticket 04 builds it.
+`npm test` **445 tests, 107 suites** (was 433/105). No open question resolved (`PQ-02` gained an
+addendum, not an answer), no `CAP` criterion moved, no `D-`/`P-` minted, plugin version not bumped.
+
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
 arising *inside* triaged work are the other lane — `OPEN-QUESTIONS.md` and §7.

@@ -76,6 +76,13 @@ glossary definition first, then the rules that mention it with their numbers, sa
 broad word matched more than fits in one answer. The weekly check for a newer rules version is not
 built yet.
 
+**A rules skill was written on a branch, 2026-11-15, and is in nothing you can install.** It
+teaches Claude to answer a rules or card-interaction question by looking it up with those two
+tools and citing the rule number, the rules version and each ruling's date and source — and to say
+so when the tools are missing rather than answering from memory
+([`docs/PLUGIN-PRD.md` PC-06](./docs/PLUGIN-PRD.md#pc-06--rules-and-rulings), still `specified`).
+It passes its static checks; nobody has yet confirmed it loads in a real session.
+
 ## Where it runs
 
 Manabase is a Claude Code plugin, and a plugin does not reach every surface the same way. Surface
@@ -243,6 +250,7 @@ mcpb/
   manifest.json        MCPB manifest — the Chat tab's artifact (PC-03, P-14)
 skills/
   scryfall-query-craft/  PC-01 — SKILL.md plus reference/ files read on demand
+  mtg-rules/             PC-06 — rules and rulings citation; SKILL.md only
 src/                   MCP server source (TypeScript)
 dist/                  committed build output — NOT gitignored (P-09)
 tests/                 handlers called as plain functions, no server (MCP-PRD D-03)
