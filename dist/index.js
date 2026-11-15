@@ -16143,6 +16143,7 @@ function unexpectedBodyFailure2() {
 async function resolveNames(client, names) {
   const resolved = [];
   const unresolved = [];
+  const cards = [];
   for (let start = 0; start < names.length; start += BATCH_SIZE) {
     const batch = names.slice(start, start + BATCH_SIZE);
     const result = await client.post("/cards/collection", {
@@ -16151,12 +16152,17 @@ async function resolveNames(client, names) {
     if (!result.ok) return result;
     const body = asCollection(result.value);
     if (body === void 0) return unexpectedBodyFailure2();
-    for (const card of body.data) resolved.push(card.name);
+    for (const card of body.data) {
+      resolved.push(card.name);
+      if (typeof card.id === "string" && typeof card.scryfall_uri === "string") {
+        cards.push({ name: card.name, id: card.id, scryfall_uri: card.scryfall_uri });
+      }
+    }
     for (const miss of body.not_found) {
       if (typeof miss?.name === "string") unresolved.push(miss.name);
     }
   }
-  return { ok: true, value: { resolved, unresolved } };
+  return { ok: true, value: { resolved, unresolved, cards } };
 }
 
 // src/tools/combo-find-deck.ts
@@ -16331,6 +16337,92 @@ async function comboFindDeck(clients2, params) {
   return { ok: true, value: data };
 }
 
+// src/tools/card-rulings.ts
+var MAX_CARDS = 10;
+function cleanNames2(raw) {
+  if (!Array.isArray(raw)) return [];
+  const names = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") continue;
+    const trimmed = entry.trim();
+    if (trimmed.length > 0) names.push(trimmed);
+  }
+  return names;
+}
+function emptyFailure() {
+  return {
+    ok: false,
+    error: {
+      code: "bad_request",
+      message: '`cards` must be a non-empty array of card NAMES, such as ["Rest in Peace", "Blood Artist"]. Nothing was requested.'
+    }
+  };
+}
+function tooManyFailure2(count) {
+  return {
+    ok: false,
+    error: {
+      code: "bad_request",
+      message: `\`cards\` carries ${count} names and this tool accepts at most ${MAX_CARDS} per call. Nothing was requested. Ask about the cards actually involved, or split the list across calls.`
+    }
+  };
+}
+function asRulingList(value) {
+  if (typeof value !== "object" || value === null) return void 0;
+  return Array.isArray(value.data) ? value : void 0;
+}
+function unexpectedBodyFailure4(name) {
+  return {
+    ok: false,
+    error: {
+      code: "unexpected",
+      message: `Scryfall returned a rulings body for "${name}" with no \`data\` array. No rulings were read from it, and the card cannot be reported as having none on the strength of it.`
+    }
+  };
+}
+async function cardRulings(client, params) {
+  try {
+    return await fetchRulings(client, params);
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: "unexpected",
+        message: `Unexpected failure fetching rulings from Scryfall: ${err instanceof Error ? err.message : String(err)}`
+      }
+    };
+  }
+}
+async function fetchRulings(client, params) {
+  const names = cleanNames2(params.cards);
+  if (names.length === 0) return emptyFailure();
+  if (names.length > MAX_CARDS) return tooManyFailure2(names.length);
+  const resolution = await resolveNames(client, names);
+  if (!resolution.ok) return resolution;
+  const cards = [];
+  const seen = /* @__PURE__ */ new Set();
+  const truncated = [];
+  for (const card of resolution.value.cards) {
+    if (seen.has(card.id)) continue;
+    seen.add(card.id);
+    const result = await client.get(`/cards/${encodeURIComponent(card.id)}/rulings`);
+    if (!result.ok) return result;
+    const list = asRulingList(result.value);
+    if (list === void 0) return unexpectedBodyFailure4(card.name);
+    if (list.has_more === true) truncated.push(card.name);
+    cards.push({
+      name: card.name,
+      scryfall_uri: card.scryfall_uri,
+      rulings: list.data.map(({ source, published_at, comment }) => ({ source, published_at, comment }))
+    });
+  }
+  const data = { cards, unresolved_cards: resolution.value.unresolved };
+  if (truncated.length > 0) {
+    data.note = `Scryfall reported more rulings than it returned for: ${truncated.join(", ")}. Those lists may be incomplete; the card's Scryfall page carries the full set.`;
+  }
+  return { ok: true, value: data };
+}
+
 // src/tools/register.ts
 var CARD_SEARCH_DESCRIPTION = "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall itself \u2014 supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, `art:`, and regex (`o:/\u2026/`). Returns per-card gameplay fields, format legalities, and a USD price with finish. 88 cards per page; the response reports `total_cards` and `has_more`. Legalities are trimmed to the format the query names (`legalities` to widen); formats absent from `legalities_included` were not returned and are not claims about legality.";
 var CARD_SEARCH_INPUT_SCHEMA = {
@@ -16384,7 +16476,22 @@ var COMBO_FIND_DECK_INPUT_SCHEMA = {
   },
   required: ["cards"]
 };
+var CARD_RULINGS_DESCRIPTION = `Get the official rulings for Magic: The Gathering cards, from Scryfall \u2014 at most ${MAX_CARDS} card names per call. Each ruling is attached to one card, so for an interaction pass every card involved in one call and read their rulings together. Each ruling carries its \`source\` (\`wotc\` is an official Wizards ruling, \`scryfall\` is a Scryfall note), its \`published_at\` date and its text; each card carries its Scryfall page link. A card with no rulings returns an empty list. Names Scryfall does not recognize are listed in \`unresolved_cards\`, which is always present. Submit a double-faced card by ONE face name: the combined \`Front // Back\` form is reported unresolved even though the card is real.`;
+var CARD_RULINGS_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    cards: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 1,
+      maxItems: MAX_CARDS,
+      description: "Card names, one per card. A double-faced card by one face name."
+    }
+  },
+  required: ["cards"]
+};
 var CARD_SEARCH_TOOL_NAME = "card_search";
+var CARD_RULINGS_TOOL_NAME = "card_rulings";
 var COMBO_SEARCH_TOOL_NAME = "combo_search";
 var COMBO_FIND_DECK_TOOL_NAME = "combo_find_deck";
 var toolDefinitions = [
@@ -16402,6 +16509,11 @@ var toolDefinitions = [
     name: COMBO_FIND_DECK_TOOL_NAME,
     description: COMBO_FIND_DECK_DESCRIPTION,
     inputSchema: COMBO_FIND_DECK_INPUT_SCHEMA
+  },
+  {
+    name: CARD_RULINGS_TOOL_NAME,
+    description: CARD_RULINGS_DESCRIPTION,
+    inputSchema: CARD_RULINGS_INPUT_SCHEMA
   }
 ];
 var UNIQUE_VALUES = ["cards", "prints", "art"];
@@ -16422,6 +16534,7 @@ async function dispatchToolCall(clients2, name, args) {
   if (name === CARD_SEARCH_TOOL_NAME) return dispatchCardSearch(clients2.scryfall, args);
   if (name === COMBO_SEARCH_TOOL_NAME) return dispatchComboSearch(clients2.spellbook, args);
   if (name === COMBO_FIND_DECK_TOOL_NAME) return dispatchComboFindDeck(clients2, args);
+  if (name === CARD_RULINGS_TOOL_NAME) return dispatchCardRulings(clients2.scryfall, args);
   throw new Error(`Unknown tool: ${name}`);
 }
 function readQuery(args, language) {
@@ -16496,6 +16609,10 @@ async function dispatchComboFindDeck(clients2, args) {
     ...typeof raw.format === "string" ? { format: raw.format } : {}
   };
   return toolResult(await comboFindDeck(clients2, params));
+}
+async function dispatchCardRulings(client, args) {
+  const raw = typeof args === "object" && args !== null && !Array.isArray(args) ? args : {};
+  return toolResult(await cardRulings(client, { cards: asNames(raw.cards) ?? [] }));
 }
 function registerTools(server2, clients2) {
   server2.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolDefinitions }));

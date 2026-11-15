@@ -8,6 +8,7 @@ import { comboSearch } from "./combo-search.ts";
 import type { ComboSearchParams } from "./combo-search.ts";
 import { comboFindDeck } from "./combo-find-deck.ts";
 import type { ComboFindDeckParams, ComboInclude } from "./combo-find-deck.ts";
+import { MAX_CARDS as MAX_RULINGS_CARDS, cardRulings } from "./card-rulings.ts";
 
 /**
  * The tool result shape this slice emits: text-JSON only, no `structuredContent`.
@@ -136,7 +137,35 @@ const COMBO_FIND_DECK_INPUT_SCHEMA = {
   required: ["cards"],
 } as const;
 
+// (MCP-PRD CAP-03) Rulings attach to ONE card each, so an interaction is answered by reading every
+// card's rulings together — the description says so, because a model looking for "the ruling on
+// this interaction" would otherwise call once per card or give up.
+const CARD_RULINGS_DESCRIPTION =
+  "Get the official rulings for Magic: The Gathering cards, from Scryfall — at most " +
+  `${MAX_RULINGS_CARDS} card names per call. Each ruling is attached to one card, so for an ` +
+  "interaction pass every card involved in one call and read their rulings together. Each ruling " +
+  "carries its `source` (`wotc` is an official Wizards ruling, `scryfall` is a Scryfall note), " +
+  "its `published_at` date and its text; each card carries its Scryfall page link. A card with no " +
+  "rulings returns an empty list. Names Scryfall does not recognize are listed in " +
+  "`unresolved_cards`, which is always present. Submit a double-faced card by ONE face name: the " +
+  "combined `Front // Back` form is reported unresolved even though the card is real.";
+
+const CARD_RULINGS_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    cards: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 1,
+      maxItems: MAX_RULINGS_CARDS,
+      description: "Card names, one per card. A double-faced card by one face name.",
+    },
+  },
+  required: ["cards"],
+} as const;
+
 export const CARD_SEARCH_TOOL_NAME = "card_search";
+export const CARD_RULINGS_TOOL_NAME = "card_rulings";
 export const COMBO_SEARCH_TOOL_NAME = "combo_search";
 export const COMBO_FIND_DECK_TOOL_NAME = "combo_find_deck";
 
@@ -158,6 +187,11 @@ export const toolDefinitions: Array<{ name: string; description: string; inputSc
     name: COMBO_FIND_DECK_TOOL_NAME,
     description: COMBO_FIND_DECK_DESCRIPTION,
     inputSchema: COMBO_FIND_DECK_INPUT_SCHEMA,
+  },
+  {
+    name: CARD_RULINGS_TOOL_NAME,
+    description: CARD_RULINGS_DESCRIPTION,
+    inputSchema: CARD_RULINGS_INPUT_SCHEMA,
   },
 ];
 
@@ -212,6 +246,7 @@ export async function dispatchToolCall(
   if (name === CARD_SEARCH_TOOL_NAME) return dispatchCardSearch(clients.scryfall, args);
   if (name === COMBO_SEARCH_TOOL_NAME) return dispatchComboSearch(clients.spellbook, args);
   if (name === COMBO_FIND_DECK_TOOL_NAME) return dispatchComboFindDeck(clients, args);
+  if (name === CARD_RULINGS_TOOL_NAME) return dispatchCardRulings(clients.scryfall, args);
   throw new Error(`Unknown tool: ${name}`);
 }
 
@@ -322,6 +357,18 @@ async function dispatchComboFindDeck(clients: Clients, args: unknown): Promise<T
   };
 
   return toolResult(await comboFindDeck(clients, params));
+}
+
+/**
+ * `card_rulings` reaches Scryfall only. A non-object or non-array `cards` arrives at the handler as
+ * an empty list, where the one message describing a valid call lives — as for `combo_find_deck`.
+ */
+async function dispatchCardRulings(client: HttpClient, args: unknown): Promise<ToolCallResult> {
+  const raw =
+    typeof args === "object" && args !== null && !Array.isArray(args)
+      ? (args as Record<string, unknown>)
+      : {};
+  return toolResult(await cardRulings(client, { cards: asNames(raw.cards) ?? [] }));
 }
 
 /** Installs the two request handlers; both are thin delegations. */

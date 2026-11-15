@@ -857,6 +857,37 @@ means passing it **byte for byte** or not at all.
 `/cards/search` on the 2/second lane, and three `HEAD`-equivalent image fetches on the unlimited
 file origin. No 429.
 
+#### 4.1.5 Per-card rulings
+
+**Date verified:** 2026-11-15. Probed for [CAP-03](#cap-03--card-rulings) before its handler was
+written, because the shape it was planned against was recalled, not measured.
+
+**`GET /cards/{id}/rulings` returns a list envelope `{ object: "list", has_more, data }`, with no
+`total_cards`.** **[verified]** It is therefore **not** [§4.1.1](#411-search-endpoint)'s search
+envelope, and reusing that type would claim a field this one never carries. `has_more` was `false`
+on the one card probed; whether a rulings list ever pages is **unobserved**.
+
+**Each ruling is exactly `{ object: "ruling", oracle_id, source, published_at, comment }`.**
+**[verified]** Live on Blood Artist: one ruling, `source: "wotc"`, `published_at: "2016-06-08"`
+(a bare `YYYY-MM-DD`), and the ruling text in `comment`. **The `scryfall` value of `source` was not
+observed** — the probe and the acceptance run's second card, Rest in Peace, carried `wotc` only — so
+it stays **documented, not verified**, and nothing may treat `wotc` as the only value.
+
+**Rulings key on `oracle_id`, so any printing's `id` reaches them.** **[verified]** The probe asked
+by the `id` that [§4.1.2](#412-batch-resolution)'s `POST /cards/collection` returned for the name,
+which is a reprint (`soc/209`), and got the card's rulings. That collection response also carries
+the card's **`scryfall_uri`** — its Scryfall web page, served with `?utm_source=api` appended —
+alongside `id` and a ready-made `rulings_uri`. **[verified]**
+
+**The path is not a card-search endpoint, so it is on the 10/second lane** of
+[§3.4](#34-rate-limits-are-hard-constraints-not-guidance), not the 2/second one. **[inferred from
+that section's table, not separately measured]**
+
+**Method.** Two requests, spaced one second apart, with an app-naming `User-Agent` and an `Accept`
+header: one `POST /cards/collection` naming Blood Artist, then one `GET /cards/{id}/rulings` on the
+returned `id`. No 429. The rulings response is committed verbatim as
+[`tests/fixtures/rulings-blood-artist.json`](../tests/fixtures/rulings-blood-artist.json).
+
 ### 4.2 Scryfall bulk data
 
 **Date verified:** 2026-07-29
@@ -2151,6 +2182,79 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   the model's context budget and now has a second, independent reason to hold. **No criterion
   changed status and `Status` stays `delivered`.**
 
+### CAP-03 — Card rulings
+
+- **Status:** delivered (2026-11-15)
+- **Phase:** unassigned
+- **User need:** When I ask how two or three specific cards interact, I want Claude to read every
+  one of those cards' official rulings together, with each ruling's date and whether it came from
+  Wizards or from Scryfall — and to tell me if it could not find one of the cards I named, rather
+  than answering about fewer cards than I asked about.
+- **Behavior:**
+  - **One tool call takes a small batch of card names**, up to **10**, and returns
+    `{ cards: [{ name, scryfall_uri, rulings: [{ source, published_at, comment }] }],
+    unresolved_cards }`. A batch, because Scryfall attaches each ruling to **one** card
+    ([§4.1.5](#415-per-card-rulings)): there is no interaction ruling to look up, so an interaction
+    is answered by reading every card's rulings together.
+  - **Names resolve through [§4.1.2](#412-batch-resolution)'s `POST /cards/collection` first**, the
+    same resolver [CAP-02](#cap-02--combo-discovery)'s `combo_find_deck` uses, so a misspelled name
+    lands in `unresolved_cards` — always present, `[]` when none
+    ([§3.6](#36-error-surface)) — instead of shrinking the answer silently. The combined
+    `Front // Back` trap that section records is handled exactly as `combo_find_deck` handles it: the
+    tool description tells the model to submit **one face name**, and nothing splits the name.
+  - **Then one `GET /cards/{id}/rulings` per distinct resolved card**, sequentially, on Scryfall's
+    10/second lane ([§3.4](#34-rate-limits-are-hard-constraints-not-guidance)). The cap bounds a
+    call at 11 upstream requests; two spellings resolving to one card are fetched once.
+  - **Each ruling keeps its `source` verbatim** (`wotc` is an official Wizards ruling, `scryfall` a
+    Scryfall note), its `published_at` date and its `comment`. Each card carries its `scryfall_uri`
+    as served. **A card with no rulings returns `rulings: []`** — most cards have none, and that is
+    an answer, not a failure.
+  - **Any upstream failure fails the whole call** with that failure unchanged, never a partial
+    answer: a card missing from `cards` because its request failed would read as a card nobody
+    asked about. An over-cap or empty list is a `bad_request` issued before any request. A rulings
+    list reporting `has_more: true` is **reported in a `note`, never paged** — not observed live.
+  - **Live per call, no bulk file, no local state.** [D-07](#d-07--three-way-cache-split) lists
+    `rulings` among its bulk-file corpora; **the author confirmed on 2026-11-15 that D-07's bulk-file
+    rule governs corpora that would otherwise cost thousands of requests, so a capped per-call
+    lookup uses the live `GET /cards/{id}/rulings` endpoint.** D-07 itself is not amended by this
+    reading. A future capability that needs rulings for a corpus — every card in a set, say — falls
+    back under D-07's bulk rule.
+  - Handler never throws ([D-10](#d-10--tool-handlers-never-throw)).
+- **Depends on:** Scryfall `POST /cards/collection` ([§4.1.2](#412-batch-resolution)) and
+  `GET /cards/{id}/rulings` ([§4.1.5](#415-per-card-rulings)). No other capability. Scryfall only —
+  the handler receives the Scryfall client and no other.
+- **Serves via:** `card_rulings`.
+- **Acceptance criteria:**
+  1. `card_rulings` is registered, appears in `tools/list`, and the MCPB manifest declares it.
+  2. More than 10 names is a structured `bad_request` naming the cap, and issues **zero** upstream
+     requests; so does an empty or all-blank list.
+  3. A mixed batch returns every resolved card with its rulings and its `scryfall_uri`, and every
+     unresolved name in `unresolved_cards`; no rulings request is made for an unresolved name.
+  4. Exactly one batch-resolution request, then exactly one rulings request per distinct resolved
+     card.
+  5. Rulings requests route to Scryfall's 10/second lane, not the 2/second card lane.
+  6. Every ruling carries `source`, `published_at` and `comment` verbatim; every card carries
+     `scryfall_uri`.
+  7. A card with no rulings returns `rulings: []`, not a failure.
+  8. A failure from either upstream request is returned unchanged as the call's result; a client
+     that throws, or a body with no `data` array, becomes a structured `unexpected`. The handler
+     never throws.
+  9. The tool description names the 10-name cap, `unresolved_cards`, and the one-face-name rule for
+     `Front // Back`.
+  10. A spaced live check in `npm run acceptance` passes with no 429: two real cards and one
+      invented name in one call return two cards with well-formed rulings and the invented name
+      in `unresolved_cards`.
+- **Open questions:** none.
+- **Delivery note (2026-11-15).** Built test-first on branch `ticket/01-card-rulings` from the
+  ticket [`docs/plans/2026-11-15-mtg-rules-prd/slices/01-card-rulings.md`](./plans/2026-11-15-mtg-rules-prd/slices/01-card-rulings.md).
+  **All ten criteria are verified.** 1–9 by handler, dispatch, client-lane and manifest-drift tests
+  with fakes — 82 suites / 347 tests against a 79 / 330 baseline, typecheck clean; 10 live, with
+  `npm run acceptance` 14/14 and no 429 (Blood Artist 1 ruling, Rest in Peace 3, both `wotc`). The
+  shape was verified first by one spaced probe, recorded in [§4.1.5](#415-per-card-rulings).
+  `resolveNames` now also returns each resolved card's `id` and `scryfall_uri`; its
+  `combo_find_deck` consumer is unchanged. **No `D-` was minted** and [§2](#2-locked-decisions) and
+  [§3](#3-constraints) are untouched.
+
 ---
 
 ## 6. Phases
@@ -2215,6 +2319,17 @@ been built first instead of [CAP-01](#cap-01--card-search).
 and Phase 1 is untouched — it stays complete against
 [CAP-01](#cap-01--card-search)'s criteria 1–14, and criterion 15 stays unscheduled for the
 reasons stated above. Phase 2 is a new phase appended, not a resequencing of the table below.
+
+**[CAP-03](#cap-03--card-rulings) — card rulings — was specified and delivered 2026-11-15 and is
+not assigned a phase.** It was never a row in the table below: it came from the rules-and-rulings
+plan ([`docs/plans/2026-11-15-mtg-rules-prd.md`](./plans/2026-11-15-mtg-rules-prd.md)), which
+leaves phase and slice assignment to the session that schedules the work, and that session has not
+happened. Like [CAP-02](#cap-02--combo-discovery) it needs no credential and **no local
+persistence** — the rulings arrive live per call under the author's reading of
+[D-07](#d-07--three-way-cache-split), recorded inside the block — so it does not touch
+[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced). **This reorders
+nothing**: the Comprehensive Rules lookup row below is unchanged and is still the plan's second
+capability.
 
 **Nine capabilities are queued and unassigned.** Phase assignment happens in the sessions
 that specify them, not here. They are, with the dependencies already visible from [§4](#4-external-dependencies):
@@ -2442,6 +2557,12 @@ plugin side — never a `SessionStart` hook,
 *Resolves by:* unchanged — the tag-discovery capability spec. It should use the
 bundled-manifest-comparison pattern rather than testing for file existence, and read
 `jsonl_download_uri` from the API rather than constructing bulk URLs ([§4.2](#42-scryfall-bulk-data)).
+
+**Unmoved 2026-11-15 by [CAP-03](#cap-03--card-rulings).** [D-07](#d-07--three-way-cache-split)
+names `rulings` as a bulk corpus, so a reader could expect the rulings capability to be the one that
+introduces persistence. It is not: under the author-confirmed reading recorded in that block, a
+capped per-call lookup uses the live endpoint, and CAP-03 stores nothing. All three halves of this
+question stand exactly as above.
 
 ### OQ-04 — What is the behavior and blast radius of Archidekt's write API?
 
@@ -3015,6 +3136,7 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-08-25 | **Track A [Slice 17](./slices/TrackA-Slice17.md) landed `combo_find_deck` and [CAP-02](#cap-02--combo-discovery) is DELIVERED** — `Status` `specified` → `delivered`, all fourteen criteria verified, and [§6](#6-phases)'s Phase 2 entry updated from "not built". The capability gained a dated delivery note; [§4.1.2](#412-batch-resolution) gained a dated addendum recording that a `name` identifier **rejects the combined `Front // Back` form** of a double-faced card while accepting either face alone. [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits), [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) and [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) each gained a dated paragraph and **all three stay open**. No `D-` minted; [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | The three upstream behaviours this tool exists to defeat are all silent, so the shape follows from them rather than from taste: `limit` on `/find-my-combos` **does not prioritize the combos the deck contains**, so the cap is applied after classification and never sent upstream; an unrecognized card name is **ignored with an HTTP 200 and no signal from any endpoint**, which is the only reason the capability touches Scryfall at all; and a request with no deck returns the entire combo corpus as near-misses, so an empty decklist is refused before any call. **The live run substituted a different deck and measured its own raw figure beside its shaped one** rather than comparing a shaped number against [§4.4.1](#441-the-combo-payload-is-enormous--measured)'s 640,684 — the 94-card list there was not recoverable from a captured response, and a cross-deck ratio would have been a number that looks like evidence and is not. The three open questions are recorded as shipped-with-open rather than left silent, because two of them resolve only when a third party replies and the third needs an eval run that a build slice would take badly. |
 | 2026-08-25 | **The Commander Spellbook admins replied — [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) CLOSED, [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) answered for the Commander Spellbook third only, and no code changed.** [§4.4](#44-commander-spellbook) gains a dated addendum carrying the reply: anonymous use sanctioned, *"few http calls per user interaction"*, an explicit request to **refrain from bulk-exporting through the paginated API** with the bulk JSON file named as the sanctioned route instead, and the app-naming `User-Agent` confirmed as the source's own ask. [CAP-02](#cap-02--combo-discovery) gains a dated open-question note; `Status` stays `delivered` and no criterion moved. | **The reply is a usage SHAPE, not a rate, and conflating the two would be the mistake here.** No requests-per-second figure was given and no rate-limit header exists, so [§3.7](#37-undocumented-and-bot-protected-third-party-apis)'s "self-throttle conservatively where no limit is published" is not discharged and **the 500 ms lane does not move** — what changed is that it is now a chosen conservatism against a source known to be friendly rather than a default against one that had said nothing. [OQ-05](#oq-05--do-commander-spellbook-or-archidekt-impose-rate-limits) covers **three** sources and one has answered, so it is not closed; Archidekt and Moxfield are unmoved. [OQ-06](#oq-06--is-commander-spellbooks-combo-data-licensed-as-distinct-from-its-code) closes as **permitted, not licensed**: permission to consume is not a grant to redistribute, and a later capability that stores or ships combo data needs its own ask. The admins recommending `@space-cow-media/spellbook-client` **does not reopen** [D-16](#d-16--no-npm-commander-spellbook-client-dependency) — that decision rested on this codebase's zero-runtime-dependency bundle and its deliberately incomplete wire types, never on doubt about the package, and [§2](#2-locked-decisions) is locked. |
 | 2026-08-25 | **[OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)'s plugin-side half measured against a no-help baseline — and it stays open.** The [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) method run one source over now that [`combo_search`](../src/tools/register.ts) exists ([Slice 16](./slices/TrackA-Slice16.md)): a clean-room subject with no `Skill` tool, 12 cases from [`evals/combo-evals.json`](../evals/combo-evals.json) × two configurations = 24 subagents dispatched one at a time, ~48 sequential live calls, no 429. The `spellbook-combo-craft` skill lifts expectations **37/46 → 45/46** and fully-passed cases **7/12 → 11/12**, flipping four cases (4, 5, 6, 10) fail→pass — each of them either query craft the tool description names no operator for (`result:`, `steps:`, `commander:`, `ci:`) or recovery from a loud upstream 400. It changes **nothing** on tool selection or paging, where the baseline was already correct — the same result [OQ-01](#oq-01--how-should-scryfall-syntax-be-surfaced-to-the-model) reached for [CAP-01](#cap-01--card-search). **Neither half is resolved:** the plugin-side skill-versus-reference choice belongs to [`docs/PLUGIN-PRD.md`](./PLUGIN-PRD.md), and the tool-description half stays open here — now with data pointing at the [`combo_search`](../src/tools/register.ts) description, which names `card:"…"` but not the four operators above, as the strongest lever. **Nothing was implemented and no [CAP-02](#cap-02--combo-discovery), [CAP-01](#cap-01--card-search) or [`PC-01`](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion changed status**; the skill and eval harness are uncommitted working-tree artifacts. Evidence: [`docs/slices/OQ14-combo-eval-results.md`](./slices/OQ14-combo-eval-results.md). | The measurement method [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model)'s 2026-08-24 open-row named could not run until the tool existed, and [Slice 16](./slices/TrackA-Slice16.md) left it explicitly un-run; running it turns *concrete* into *evidenced* without spending the question. Recorded as a measurement rather than an answer because [OQ-14](#oq-14--how-should-commander-spellbook-query-syntax-be-surfaced-to-the-model) asks for a decision — enrich the description, keep the skill, or both — and the data informs that decision without being it: the case-10 recovery loop and the zero-match-as-success handling are the part a one-line schema description cannot absorb, so the skill is not made redundant even under the richest description the data argues for. |
+| 2026-11-15 | **[CAP-03](#cap-03--card-rulings) — card rulings — appended, specified and delivered in one session.** A `card_rulings` tool takes up to 10 card names, resolves them through [§4.1.2](#412-batch-resolution), issues one `GET /cards/{id}/rulings` per distinct resolved card on the 10/second lane, and returns each ruling's `source`, `published_at` and `comment` with each card's `scryfall_uri` and a required `unresolved_cards`. Added [§4.1.5](#415-per-card-rulings) as a dated **verified** record of the rulings response shape from one spaced live probe; `source: "scryfall"` was not observed and stays documented-only. All ten criteria verified: tests 330 → 347, suites 79 → 82, typecheck clean, `npm run acceptance` 14/14 with no 429. [§6](#6-phases) records the capability as phase-unassigned; [§7](#7-open-questions) records [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) unmoved. | The rules-and-rulings plan ([`docs/plans/2026-11-15-mtg-rules-prd.md`](./plans/2026-11-15-mtg-rules-prd.md)) ships rulings first because they are stateless. That rests on the **author-confirmed reading of [D-07](#d-07--three-way-cache-split)** (2026-11-15): its bulk-file rule governs corpora that would otherwise cost thousands of requests, so a capped per-call lookup uses the live endpoint. The reading is recorded inside the CAP-03 block and **D-07 is not edited** — [§2](#2-locked-decisions) is locked. The shape was probed before the handler was written because the plan's field names were recalled, not measured. No `D-` minted, [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. |
 
 ---
 
