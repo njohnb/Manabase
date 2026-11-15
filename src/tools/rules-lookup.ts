@@ -36,6 +36,13 @@ export interface RulesLookupData {
   fetched_at: string;
   /** Whole days since `fetched_at`. */
   cache_age_days: number;
+  /** When Wizards' landing page last confirmed this version current (ISO timestamp). */
+  checked_at: string;
+  /**
+   * True when the weekly check against Wizards failed and the cached copy was served as it
+   * stands. Still an answer — `note` says how old and why.
+   */
+  stale: boolean;
   /** Wizards' official dated PDF of that version, else its TXT. Cite this, with the rule number. */
   citation_url: string;
   /** Present only when the model should act. */
@@ -48,14 +55,34 @@ function badRequest(message: string): { ok: false; error: { code: "bad_request";
   return { ok: false, error: { code: "bad_request", message } };
 }
 
-/** The fields every success carries, whichever mode: the version, the cache's age, the citation. */
+function cacheAgeDays(deps: RulesStoreDeps, loaded: CachedRules): number {
+  return Math.max(0, Math.floor((deps.now() - loaded.fetchedAt) / DAY_MS));
+}
+
+/**
+ * The fields every success carries, whichever mode: the version, the cache's age, when it was last
+ * confirmed current, whether that check failed, and the citation.
+ */
 function provenance(deps: RulesStoreDeps, loaded: CachedRules) {
   return {
     cr_effective_date: loaded.index.effectiveDate,
     fetched_at: new Date(loaded.fetchedAt).toISOString(),
-    cache_age_days: Math.max(0, Math.floor((deps.now() - loaded.fetchedAt) / DAY_MS)),
+    cache_age_days: cacheAgeDays(deps, loaded),
+    checked_at: new Date(loaded.checkedAt).toISOString(),
+    stale: loaded.stale,
     citation_url: loaded.citationUrl,
   };
+}
+
+/** A stale copy is always said so, ahead of any mode-specific note. */
+function withStaleNote(deps: RulesStoreDeps, loaded: CachedRules, modeNote: string | undefined): string | undefined {
+  if (!loaded.stale) return modeNote;
+  const stale =
+    `These rules are from the cached ${loaded.index.effectiveDate} version, downloaded ` +
+    `${cacheAgeDays(deps, loaded)} days ago; the weekly check for a newer version failed ` +
+    `(${loaded.staleReason ?? "no reason given"}). Tell the user which version you are citing ` +
+    "and that a newer one may exist.";
+  return modeNote !== undefined ? `${stale} ${modeNote}` : stale;
 }
 
 /**
@@ -92,6 +119,14 @@ function byNumber(deps: RulesStoreDeps, loaded: CachedRules, rule: string): Resu
   if (!found.ok) return found;
 
   const { rules, truncated, next_rule } = found.value;
+  const note = withStaleNote(
+    deps,
+    loaded,
+    next_rule !== undefined
+      ? `Rules under ${rules[0]!.number} were cut at the size budget; ${next_rule} is the ` +
+          "first one omitted. Look up a narrower number to read the rest."
+      : undefined,
+  );
   // (exactOptionalPropertyTypes) optional keys are absent, never `undefined`.
   return {
     ok: true,
@@ -100,13 +135,7 @@ function byNumber(deps: RulesStoreDeps, loaded: CachedRules, rule: string): Resu
       truncated,
       ...(next_rule !== undefined ? { next_rule } : {}),
       ...provenance(deps, loaded),
-      ...(next_rule !== undefined
-        ? {
-            note:
-              `Rules under ${rules[0]!.number} were cut at the size budget; ${next_rule} is the ` +
-              "first one omitted. Look up a narrower number to read the rest.",
-          }
-        : {}),
+      ...(note !== undefined ? { note } : {}),
     },
   };
 }
@@ -116,7 +145,7 @@ function byKeyword(deps: RulesStoreDeps, loaded: CachedRules, query: string): Re
   if (!found.ok) return found;
 
   const { glossary, rules, total_glossary_matches, total_rule_matches, truncated } = found.value;
-  const note =
+  const modeNote =
     total_glossary_matches + total_rule_matches === 0
       ? `No glossary term or rule text contains "${query}". Try the term's singular form, a ` +
         "shorter phrase, or a related term; if you know the rule number, pass `rule` instead."
@@ -125,6 +154,7 @@ function byKeyword(deps: RulesStoreDeps, loaded: CachedRules, query: string): Re
           `glossary entries and ${rules.length} of ${total_rule_matches} matching rules are shown. ` +
           "Narrow the query, or look up a rule number from these results with `rule`."
         : undefined;
+  const note = withStaleNote(deps, loaded, modeNote);
 
   return {
     ok: true,

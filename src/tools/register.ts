@@ -185,7 +185,9 @@ const RULES_LOOKUP_DESCRIPTION =
   "every rule whose text contains it, each with its rule number. Every response carries " +
   "`cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards' " +
   "official dated document: cite the rule number and that version. The rules are downloaded " +
-  "from Wizards on first use and cached. Subrule letters skip l and o; an unknown number is " +
+  "from Wizards on first use, cached, and checked for a newer version weekly; `stale: true` " +
+  "means that check failed and the cached version was served, so say which version you cite. " +
+  "Subrule letters skip l and o; an unknown number is " +
   "reported, not guessed, and a query with no match is an empty result. Results are cut at a " +
   "size budget and `truncated` says so: for a rule, `next_rule` names the first one omitted; for " +
   "a query, the totals count every match — narrow it, or look up a number from the results.";

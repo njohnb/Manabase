@@ -549,6 +549,37 @@ unchanged), no `D-` was minted, no `PC` criterion changed status, and the plugin
 deliberately not bumped — the CI bump job writes it on the PR to `main`. The table below still
 carries pre-ticket figures.
 
+**Unscheduled work, 2026-11-15 — ticket 04 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[weekly CR refresh and cached-copy fallback](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md),
+landed as `a9378e4` (code) and `8aeddbc` (docs) on `ticket/04-rules-refresh`; unmerged, no PR.**
+Not a slice in this document and given no slice number. It builds
+[`MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup)'s criterion 11, **verified
+2026-11-15 by unit tests with a fake clock and fake I/O, not live** — a failed check cannot be
+provoked honestly. A copy checked under seven days ago makes no request; at seven or more, one
+landing-page request, a re-download only on a changed date stamp, and any failed check serves the
+cache as a success marked `stale`. Nothing runs at startup and no hook ships, which answers
+[`PLUGIN-PRD.md` PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)
+in practice **for the CR cache only**;
+[OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)
+stays open for tag discovery. Criterion 10 (ticket 03) is still not built, so `Status` stays
+`specified`. Evidence: `npm test` **425 tests, 105 suites**, typecheck clean, `dist/` rebuilt,
+`npm run lint:docs` OK, `npm run acceptance:rules` **11/11 live** (one check added), two Wizards
+requests and no Scryfall call. No `D-` or `P-` was minted, no `PC` criterion changed status, and
+the plugin version was not bumped on the ticket branch — the PR's bump job writes it.
+
+**Post-merge 2026-11-15: [`MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup)
+is delivered.** `feat/mtg-rules`, which carries ticket 03, was merged into `ticket/04-rules-refresh`
+as `160abd4`. With criteria 10 and 11 on one branch, all thirteen are verified and `Status` moved
+`specified` → `delivered`. This supersedes the "`Status` stays `specified`" in both ticket
+paragraphs above, which are left as written. `Phase` stays unassigned, so nothing in
+[§4](#4-phase-1-slices), [§5](#5-order-and-parallelism) or [§7](#7-phase-2-slices--combo-discovery)
+moves. Merged-branch evidence: `npm test` **450 tests, 110 suites**, including one merge test for a
+stale keyword query; typecheck clean; `dist/` rebuilt; `npm run lint:docs` OK;
+`npm run acceptance:rules` **18/18 live**, Wizards contacted exactly twice and Scryfall never.
+Unmerged to `main`, no PR, no release, and the plugin version is not bumped. No open question moved
+and no `PC` criterion changed status.
+
 **Unscheduled work, 2026-11-15 — ticket 05 of the
 [MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
 [the `mtg-rules` skill](./plans/2026-11-15-mtg-rules-prd/slices/05-mtg-rules-skill.md), landed as

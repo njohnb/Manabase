@@ -2270,7 +2270,7 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
 
 ### CAP-04 — Comprehensive Rules lookup
 
-- **Status:** specified
+- **Status:** delivered (2026-11-15)
 - **Phase:** unassigned
 - **User need:** When I ask how a rule works, I want the Comprehensive Rules' actual text with its
   rule number and the version it came from, and a link to Wizards' own document, so I can trust the
@@ -2348,6 +2348,23 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
     landing page is re-checked at most once every seven days, the CR is re-downloaded only when
     the date stamp changed, and on any failure the cached copy is served with its age and a
     `stale` flag.
+  - **Built 2026-11-15 (plan
+    [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md),
+    `a9378e4`) — this supersedes "not yet built" in the bullet above, which is left as written.** A
+    copy checked fewer than seven days ago is served with no request; at seven or more, one
+    landing-page `GET`, a re-download only when the date stamp changed, and an unchanged stamp
+    records a new check time and nothing else. A failed revalidation — Wizards unreachable, a 401 or
+    403, no dated `.txt` link, or a changed stamp whose download fails or does not parse — serves
+    the cached copy as a **success** with `stale: true` and its reason, and the check time does not
+    move; a first run with no cache that cannot download is still a structured failure. Each
+    version is cached as `<cacheDir>/rules/cr-<YYYYMMDD>.txt` (ticket 02 wrote `cr.txt`), the
+    metadata is switched to the new file **last** and the replaced TXT removed best-effort after,
+    and the Node adapter writes through a temp file renamed into place, so a torn write never
+    replaces a good copy. A ticket-02 cache (`cr.txt`, no check time) is still read, its download
+    time standing in as its check time. Every success now also carries `checked_at` and `stale`,
+    and a stale answer carries a `note` naming the cached version, its age and the failure reason.
+    Nothing runs at startup and no hook exists
+    ([`docs/PLUGIN-PRD.md` PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)).
 - **Depends on:** Wizards of the Coast's CR landing page and dated TXT
   ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)); the resolved cache directory
   ([OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s location
@@ -2396,7 +2413,11 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
       successful empty result.
   11. The landing page is revalidated at most once every seven days, the CR is re-downloaded only
       when the stamp changed, and a failed revalidation serves the cache with `stale` and its age.
-      **Not implemented.**
+      **Verified 2026-11-15 by unit tests with a fake clock and fake I/O, not live** — the 7-day
+      boundary, an unchanged stamp, a changed stamp, five failed-check cases, a torn write, a
+      legacy cache, and a real-tmpdir test of the Node adapter. The revalidation and stale paths
+      were not exercised live: a real block cannot be provoked honestly
+      ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)), the footing of criterion 7.
   12. The tool is registered, the MCPB manifest declares it, and `dist/` is rebuilt.
       **Verified 2026-11-15.** Re-confirmed after the `query` mode (`4b17ea1`): the manifest
       description is updated and [`tests/manifest.test.ts`](../tests/manifest.test.ts) now checks every manifest tool
@@ -2405,8 +2426,24 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
       once and looks up a known rule, contacting Wizards exactly twice and never Scryfall.
       **Verified 2026-11-15**, 10/10; **17/17** after `4b17ea1` added seven keyword checks, all
       served from the warm cache, Wizards still contacted exactly twice.
+      [Ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md) added
+      one check — a fresh download reports `stale: false` with `checked_at` equal to `fetched_at`
+      — measured **11/11** on its own branch, and **18/18** on 2026-11-15 after merging ticket 03's
+      branch into it; still exactly two Wizards requests and no Scryfall call.
 - **Open questions:** [OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)'s
   "ever" half stays open; the resolver complies with it rather than answering it.
+- **Delivered 2026-11-15, on a branch.** All thirteen criteria are verified once
+  [ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md)'s branch
+  (criterion 10) was merged into
+  [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)'s
+  (criterion 11) as `160abd4`. Criterion 7 rests on mocks and criterion 11 on fakes, both
+  permanently, because a block cannot be provoked live honestly. On the merged branch:
+  `npm test` 450 tests, 110 suites — including one merge test, a keyword `query` on a stale copy
+  carrying `stale` and the stale note — typecheck clean, `dist/` rebuilt, and
+  `npm run acceptance:rules` 18/18 live. The stale note comes before either mode's own note, and
+  `checked_at` and `stale` are on every success in both modes. **Delivered here means built and
+  verified, not released**: nothing is merged to `main` and no bundle carries `rules_lookup`.
+  `Phase` stays unassigned, as [CAP-03](#cap-03--card-rulings)'s did when it was delivered.
 
 ---
 
@@ -2525,6 +2562,17 @@ It is the first capability to hold local state, ahead of tag discovery, which is
 first-run halves were answered by it rather than by tag discovery as that entry expected. Phase
 assignment is left to the session that schedules the remaining work. The table above is otherwise
 unchanged, and no other capability's position moved.
+
+**Updated 2026-11-15: weekly revalidation is now built** (plan
+[ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)), and
+[CAP-04](#cap-04--comprehensive-rules-lookup)'s criterion 11 is verified. Keyword search
+(criterion 10) is still not built, so `Status` stays `specified` and no phase is assigned.
+
+**Post-merge 2026-11-15: [CAP-04](#cap-04--comprehensive-rules-lookup) is delivered.** Ticket
+03's keyword search and ticket 04's revalidation were merged onto one branch (`160abd4`), so all
+thirteen criteria are verified and `Status` moved `specified` → `delivered`. This supersedes the
+"stays `specified`" in the two paragraphs above, which are left as written. No phase is assigned,
+which is the same treatment [CAP-03](#cap-03--card-rulings) got, and the table above is unchanged.
 
 ---
 
@@ -2744,6 +2792,13 @@ persist anything. The text above is left as written. Tag discovery's bulk files 
 corpus with a different update signal (Scryfall's bulk manifest,
 [§4.2](#42-scryfall-bulk-data)), so **this question stays open for tag discovery only**, and the
 bulk-manifest guidance above still applies to that capability.
+
+**Update 2026-11-15: the seven-day check and the stale fallback are built** — plan
+[ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md),
+[CAP-04](#cap-04--comprehensive-rules-lookup) criterion 11, verified by unit tests with a fake
+clock and fake I/O and not live. This supersedes "decided and not yet built" two paragraphs up,
+which is left as written. It implements the CR answer above and answers nothing new: **this
+question stays open for tag discovery.**
 
 ### OQ-04 — What is the behavior and blast radius of Archidekt's write API?
 
@@ -3321,6 +3376,8 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) appended — Comprehensive Rules lookup, `Status` `specified`, phase unassigned — with its rule-number path built.** `rules_lookup` takes `rule` and returns that rule and every rule under it, `cr_effective_date`, `fetched_at`, `cache_age_days` and `citation_url`. Wizards of the Coast joins as a source on **two hosts, one client each**, 500 ms per host; the shared HTTP client gained an optional `Accept` and a text body mode. Criteria **1–9, 12 and 13 verified**, 7 against mocks only and permanently; **10 (keyword `query`) and 11 (seven-day revalidation and the stale fallback) are not implemented**, which is why `Status` stays `specified`. [§6](#6-phases)'s queued-table row now points at the block. [§4.6](#46-comprehensive-rules-wizards-of-the-coast) gains a dated addendum: the 20261106 file, subrule letters past `z` (`704.5aa`), a stray period after `119.1d`, and indented continuation lines. `npm test` 79 suites / 330 tests → 97 / 392; `npm run typecheck` clean; `npm run acceptance:rules` 10/10 live, two Wizards requests and no Scryfall call. No `D-` minted; [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | The two-host question was the one design call the plan left open. One client per host was chosen over a single client with an absolute-URL escape hatch because it is the pattern the server already uses for its other two sources, keeps the `SourceSpec` contract (one base URL) intact, and lets the media client refuse any host it was not built for: the TXT link is scraped from a page, and a scraped URL must not be able to steer a request elsewhere. The budget reuses the combo tools' 50,000 characters because section 7 alone is hundreds of kilobytes and issue #25 already measured what an unbounded payload costs. [OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled) is complied with, not answered: one more single-listing observation is weak evidence about a year of behaviour. |
 | 2026-11-15 | **[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) answered for the Comprehensive Rules cache: its refresh-trigger and first-run halves.** Refresh is lazy (first `rules_lookup` call, never at startup) with the landing page re-checked at most once every seven days; first run blocks on one ~1 MB download, measured at 1,249 ms cold. A dated paragraph corrects the entry's "resolves by tag discovery" expectation without rewriting it. The question **stays open for tag discovery only**. | [CAP-04](#cap-04--comprehensive-rules-lookup) turned out to be the first capability to persist anything, not tag discovery, so the question was answered by the capability that actually needed it. Tag discovery's bulk files are a different corpus with a different update signal (Scryfall's bulk manifest, [§4.2](#42-scryfall-bulk-data)), so an answer for the CR does not transfer to them and the entry is not closed. The seven-day check and the stale fallback are decided here and built later; the cold-cache path is built and verified. |
 | 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) criterion 10 verified — `rules_lookup` gains its keyword `query`** ([ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md), `4b17ea1`). The parser now also reads the glossary; a call takes exactly one of `rule` or `query`; a query returns glossary terms first, then rules by text with their numbers, filled to the 50,000-character budget with both totals and `truncated`. Criterion 4 is **extended** to the glossary rather than a new criterion added; 12 is re-confirmed with a description-level manifest drift check; 13 grew to 17/17 live. The block's behavior bullet saying the query "is not yet built" now describes it. `npm test` 100 suites / 409 tests → 105 / 433; typecheck clean; `npm run acceptance:rules` 17/17 live, Wizards contacted twice, no Scryfall call. **`Status` stays `specified`** — criterion 11 (ticket 04) is not built. No `D-` minted, no open question moved, [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | Glossary-first is the plan's ordering ([`docs/plans/2026-11-15-mtg-rules-prd.md`](./plans/2026-11-15-mtg-rules-prd.md)): a question about a game term wants its definition before the rules that use it. The budget reuses the rule-number path's 50,000 characters, so both modes of one tool share one bound, and a cut is reported through totals, `truncated` and a `note` so it is never silent ([§3.6](#36-error-surface)). Query mode has **no paging or offset by the implementing session's design**, recorded here as built: the totals and the note steer the model to narrow the query instead. The word-boundary start keeps `ward` from matching `toward`. |
+| 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) criterion 11 verified — weekly revalidation and the stale fallback built** (`a9378e4`, plan [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)). A dated bullet appended to the block's behavior records the mechanism; criterion 13's live check re-ran 11/11 with one check added; a dated paragraph in [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) and one in [§6](#6-phases) note the build. `npm test` 425 tests, 105 suites, typecheck clean, `dist/` rebuilt. `Status` stays `specified` because criterion 10 is not built. | The revalidation was decided when the block was appended and is now built, so the "not yet built" texts are superseded by dated notes rather than rewritten. Criterion 11 rests on fakes, like criterion 7: a failed check cannot be provoked live honestly ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)). No open question moved — [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) stays open for tag discovery — no `D-` was minted, and [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-external-dependencies) are untouched. |
+| 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) DELIVERED — `Status` `specified` → `delivered`, all thirteen criteria verified on one branch.** Ticket 03's branch (criterion 10, `4b17ea1`) was merged into ticket 04's (criterion 11, `a9378e4`) as `160abd4`. On the merged branch `npm test` gives 450 tests, 110 suites, with one new merge test for a stale keyword query; typecheck clean; `dist/` rebuilt; `npm run acceptance:rules` 18/18 live, Wizards contacted exactly twice and Scryfall never. A dated delivery bullet was appended to the block and a dated post-merge paragraph to [§6](#6-phases). The "stays `specified`" texts are left as written. `Phase` stays unassigned. | The two missing criteria were built on parallel branches, and each ticket's record correctly said the other was missing. Merging them is the first point at which every criterion holds on one tree, so `Status` moves on the same rule [CAP-03](#cap-03--card-rulings) and [CAP-02](#cap-02--combo-discovery) followed: delivered when every criterion is verified, recorded on the branch, and not the same thing as released. Criteria 7 and 11 rest on mocks and fakes, which is the footing [CAP-01](#cap-01--card-search)'s 429 criterion has. No open question moved, no `D-` was minted, and [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-external-dependencies) are untouched. |
 
 ---
 

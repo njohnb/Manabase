@@ -67,14 +67,16 @@ could not find rather than answering about fewer cards
 ([`docs/MCP-PRD.md` CAP-03](./docs/MCP-PRD.md#cap-03--card-rulings), delivered against all ten of
 its criteria).
 
-**Comprehensive Rules lookup is partly built on a branch, 2026-11-15, and is in nothing you can
+**Comprehensive Rules lookup is built on a branch, 2026-11-15, and is in nothing you can
 install.** A fifth tool, `rules_lookup`, returns a rule by number — `702.19` and every subrule
-under it — with the rules version it came from and a link to Wizards' dated document
-([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), still `specified`). A later
-branch the same day adds search by keyword — ask about "trample" and it returns the
-glossary definition first, then the rules that mention it with their numbers, saying so when a
-broad word matched more than fits in one answer. The weekly check for a newer rules version is not
-built yet.
+under it — with the rules version it came from and a link to Wizards' dated document. It also
+searches by keyword: ask about "trample" and it returns the glossary definition first, then the
+rules that mention it with their numbers, and it tells you when a broad word matches more than
+fits in one answer. Once a week it checks for a newer rules version. If Wizards' site cannot be
+reached, lookups keep answering from the cached copy and say how old it is. All of this is now on
+one branch and the capability is complete
+([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), `delivered`). It is not merged or
+released yet.
 
 **A rules skill was written on a branch, 2026-11-15, and is in nothing you can install.** It
 teaches Claude to answer a rules or card-interaction question by looking it up with those two
@@ -289,7 +291,7 @@ npm run typecheck   # tsc --noEmit
 npm run lint:docs   # every doc link and heading anchor resolves — no network
 npm test            # node --test, with TypeScript stripped at runtime
 npm run acceptance  # 14 live harness checks against real Scryfall — slow on purpose
-npm run acceptance:rules  # 17 live rules-lookup checks — two Wizards requests, no Scryfall
+npm run acceptance:rules  # 18 live rules-lookup checks — two Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -335,7 +337,9 @@ implemented and settled, so the first capability that needs persistence inherits
 
 **Rules lookup is that first capability** (built on a branch 2026-11-15, not yet released). Its
 first call downloads the Comprehensive Rules — about 1 MB — and caches the file under `rules/` in
-that directory; later calls read the cache. Where `${CLAUDE_PLUGIN_DATA}` is not set, the directory is the platform's user cache directory instead (`manabase`
+that directory, as `cr-<date>.txt` beside a small `meta.json`; later calls read the cache. A call
+made seven or more days after the last check asks Wizards whether a newer version exists and
+downloads it only if so; nothing is checked at startup. Where `${CLAUDE_PLUGIN_DATA}` is not set, the directory is the platform's user cache directory instead (`manabase`
 under `%LOCALAPPDATA%` on Windows, `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache`
 elsewhere).
 

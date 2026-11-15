@@ -736,6 +736,7 @@ describe("dispatchToolCall — rules_lookup", () => {
         fs: {
           readText: (p) => Promise.resolve(files.get(p)),
           writeText: (p, t) => { files.set(p, t); return Promise.resolve(); },
+          remove: (p) => { files.delete(p); return Promise.resolve(); },
         },
         now: () => 0,
         cacheDir: "cache-root",

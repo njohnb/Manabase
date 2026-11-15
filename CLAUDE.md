@@ -44,7 +44,7 @@ npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
 npm test            # node --experimental-strip-types --test  (347 tests, 82 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 14 LIVE checks against real Scryfall
-npm run acceptance:rules # scripts/cr-live.mjs — 17 LIVE checks, 2 Wizards requests, no Scryfall
+npm run acceptance:rules # scripts/cr-live.mjs — 18 LIVE checks, 2 Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -67,7 +67,8 @@ src/spellbook/client.ts spec: one 500 ms lane, the Django-REST field-error detai
 src/wizards/client.ts   two text clients, one per Wizards host (site, media), 500 ms lane each
 src/rules/source.ts     resolveCrSource() — newest .txt by date stamp, same-stamp PDF citation
 src/rules/parser.ts     parseRules() — the CR TXT into a RulesIndex, rules plus the glossary
-src/rules/store.ts      ensureRules() — download once, cache under <cacheDir>/rules/, injected fs
+src/rules/store.ts      ensureRules() — download on first use, cache under <cacheDir>/rules/,
+                        revalidate weekly, serve the cache `stale` on failure; injected fs
 src/rules/lookup.ts     lookupRule() — rule plus descendants on a number boundary, 50,000 budget;
                         searchRules() — glossary terms first, then rule text, same budget
 src/scryfall/prices.ts  resolvePrice() — the three price traps
@@ -907,6 +908,31 @@ typecheck clean, `lint:docs` OK, `npm run acceptance:rules` **17/17** live, Wiza
 No open question moved (`OQ-03`, `OQ-08` unmoved), no `D-` minted, plugin version deliberately not
 bumped (the CI bump job writes it on the PR to `main`). The Commands-block test count still keeps
 ticket 01's 347/82, as ticket 02 left it.
+
+**Rules plan ticket 04 (weekly CR refresh and stale fallback) landed 2026-11-15 as `a9378e4` (code)
+and `8aeddbc` (docs) on `ticket/04-rules-refresh` — unmerged, no PR, not a roadmap slice.** `CAP-04`
+criterion 11 is **verified by unit tests with a fake clock and fake I/O, never live** — a failed
+check cannot be provoked honestly. Under 7 days since the last check: no request. At 7+: one
+landing-page GET, re-download only on a changed stamp, an unchanged stamp only moves `checkedAt`.
+**Any failed check serves the cache as a SUCCESS with `stale: true`** and the check time does not
+move; only a first run with no cache stays a failure. Cache files are now `rules/cr-<YYYYMMDD>.txt`,
+`meta.json` switched last, writes go through a renamed temp file, and a ticket-02 `cr.txt` cache is
+still read. Responses gain `checked_at` and `stale`. Nothing at startup, no hook (`PQ-03`, answered
+in practice for the CR only). `OQ-03` stays open for tag discovery; `Status` stays `specified`
+because criterion 10 (ticket 03) is not built. `npm test` **425 tests, 105 suites**, typecheck
+clean, `npm run acceptance:rules` 11/11 live. No `D-`/`P-` minted, no `PC` moved, version not bumped.
+
+**Post-merge 2026-11-15: `CAP-04` is DELIVERED.** `feat/mtg-rules` (ticket 03) was merged into
+`ticket/04-rules-refresh` as `160abd4`, which puts criteria 10 and 11 on one branch. All thirteen
+criteria are now verified and `Status` moved `specified` → `delivered (2026-11-15)`. That supersedes
+the "stays `specified`" in both ticket paragraphs above and the "never write `CAP-04` as delivered"
+in ticket 02's. Criterion 7 rests on mocks and criterion 11 on fakes, both permanently. `Phase`
+stays unassigned, as `CAP-03`'s did. **Delivered is not released**: nothing is on `main`, there is
+no PR, and no bundle carries `rules_lookup`. The stale note comes before either mode's note, and
+`checked_at`/`stale` appear on every success in both modes. Merged branch: `npm test` **450 tests,
+110 suites** (+1 merge test, a stale keyword query), typecheck clean, `dist/` rebuilt, `lint:docs`
+OK, `npm run acceptance:rules` **18/18** live with two Wizards requests. No open question moved. The
+Commands-block count still keeps ticket 01's 347/82.
 
 **Rules plan ticket 05 (the `mtg-rules` skill) landed 2026-11-15 as `b73ec0a` (skill and tests) and
 `e72c440` (PRD block) on `ticket/05-mtg-rules-skill`, based on `feat/mtg-rules` — unmerged, no PR,
