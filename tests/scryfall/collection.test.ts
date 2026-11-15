@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { Result } from "../../src/result.ts";
 import type { HttpClient } from "../../src/http/client.ts";
-import { resolveNames } from "../../src/scryfall/collection.ts";
+import { cleanNames, resolveNames } from "../../src/scryfall/collection.ts";
 
 // Loaded at runtime, like every other suite here: no `resolveJsonModule`, and identical behaviour
 // under type stripping and under the esbuild bundle.
@@ -123,7 +123,7 @@ describe("resolveNames — batching at 75", () => {
     const result = await resolveNames(client, []);
 
     assert.equal(result.ok, true);
-    assert.deepEqual(result.ok && result.value, { resolved: [], unresolved: [], cards: [] });
+    assert.deepEqual(result.ok && result.value, { resolved: [], unresolved: [], cards: [], unhandled: [] });
     assert.equal(calls.length, 0);
   });
 });
@@ -164,6 +164,31 @@ describe("resolveNames — not_found is the whole point", () => {
     });
   });
 
+  test("a matched card with no id or page link is reported in `unhandled`, never dropped", async () => {
+    const { client } = scriptedClient([
+      {
+        ok: true,
+        value: {
+          object: "list",
+          not_found: [],
+          data: [
+            { name: "Sol Ring", id: "s", scryfall_uri: "https://scryfall.com/card/s" },
+            { name: "No Id", scryfall_uri: "https://scryfall.com/card/x" },
+            { name: "No Link", id: "y" },
+          ],
+        },
+      },
+    ]);
+
+    const result = await resolveNames(client, ["Sol Ring", "No Id", "No Link"]);
+
+    assert.ok(result.ok);
+    assert.deepEqual(result.value.cards.map((c) => c.name), ["Sol Ring"]);
+    assert.deepEqual(result.value.unhandled, ["No Id", "No Link"]);
+    assert.deepEqual(result.value.resolved, ["Sol Ring", "No Id", "No Link"], "Scryfall did match them");
+    assert.deepEqual(result.value.unresolved, []);
+  });
+
   test("an empty not_found means every name resolved", async () => {
     const { client } = echoingClient();
 
@@ -199,6 +224,20 @@ describe("resolveNames — not_found is the whole point", () => {
 
     assert.equal(result.ok, true);
     assert.deepEqual(result.ok && result.value.unresolved, ["Fake"]);
+  });
+});
+
+describe("cleanNames — the one input cleaning every resolveNames caller applies", () => {
+  test("trims, drops blanks and non-strings, and leaves quantities and split names as written", () => {
+    assert.deepEqual(
+      cleanNames(["  Sol Ring ", "", "   ", 7, null, "1 Sol Ring", "Fire // Ice"]),
+      ["Sol Ring", "1 Sol Ring", "Fire // Ice"],
+    );
+  });
+
+  test("anything not an array is no names", () => {
+    assert.deepEqual(cleanNames("Sol Ring"), []);
+    assert.deepEqual(cleanNames(undefined), []);
   });
 });
 

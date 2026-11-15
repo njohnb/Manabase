@@ -20,9 +20,31 @@ export interface NameResolution {
   /**
    * The resolved cards' handles, in response order: what CAP-03 needs to request each card's
    * rulings and to link its page. A card object lacking either string is left out here rather than
-   * given an invented handle; its name still appears in `resolved`.
+   * given an invented handle; its name appears in `resolved` and in `unhandled`.
    */
   cards: ResolvedCard[];
+  /**
+   * Names Scryfall MATCHED whose card object carried no `id` or no `scryfall_uri`, so they have no
+   * entry in `cards`. Never dropped silently: a consumer that needs the handle reports these, and
+   * one that needs only the match (combo search) treats them as resolved, which they are.
+   */
+  unhandled: string[];
+}
+
+/**
+ * Trim, and drop entries that name no card: anything not a string, or blank once trimmed. Not
+ * decklist parsing — `"1x Sol Ring"` and `"Front // Back"` pass through as written. The one cleaning
+ * every `resolveNames` caller applies to its input.
+ */
+export function cleanNames(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const names: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") continue;
+    const trimmed = entry.trim();
+    if (trimmed.length > 0) names.push(trimmed);
+  }
+  return names;
 }
 
 export interface ResolvedCard {
@@ -79,6 +101,7 @@ export async function resolveNames(
   const resolved: string[] = [];
   const unresolved: string[] = [];
   const cards: ResolvedCard[] = [];
+  const unhandled: string[] = [];
 
   for (let start = 0; start < names.length; start += BATCH_SIZE) {
     const batch = names.slice(start, start + BATCH_SIZE);
@@ -95,6 +118,8 @@ export async function resolveNames(
       resolved.push(card.name);
       if (typeof card.id === "string" && typeof card.scryfall_uri === "string") {
         cards.push({ name: card.name, id: card.id, scryfall_uri: card.scryfall_uri });
+      } else {
+        unhandled.push(card.name);
       }
     }
     for (const miss of body.not_found) {
@@ -106,5 +131,5 @@ export async function resolveNames(
     }
   }
 
-  return { ok: true, value: { resolved, unresolved, cards } };
+  return { ok: true, value: { resolved, unresolved, cards, unhandled } };
 }

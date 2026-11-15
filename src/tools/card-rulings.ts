@@ -1,6 +1,6 @@
 import type { HttpClient } from "../http/client.ts";
 import type { Result } from "../result.ts";
-import { resolveNames } from "../scryfall/collection.ts";
+import { cleanNames, resolveNames } from "../scryfall/collection.ts";
 import type { ScryfallRulingList } from "../scryfall/types.ts";
 
 export interface CardRulingsParams {
@@ -39,18 +39,6 @@ export interface CardRulingsData {
  * cards; ten leaves room without letting one call fan out into dozens of rulings requests.
  */
 export const MAX_CARDS = 10;
-
-/** Trim, and drop entries that name no card. Not decklist parsing — mirrors `combo-find-deck.ts`. */
-function cleanNames(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  const names: string[] = [];
-  for (const entry of raw) {
-    if (typeof entry !== "string") continue;
-    const trimmed = entry.trim();
-    if (trimmed.length > 0) names.push(trimmed);
-  }
-  return names;
-}
 
 /** No `status` on either refusal: our determination from the parameters, not an HTTP outcome. */
 function emptyFailure(): Result<CardRulingsData> {
@@ -165,11 +153,23 @@ async function fetchRulings(
     });
   }
 
-  const data: CardRulingsData = { cards, unresolved_cards: resolution.value.unresolved };
-  if (truncated.length > 0) {
-    data.note =
-      `Scryfall reported more rulings than it returned for: ${truncated.join(", ")}. Those lists ` +
-      "may be incomplete; the card's Scryfall page carries the full set.";
+  // A card Scryfall matched but returned without a handle cannot have its rulings requested. It is
+  // reported, never dropped: absent from both lists, it would read as answered.
+  const { unhandled } = resolution.value;
+  const data: CardRulingsData = { cards, unresolved_cards: [...resolution.value.unresolved, ...unhandled] };
+  const notes: string[] = [];
+  if (unhandled.length > 0) {
+    notes.push(
+      `Scryfall matched ${unhandled.join(", ")} but returned no card id or page link, so no ` +
+        "rulings could be requested. The name is real; retry, or look the card up on Scryfall.",
+    );
   }
+  if (truncated.length > 0) {
+    notes.push(
+      `Scryfall reported more rulings than it returned for: ${truncated.join(", ")}. Those lists ` +
+        "may be incomplete; the card's Scryfall page carries the full set.",
+    );
+  }
+  if (notes.length > 0) data.note = notes.join(" ");
   return { ok: true, value: data };
 }

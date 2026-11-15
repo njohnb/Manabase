@@ -411,6 +411,16 @@ describe("comboFindDeck — unresolved names are the guard", () => {
     });
   });
 
+  test("a card Scryfall matched but returned without an id or page link is NOT reported unresolved", async () => {
+    // Combo search needs no handle — only that Scryfall knows the name. The echoed card objects
+    // here carry `name` alone, so reporting them would tell the user a real card is a typo.
+    const { clients } = deckBundle();
+
+    const data = unwrap(await comboFindDeck(clients, { cards: DECK }));
+
+    assert.deepEqual(data.unresolved_cards, []);
+  });
+
   test("[requirement 2] unresolved_cards is present and [] on a decklist with no typos", async () => {
     // An absent key would let "we checked and found no typos" and "we did not check" read
     // identically, which MCP-PRD §3.6 forbids.

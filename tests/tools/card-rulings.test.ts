@@ -249,6 +249,23 @@ describe("cardRulings — a mixed batch", () => {
     assert.equal("note" in result.value, false);
   });
 
+  test("a matched card with no id or page link is reported unresolved with a note, never dropped", async () => {
+    const handleless = { name: "Mystery Card" };
+    const { client, gets } = fakeScryfall(
+      { ok: true, value: { object: "list", not_found: [], data: [consultation, handleless] } },
+      { [`/cards/${CONSULTATION_ID}/rulings`]: { ok: true, value: noRulings } },
+    );
+
+    const result = await cardRulings(client, { cards: ["Demonic Consultation", "Mystery Card"] });
+
+    assert.ok(result.ok);
+    assert.deepEqual(result.value.cards.map((c) => c.name), ["Demonic Consultation"]);
+    assert.deepEqual(result.value.unresolved_cards, ["Mystery Card"]);
+    assert.match(result.value.note ?? "", /Mystery Card/);
+    assert.match(result.value.note ?? "", /no card id/i);
+    assert.deepEqual(gets, [`/cards/${CONSULTATION_ID}/rulings`]);
+  });
+
   test("a card resolved twice is requested and reported once", async () => {
     // e.g. "Thassa's Oracle" and "thassa's oracle": Scryfall resolves both to the same card object.
     const { client, gets } = fakeScryfall(
