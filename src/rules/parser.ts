@@ -23,6 +23,11 @@ export interface RulesIndex {
   positions: Map<string, number>;
   /** Every glossary entry in document order (alphabetical in the real file). */
   glossary: GlossaryEntry[];
+  /**
+   * False when the glossary section read as no entries — its format changed. The rules still
+   * parse and still answer by number; a keyword search says the glossary could not be read.
+   */
+  glossaryAvailable: boolean;
 }
 
 const MONTHS = [
@@ -93,9 +98,12 @@ export function parseRules(raw: string): Result<RulesIndex> {
 
   if (rules.length === 0) return shapeChanged("no numbered rules between the contents and the glossary");
 
+  // An unreadable glossary costs keyword search its glossary half, never the rules themselves.
   const glossary = parseGlossary(trimmed, bodyEnd);
-  if (glossary.length === 0) return shapeChanged("no entries under the Glossary heading");
-  return { ok: true, value: { effectiveDate, rules, positions, glossary } };
+  return {
+    ok: true,
+    value: { effectiveDate, rules, positions, glossary, glossaryAvailable: glossary.length > 0 },
+  };
 }
 
 /**

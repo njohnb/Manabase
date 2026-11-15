@@ -145,7 +145,7 @@ function byKeyword(deps: RulesStoreDeps, loaded: CachedRules, query: string): Re
   if (!found.ok) return found;
 
   const { glossary, rules, total_glossary_matches, total_rule_matches, truncated } = found.value;
-  const modeNote =
+  const matchNote =
     total_glossary_matches + total_rule_matches === 0
       ? `No glossary term or rule text contains "${query}". Try the term's singular form, a ` +
         "shorter phrase, or a related term; if you know the rule number, pass `rule` instead."
@@ -154,6 +154,11 @@ function byKeyword(deps: RulesStoreDeps, loaded: CachedRules, query: string): Re
           `glossary entries and ${rules.length} of ${total_rule_matches} matching rules are shown. ` +
           "Narrow the query, or look up a rule number from these results with `rule`."
         : undefined;
+  const glossaryNote = loaded.index.glossaryAvailable
+    ? undefined
+    : "The glossary could not be read from this version of the Comprehensive Rules (its format " +
+      "may have changed), so only rule-text matches are shown.";
+  const modeNote = [glossaryNote, matchNote].filter((n) => n !== undefined).join(" ") || undefined;
   const note = withStaleNote(deps, loaded, modeNote);
 
   return {

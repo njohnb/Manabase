@@ -91,13 +91,25 @@ describe("parseRules — the glossary", () => {
     assert.equal(parsed().glossary.some((entry) => entry.term === "Credits"), false);
   });
 
-  test("a glossary with no entries is a changed shape, not an empty glossary", () => {
+  test("a glossary that reads as no entries keeps the rules and marks the glossary unavailable", () => {
     const at = SYNTHETIC_LINES.lastIndexOf("Glossary");
     const end = SYNTHETIC_LINES.lastIndexOf("Credits");
-    const r = parseRules(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
+    const index = parsed(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
+    assert.equal(index.glossaryAvailable, false);
+    assert.deepEqual(index.glossary, []);
+    assert.deepEqual(numbers(index), numbers(parsed()), "only the glossary changed: every rule still parses");
+  });
+
+  test("a readable glossary is marked available", () => {
+    assert.equal(parsed().glossaryAvailable, true);
+  });
+
+  test("a file with no rules is still a changed shape, whatever the glossary holds", () => {
+    const first = SYNTHETIC_LINES.indexOf("Credits") + 1;
+    const glossary = SYNTHETIC_LINES.lastIndexOf("Glossary");
+    const r = parseRules(syntheticCr([...SYNTHETIC_LINES.slice(0, first), "", ...SYNTHETIC_LINES.slice(glossary)]));
     assert.ok(r.ok === false);
     assert.equal(r.error.code, "unexpected");
-    assert.match(r.error.message, /glossary/i);
   });
 });
 

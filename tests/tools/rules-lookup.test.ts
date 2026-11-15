@@ -200,6 +200,35 @@ describe("rulesLookup — keyword query", () => {
     assert.ok(JSON.stringify(r.value).length <= 50_000, `${JSON.stringify(r.value).length} chars`);
   });
 
+  test("an unreadable glossary: rule-text matches still come back, with a note saying so, and the copy is cached", async () => {
+    const at = SYNTHETIC_LINES.lastIndexOf("Glossary");
+    const end = SYNTHETIC_LINES.lastIndexOf("Credits");
+    const { deps, requests } = harness(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
+
+    const r = await rulesLookup(deps, { query: "trample" });
+
+    assert.ok(r.ok, r.ok ? "" : r.error.message);
+    assert.deepEqual(r.value.glossary, []);
+    assert.deepEqual(r.value.rules.map((e) => e.number), ["702.19", "702.19a", "702.19b", "702.19c"]);
+    assert.match(r.value.note!, /glossary could not be read/i);
+
+    const byNumber = await rulesLookup(deps, { rule: "702.19" });
+    assert.ok(byNumber.ok);
+    assert.equal("note" in byNumber.value, false, "rule-number lookups are unaffected");
+    assert.equal(requests.length, 2, "the copy was cached normally: no second download");
+  });
+
+  test("an unreadable glossary with no rule match still says the glossary could not be read", async () => {
+    const at = SYNTHETIC_LINES.lastIndexOf("Glossary");
+    const end = SYNTHETIC_LINES.lastIndexOf("Credits");
+    const { deps } = harness(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
+
+    const r = await rulesLookup(deps, { query: "banding" });
+
+    assert.ok(r.ok);
+    assert.match(r.value.note!, /glossary could not be read/i);
+  });
+
   test("both rule and query is a bad_request, refused before any download", async () => {
     const { deps, requests } = harness();
 
