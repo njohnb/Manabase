@@ -37,7 +37,7 @@ reading every involved card's rulings side by side, plus the CR rules they rest 
 3. **Check `unresolved_cards`.** A name there is a card you know nothing about. Ask the user to
    correct it, and answer about the resolved cards only after saying which one is missing.
 4. **Look up the rules the answer rests on.** `query` the mechanic or the event (`"dies"`,
-   `"replacement effect"`), then `rule` the number that matters to read its subrules whole.
+   `"cast"`), then `rule` the number that matters to read its subrules whole.
 5. **Answer from the returned text, citing as you go** (format below). Where you connect a ruling
    to a rule, say that the connection is your reading of the two cited sources.
 
