@@ -59,6 +59,7 @@ stay that way — see the rate-limit rule below.
 src/index.ts            entry point — the ONLY module that may read process.env/process.platform
 src/config.ts           resolveConfig(env, platform) — User-Agent, cacheDir, the four base URLs
 src/result.ts           Result<T> = Success<T> | Failure; FailureCode union
+src/budget.ts           BYTE_BUDGET (50,000) — the one response budget, combo tools and rules_lookup
 src/http/client.ts      the one HTTP module: createHttpClient(spec, deps) — headers, lanes,
                         429 backoff, GET and POST, JSON or text body. Everything below is a
                         SourceSpec over it
@@ -68,18 +69,22 @@ src/wizards/client.ts   two text clients, one per Wizards host (site, media), 50
 src/rules/source.ts     resolveCrSource() — newest .txt by date stamp, same-stamp PDF citation
 src/rules/parser.ts     parseRules() — the CR TXT into a RulesIndex, rules plus the glossary
 src/rules/store.ts      ensureRules() — download on first use, cache under <cacheDir>/rules/,
-                        revalidate weekly, serve the cache `stale` on failure; injected fs
+                        revalidate weekly, serve the cache `stale` on failure; injected fs.
+                        createRulesStore(deps) — one per server, shares an in-flight first use;
+                        createNodeRulesFs(instanceTag) — the Node adapter, pid from index.ts
 src/rules/lookup.ts     lookupRule() — rule plus descendants on a number boundary, 50,000 budget;
                         searchRules() — glossary terms first, then rule text, same budget
 src/scryfall/prices.ts  resolvePrice() — the three price traps
 src/scryfall/collection.ts resolveNames() — POST /cards/collection batched at 75; the misses come
-                        back as unresolved names rather than being dropped
+                        back as unresolved names rather than being dropped, and a match with no
+                        id/scryfall_uri comes back in `unhandled`; cleanNames() — trim, drop blanks
 src/scryfall/types.ts   minimal wire shapes; only fields actually read
 src/spellbook/types.ts  wire shapes that OMIT prices and every imageUri* field — the omission is
                         the mechanism: code cannot read a field the type does not declare
 src/spellbook/combos.ts ComboSummary, the normalized shape every later consumer reads, plus
                         resolveFormat over Commander Spellbook's 16 legality keys (NOT Scryfall's
-                        23), and — since Slice 17 — BYTE_BUDGET, ENVELOPE_RESERVE and
+                        23), and — since Slice 17 — BYTE_BUDGET (re-exported from budget.ts),
+                        ENVELOPE_RESERVE and
                         fillPage(summaries, extraReserve = 0), the ONE page budget both combo
                         tools spend
 src/tools/card-search.ts  cardSearch() — query in, shaped CardSearchData out
@@ -948,6 +953,19 @@ New `tests/skills.test.ts` fails any `mcp__…` or `Manabase:…` string under `
 trap is now a red test. The skill teaches `stale` to `CAP-04`'s spec while ticket 04 builds it.
 `npm test` **445 tests, 107 suites** (was 433/105). No open question resolved (`PQ-02` gained an
 addendum, not an answer), no `CAP` criterion moved, no `D-`/`P-` minted, plugin version not bumped.
+
+**Rules plan code-review fixes, 2026-11-15, on `fix/mtg-rules-review` off `feat/mtg-rules` at
+`bca09b8` (`f238d88`…`62fac6f`) — unmerged, no PR, not a slice.** `CAP-04`'s dated "Amended after
+code review" bullet is the record: **a failed check now counts as a check** (Wizards at most once
+per 7 days whatever the outcome; `stale: true` with the recorded reason until a check succeeds;
+`checked_at` stays the last *successful* confirmation) — this supersedes ticket 04's "the check
+time does not move" above. A zero-entry glossary keeps the rules (zero rules still fails); an
+unchanged stamp refreshes the citation URL; concurrent first use shares one download. `CAP-03`:
+a match with no handle is reported in `unresolved_cards`, never dropped; `combo_find_deck`
+deliberately does not report it. The `D-07` citations in `register.ts` were wrong (D-07 is the
+cache split) and are gone. No criterion changed status, no open question moved, no `D-` minted,
+version not bumped. `npm test` **485 tests, 114 suites**; `acceptance:rules` 18/18 live;
+`npm run acceptance` not run. Commands block still keeps 347/82.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
