@@ -526,6 +526,29 @@ figures, and [§6](#6-beyond-phase-1--queued-slice-packs)'s Comprehensive Rules 
 discovery rows predate this work — [`MCP-PRD.md` §6](./MCP-PRD.md#6-phases)'s dated 2026-11-15
 note is the current record.
 
+**Unscheduled work, 2026-11-15 — ticket 03 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[`rules_lookup` by keyword](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md),
+landed as `4b17ea1` on `ticket/03-rules-keyword-search`, based on `feat/mtg-rules`; unmerged, no
+PR, nothing pushed.** Like ticket 02 it is **not a slice in this document** and gets no slice
+number. It verifies [`MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup)
+criterion 10: `rules_lookup` takes exactly one of `rule` or `query`, and a query returns glossary
+terms first, then rule-text matches with their numbers, filled to the same 50,000-character budget
+with both totals and `truncated`; no match is a successful empty result, both-or-neither is a
+`bad_request` before any download. Criterion 4 is extended to the glossary, 12 re-confirmed with a
+description-level manifest drift check, 13 grown to 17/17. **`Status` stays `specified`** —
+criterion 11, the seven-day revalidation and stale fallback
+([ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)), runs in
+parallel and is not built here. Evidence: `npm test` 100 suites / 409 tests → **105 / 433**,
+typecheck clean, `npm run lint:docs` OK, `dist/` rebuilt, and `npm run acceptance:rules`
+([`scripts/cr-live.mjs`](../scripts/cr-live.mjs)) **17/17 live** — Wizards contacted exactly
+twice, no Scryfall call. **No open question moved**
+([OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) and
+[OQ-08](./MCP-PRD.md#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)
+unchanged), no `D-` was minted, no `PC` criterion changed status, and the plugin version was
+deliberately not bumped — the CI bump job writes it on the PR to `main`. The table below still
+carries pre-ticket figures.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
