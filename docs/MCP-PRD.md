@@ -2365,6 +2365,23 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
     and a stale answer carries a `note` naming the cached version, its age and the failure reason.
     Nothing runs at startup and no hook exists
     ([`docs/PLUGIN-PRD.md` PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)).
+  - **Amended 2026-11-15 after code review (branch `fix/mtg-rules-review`) — this supersedes "the
+    check time does not move" in the bullet above and "a glossary with zero entries is a changed
+    shape" in the parser bullet, both left as written.** The author chose this design on
+    2026-11-15. **A failed check counts as a check:** a failed revalidation or re-download records
+    its time and reason in the cache metadata, so Wizards is contacted at most once every seven days
+    whatever the outcome. Until a check succeeds, every lookup serves the cached copy with
+    `stale: true` and the recorded reason; a later successful check clears it. `checked_at` still
+    names the last time Wizards *confirmed* the copy current, which a failure never did. **An
+    unchanged stamp refreshes the citation**: the stored citation URL is re-read from the landing
+    page, so a PDF published after its TXT is picked up without re-downloading the TXT. **A
+    glossary that reads as zero entries no longer fails the parse**: the rules are kept and cached
+    normally, rule-number lookups are unaffected, and a keyword `query` returns rule-text matches
+    with a `note` that the glossary could not be read. A file with zero rules is still a changed
+    shape and is never cached. **Concurrent first use is shared**: one store instance per server
+    holds an in-flight promise, so two simultaneous lookups make one download; the Node adapter's
+    temp-file names carry an injected per-process tag and a per-adapter counter, read from
+    `process` only in `index.ts` ([D-03](#d-03--testability-handlers-callable-as-plain-functions)).
 - **Depends on:** Wizards of the Coast's CR landing page and dated TXT
   ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)); the resolved cache directory
   ([OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)'s location
@@ -2386,7 +2403,10 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
      **Verified 2026-11-15.** **Extended 2026-11-15** ([ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md),
      `4b17ea1`) to the glossary — the term, definition and blank-line pattern including multi-line
      definitions, and a zero-entry glossary failing as a changed shape — verified by unit tests on
-     the synthetic CR. The same criterion, widened; not a new one.
+     the synthetic CR. The same criterion, widened; not a new one. **Amended 2026-11-15**
+     (`fix/mtg-rules-review`): a zero-entry glossary now marks the glossary unavailable and keeps
+     the rules, rather than failing as a changed shape; re-verified by unit tests, including that a
+     file with zero rules still fails.
   5. The first call downloads and caches under the resolved cache directory, and a later call
      makes no request; all I/O is injected ([D-03](#d-03--testability-handlers-callable-as-plain-functions)).
      **Verified 2026-11-15** — unit tests with recording fakes, and live: a second server process
@@ -2418,6 +2438,10 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
       legacy cache, and a real-tmpdir test of the Node adapter. The revalidation and stale paths
       were not exercised live: a real block cannot be provoked honestly
       ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)), the footing of criterion 7.
+      **Amended 2026-11-15** (`fix/mtg-rules-review`): "at most once every seven days" now holds
+      after a failed check too — re-verified by unit tests that a failed check or re-download makes
+      no request for seven days, keeps every lookup stale with the recorded reason, and is cleared
+      by a later successful check, and that an unchanged stamp refreshes the citation URL.
   12. The tool is registered, the MCPB manifest declares it, and `dist/` is rebuilt.
       **Verified 2026-11-15.** Re-confirmed after the `query` mode (`4b17ea1`): the manifest
       description is updated and [`tests/manifest.test.ts`](../tests/manifest.test.ts) now checks every manifest tool
