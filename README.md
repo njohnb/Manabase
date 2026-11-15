@@ -60,6 +60,13 @@ acceptance criteria, closed by
 does not mean:** the work is still on a branch, no new bundle has been released, and the newest
 one — `v0.1.1` — carries `card_search` alone. Nothing installed anywhere has the combo tools today.
 
+**Card rulings — a fourth tool, `card_rulings` — landed 2026-11-15 on a branch and is in no
+release.** Name up to 10 cards and it returns each card's rulings — date, whether the ruling is
+from Wizards or a Scryfall note, and a link to the card's Scryfall page — and lists any name it
+could not find rather than answering about fewer cards
+([`docs/MCP-PRD.md` CAP-03](./docs/MCP-PRD.md#cap-03--card-rulings), delivered against all ten of
+its criteria).
+
 ## Where it runs
 
 Manabase is a Claude Code plugin, and a plugin does not reach every surface the same way. Surface
@@ -238,6 +245,7 @@ docs/
   PLUGIN-PRD.md        what the user installs — packaging, install, skills
   DEV-ROADMAP.md       sequencing only — 17 slices (Phase 1's 1-14, Phase 2's 15-17) and status
   slices/              per-slice specs, and the live acceptance results
+  plans/               plan PRDs and their per-ticket specs
   prompts/             planning prompts for Claude Code sessions
 CLAUDE.md              working agreements for Claude Code sessions in this repo
 ```
@@ -263,7 +271,7 @@ npm run build       # esbuild bundle -> dist/index.js, self-contained
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # every doc link and heading anchor resolves — no network
 npm test            # node --test, with TypeScript stripped at runtime
-npm run acceptance  # 13 live harness checks against real Scryfall — slow on purpose
+npm run acceptance  # 14 live harness checks against real Scryfall — slow on purpose
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 

@@ -42,8 +42,8 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (330 tests, 79 suites)
-npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
+npm test            # node --experimental-strip-types --test  (347 tests, 82 suites)
+npm run acceptance  # scripts/cap01-live.mjs — 14 LIVE checks against real Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -77,6 +77,8 @@ src/tools/card-search.ts  cardSearch() — query in, shaped CardSearchData out
 src/tools/combo-search.ts comboSearch() — one upstream request per call, byte-filled page, offset
 src/tools/combo-find-deck.ts comboFindDeck() — names resolved through Scryfall first, then ONE
                         combo request carrying no limit and no offset; six buckets, capped after
+src/tools/card-rulings.ts cardRulings() (CAP-03) — ≤10 names via resolveNames, then one
+                        GET /cards/{id}/rulings per distinct card on the 10/sec lane
 src/tools/register.ts     tool definitions + dispatchToolCall(clients, name, args) + registerTools
 tests/                  handlers called as plain functions; fixtures under tests/fixtures/
 dist/index.js           committed build output — NOT gitignored
@@ -850,6 +852,17 @@ Phase 1 stays open behind Slice 12's second cold run and Slice 13's remnant, whi
 not close. **The Commands-block header above read `325 tests, 77 suites` and is corrected to
 330/79; the dated records keep their figures.** Evidence:
 `docs/slices/TrackC-Slice19-results.md`.
+
+**`CAP-03` (card rulings) was specified and delivered 2026-11-15 as commit `23adcc4` on
+`ticket/01-card-rulings`** — ticket 01 of the plan `docs/plans/2026-11-15-mtg-rules-prd.md`, not a
+roadmap slice, merging into `feat/mtg-rules`, not `main`. `card_rulings` is the **fourth** tool. All
+ten `CAP-03` criteria verified (tests 330 → 347, suites 79 → 82; acceptance 14/14 live, no 429);
+`Phase` unassigned. It runs live per call under the author-confirmed `D-07` reading recorded in the
+block — `D-07` unedited, `OQ-03` unmoved. Scryfall's `source: "scryfall"` was **not observed** live
+(`MCP-PRD.md` §4.1.5), so never treat `wotc` as the only value. **The plugin version bump was not
+run** — the local tag set lags origin, so it would compute a spent version; it belongs to the
+integration PR to `main`. No open question resolved, no `D-`/`P-` minted, no `PC` criterion moved,
+`PQ-06` unmoved. Ticket 02 (rules lookup by number) is a parallel branch and not done.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
