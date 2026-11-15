@@ -182,7 +182,9 @@ const RULES_LOOKUP_DESCRIPTION =
   "rule (\"702\", \"702.19\") or subrule (\"702.19a\") — and get its text and every rule under " +
   "it. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and " +
   "`citation_url`, Wizards' official dated document: cite the rule number and that version. " +
-  "The rules are downloaded from Wizards on first use and cached. Subrule letters skip l and o; " +
+  "The rules are downloaded from Wizards on first use, cached, and checked for a newer version " +
+  "weekly; `stale: true` means that check failed and the cached version was served, so say " +
+  "which version you cite. Subrule letters skip l and o; " +
   "an unknown number is reported, not guessed. A broad rule is cut at a size budget and " +
   "`next_rule` names the first one omitted.";
 

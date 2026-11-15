@@ -22,6 +22,13 @@ export interface RulesLookupData {
   fetched_at: string;
   /** Whole days since `fetched_at`. */
   cache_age_days: number;
+  /** When Wizards' landing page last confirmed this version current (ISO timestamp). */
+  checked_at: string;
+  /**
+   * True when the weekly check against Wizards failed and the cached copy was served as it
+   * stands. Still an answer — `note` says how old and why.
+   */
+  stale: boolean;
   /** Wizards' official dated PDF of that version, else its TXT. Cite this, with the rule number. */
   citation_url: string;
   /** Present only when the model should act. */
@@ -42,12 +49,28 @@ export async function rulesLookup(
 
   const loaded = await ensureRules(deps);
   if (!loaded.ok) return loaded;
-  const { index, citationUrl, fetchedAt } = loaded.value;
+  const { index, citationUrl, fetchedAt, checkedAt, stale, staleReason } = loaded.value;
 
   const found = lookupRule(index, params.rule);
   if (!found.ok) return found;
 
   const { rules, truncated, next_rule } = found.value;
+  const cacheAgeDays = Math.max(0, Math.floor((deps.now() - fetchedAt) / DAY_MS));
+  const notes = [
+    ...(stale
+      ? [
+          `These rules are from the cached ${index.effectiveDate} version, downloaded ${cacheAgeDays} days ago; ` +
+            `the weekly check for a newer version failed (${staleReason ?? "no reason given"}). ` +
+            "Tell the user which version you are citing and that a newer one may exist.",
+        ]
+      : []),
+    ...(next_rule !== undefined
+      ? [
+          `Rules under ${rules[0]!.number} were cut at the size budget; ${next_rule} is the ` +
+            "first one omitted. Look up a narrower number to read the rest.",
+        ]
+      : []),
+  ];
   // (exactOptionalPropertyTypes) optional keys are absent, never `undefined`.
   return {
     ok: true,
@@ -57,15 +80,11 @@ export async function rulesLookup(
       ...(next_rule !== undefined ? { next_rule } : {}),
       cr_effective_date: index.effectiveDate,
       fetched_at: new Date(fetchedAt).toISOString(),
-      cache_age_days: Math.max(0, Math.floor((deps.now() - fetchedAt) / DAY_MS)),
+      cache_age_days: cacheAgeDays,
+      checked_at: new Date(checkedAt).toISOString(),
+      stale,
       citation_url: citationUrl,
-      ...(next_rule !== undefined
-        ? {
-            note:
-              `Rules under ${rules[0]!.number} were cut at the size budget; ${next_rule} is the ` +
-              "first one omitted. Look up a narrower number to read the rest.",
-          }
-        : {}),
+      ...(notes.length > 0 ? { note: notes.join(" ") } : {}),
     },
   };
 }

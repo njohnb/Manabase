@@ -16478,7 +16478,7 @@ function lookupRule(index, input) {
 }
 
 // src/rules/store.ts
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 // src/rules/parser.ts
@@ -16579,17 +16579,33 @@ function resolveCrSource(html, pageUrl) {
 }
 
 // src/rules/store.ts
+var REVALIDATE_AFTER_MS = 7 * 864e5;
 var LANDING_PATH = "/en/rules";
 var nodeRulesFs = {
   readText: (path) => readFile(path, "utf8").catch(() => void 0),
   writeText: async (path, text) => {
     await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, text, "utf8");
-  }
+    const temp = `${path}.${process.pid}.tmp`;
+    try {
+      await writeFile(temp, text, "utf8");
+      await rename(temp, path);
+    } catch (err) {
+      await rm(temp, { force: true }).catch(() => void 0);
+      throw err;
+    }
+  },
+  remove: (path) => rm(path, { force: true })
 };
-function paths(cacheDir) {
-  const dir = join(cacheDir, "rules");
-  return { txt: join(dir, "cr.txt"), meta: join(dir, "meta.json") };
+var LEGACY_TXT = "cr.txt";
+var TXT_FILE = /^cr(-\d{8})?\.txt$/;
+function rulesDir(cacheDir) {
+  return join(cacheDir, "rules");
+}
+function metaPath(cacheDir) {
+  return join(rulesDir(cacheDir), "meta.json");
+}
+function txtFileFor(dateStamp) {
+  return `cr-${dateStamp}.txt`;
 }
 function readMeta(text) {
   if (text === void 0) return void 0;
@@ -16597,35 +16613,52 @@ function readMeta(text) {
     const meta2 = JSON.parse(text);
     if (typeof meta2.citationUrl !== "string" || typeof meta2.fetchedAt !== "string") return void 0;
     if (!Number.isFinite(Date.parse(meta2.fetchedAt))) return void 0;
+    if (meta2.txtFile !== void 0 && !TXT_FILE.test(meta2.txtFile)) return void 0;
     return meta2;
   } catch {
     return void 0;
   }
 }
 async function fromCache(deps) {
-  const { txt, meta: meta2 } = paths(deps.cacheDir);
-  const cachedMeta = readMeta(await deps.fs.readText(meta2));
+  const cachedMeta = readMeta(await deps.fs.readText(metaPath(deps.cacheDir)));
   if (cachedMeta === void 0) return void 0;
-  const text = await deps.fs.readText(txt);
+  const text = await deps.fs.readText(join(rulesDir(deps.cacheDir), cachedMeta.txtFile ?? LEGACY_TXT));
   if (text === void 0) return void 0;
   const parsed = parseRules(text);
   if (!parsed.ok) return void 0;
-  return { index: parsed.value, citationUrl: cachedMeta.citationUrl, fetchedAt: Date.parse(cachedMeta.fetchedAt) };
+  const fetchedAt = Date.parse(cachedMeta.fetchedAt);
+  const checked = cachedMeta.checkedAt !== void 0 ? Date.parse(cachedMeta.checkedAt) : NaN;
+  return {
+    meta: cachedMeta,
+    rules: {
+      index: parsed.value,
+      citationUrl: cachedMeta.citationUrl,
+      fetchedAt,
+      checkedAt: Number.isFinite(checked) ? checked : fetchedAt,
+      stale: false
+    }
+  };
 }
 function downloadFailure(failure) {
   const refused = failure.error.status === 401 || failure.error.status === 403;
   const message = `Could not download the Comprehensive Rules: ${failure.error.message}` + (refused ? " Wizards of the Coast refused the request. That is reported, not worked around (MCP-PRD \xA73.7)." : "");
   return { ok: false, error: { ...failure.error, message } };
 }
-async function download(deps) {
+async function readLanding(deps) {
   const page = await deps.site.get(LANDING_PATH);
   if (!page.ok) return downloadFailure(page);
   if (typeof page.value !== "string") {
     return { ok: false, error: { code: "unexpected", message: "The Wizards rules page returned no text body." } };
   }
-  const source = resolveCrSource(page.value, `${deps.siteBaseUrl}${LANDING_PATH}`);
+  return resolveCrSource(page.value, `${deps.siteBaseUrl}${LANDING_PATH}`);
+}
+async function download(deps) {
+  const source = await readLanding(deps);
   if (!source.ok) return source;
-  const txtUrl = new URL(source.value.txtUrl);
+  return fetchFile(deps, source.value);
+}
+async function fetchFile(deps, source, previous) {
+  const txtUrl = new URL(source.txtUrl);
   if (txtUrl.origin !== new URL(deps.mediaBaseUrl).origin) {
     return {
       ok: false,
@@ -16643,25 +16676,56 @@ async function download(deps) {
   const parsed = parseRules(file.value);
   if (!parsed.ok) return parsed;
   const fetchedAt = deps.now();
+  const txtFile = txtFileFor(source.dateStamp);
   const meta2 = {
-    dateStamp: source.value.dateStamp,
-    txtUrl: source.value.txtUrl,
-    citationUrl: source.value.citationUrl,
-    fetchedAt: new Date(fetchedAt).toISOString()
+    dateStamp: source.dateStamp,
+    txtUrl: source.txtUrl,
+    citationUrl: source.citationUrl,
+    fetchedAt: new Date(fetchedAt).toISOString(),
+    checkedAt: new Date(fetchedAt).toISOString(),
+    txtFile
   };
-  const { txt, meta: metaPath } = paths(deps.cacheDir);
+  const dir = rulesDir(deps.cacheDir);
+  let switched = false;
   try {
-    await deps.fs.writeText(txt, file.value);
-    await deps.fs.writeText(metaPath, JSON.stringify(meta2));
+    await deps.fs.writeText(join(dir, txtFile), file.value);
+    await deps.fs.writeText(metaPath(deps.cacheDir), JSON.stringify(meta2));
+    switched = true;
   } catch {
   }
-  return { ok: true, value: { index: parsed.value, citationUrl: source.value.citationUrl, fetchedAt } };
+  const replaced = previous?.txtFile ?? (previous !== void 0 ? LEGACY_TXT : void 0);
+  if (switched && replaced !== void 0 && replaced !== txtFile) {
+    await deps.fs.remove(join(dir, replaced)).catch(() => void 0);
+  }
+  return {
+    ok: true,
+    value: { index: parsed.value, citationUrl: source.citationUrl, fetchedAt, checkedAt: fetchedAt, stale: false }
+  };
+}
+function staleCopy(cached2, failure) {
+  return { ok: true, value: { ...cached2.rules, stale: true, staleReason: failure.error.message } };
+}
+async function revalidate(deps, cached2) {
+  const source = await readLanding(deps);
+  if (!source.ok) return staleCopy(cached2, source);
+  if (source.value.dateStamp !== cached2.meta.dateStamp) {
+    const fresh = await fetchFile(deps, source.value, cached2.meta);
+    return fresh.ok ? fresh : staleCopy(cached2, fresh);
+  }
+  const checkedAt = deps.now();
+  const meta2 = { ...cached2.meta, checkedAt: new Date(checkedAt).toISOString() };
+  try {
+    await deps.fs.writeText(metaPath(deps.cacheDir), JSON.stringify(meta2));
+  } catch {
+  }
+  return { ok: true, value: { ...cached2.rules, checkedAt } };
 }
 async function ensureRules(deps) {
   try {
     const cached2 = await fromCache(deps);
-    if (cached2 !== void 0) return { ok: true, value: cached2 };
-    return await download(deps);
+    if (cached2 === void 0) return await download(deps);
+    if (deps.now() - cached2.rules.checkedAt < REVALIDATE_AFTER_MS) return { ok: true, value: cached2.rules };
+    return await revalidate(deps, cached2);
   } catch (err) {
     return {
       ok: false,
@@ -16679,10 +16743,19 @@ async function rulesLookup(deps, params) {
   if (normalizeRuleNumber(params.rule) === void 0) return notARuleNumber(params.rule);
   const loaded = await ensureRules(deps);
   if (!loaded.ok) return loaded;
-  const { index, citationUrl, fetchedAt } = loaded.value;
+  const { index, citationUrl, fetchedAt, checkedAt, stale, staleReason } = loaded.value;
   const found = lookupRule(index, params.rule);
   if (!found.ok) return found;
   const { rules, truncated, next_rule } = found.value;
+  const cacheAgeDays = Math.max(0, Math.floor((deps.now() - fetchedAt) / DAY_MS));
+  const notes = [
+    ...stale ? [
+      `These rules are from the cached ${index.effectiveDate} version, downloaded ${cacheAgeDays} days ago; the weekly check for a newer version failed (${staleReason ?? "no reason given"}). Tell the user which version you are citing and that a newer one may exist.`
+    ] : [],
+    ...next_rule !== void 0 ? [
+      `Rules under ${rules[0].number} were cut at the size budget; ${next_rule} is the first one omitted. Look up a narrower number to read the rest.`
+    ] : []
+  ];
   return {
     ok: true,
     value: {
@@ -16691,11 +16764,11 @@ async function rulesLookup(deps, params) {
       ...next_rule !== void 0 ? { next_rule } : {},
       cr_effective_date: index.effectiveDate,
       fetched_at: new Date(fetchedAt).toISOString(),
-      cache_age_days: Math.max(0, Math.floor((deps.now() - fetchedAt) / DAY_MS)),
+      cache_age_days: cacheAgeDays,
+      checked_at: new Date(checkedAt).toISOString(),
+      stale,
       citation_url: citationUrl,
-      ...next_rule !== void 0 ? {
-        note: `Rules under ${rules[0].number} were cut at the size budget; ${next_rule} is the first one omitted. Look up a narrower number to read the rest.`
-      } : {}
+      ...notes.length > 0 ? { note: notes.join(" ") } : {}
     }
   };
 }
@@ -16769,7 +16842,7 @@ var CARD_RULINGS_INPUT_SCHEMA = {
 };
 var CARD_SEARCH_TOOL_NAME = "card_search";
 var CARD_RULINGS_TOOL_NAME = "card_rulings";
-var RULES_LOOKUP_DESCRIPTION = 'Look up a rule in the Magic: The Gathering Comprehensive Rules by number \u2014 a section ("7"), rule ("702", "702.19") or subrule ("702.19a") \u2014 and get its text and every rule under it. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards\' official dated document: cite the rule number and that version. The rules are downloaded from Wizards on first use and cached. Subrule letters skip l and o; an unknown number is reported, not guessed. A broad rule is cut at a size budget and `next_rule` names the first one omitted.';
+var RULES_LOOKUP_DESCRIPTION = 'Look up a rule in the Magic: The Gathering Comprehensive Rules by number \u2014 a section ("7"), rule ("702", "702.19") or subrule ("702.19a") \u2014 and get its text and every rule under it. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards\' official dated document: cite the rule number and that version. The rules are downloaded from Wizards on first use, cached, and checked for a newer version weekly; `stale: true` means that check failed and the cached version was served, so say which version you cite. Subrule letters skip l and o; an unknown number is reported, not guessed. A broad rule is cut at a size budget and `next_rule` names the first one omitted.';
 var RULES_LOOKUP_INPUT_SCHEMA = {
   type: "object",
   properties: {

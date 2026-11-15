@@ -25,6 +25,7 @@ function memoryFs(): RulesFs {
   return {
     readText: (path) => Promise.resolve(files.get(path)),
     writeText: (path, text) => { files.set(path, text); return Promise.resolve(); },
+    remove: (path) => { files.delete(path); return Promise.resolve(); },
   };
 }
 
@@ -97,6 +98,40 @@ describe("rulesLookup — rule 702.19", () => {
     assert.equal(r.value.truncated, true);
     assert.equal(r.value.next_rule, "702.19c");
     assert.match(r.value.note!, /702\.19c/);
+  });
+});
+
+describe("rulesLookup — the weekly check and the stale copy", () => {
+  test("a fresh answer reports stale: false, when it was last checked, and no note", async () => {
+    const { deps } = harness();
+
+    const r = await rulesLookup(deps, { rule: "702.19" });
+
+    assert.ok(r.ok);
+    assert.equal(r.value.stale, false);
+    assert.equal(r.value.checked_at, "2026-11-10T00:00:00.000Z");
+    assert.equal("note" in r.value, false);
+  });
+
+  test("when Wizards is unreachable at the weekly check, the cached rules are served stale with their age", async () => {
+    const { deps, setNow } = harness();
+    await rulesLookup(deps, { rule: "702.19" });
+
+    setNow(DOWNLOADED_AT + 9 * DAY);
+    deps.site = {
+      get: () => Promise.resolve({ ok: false, error: { code: "network", message: "Could not reach Wizards of the Coast: ENOTFOUND" } }),
+      post: () => Promise.reject(new Error("no POST")),
+    };
+    const r = await rulesLookup(deps, { rule: "702.19" });
+
+    assert.ok(r.ok, r.ok ? "" : r.error.message);
+    assert.equal(r.value.stale, true);
+    assert.equal(r.value.cr_effective_date, "2026-11-06");
+    assert.equal(r.value.cache_age_days, 9);
+    assert.equal(r.value.checked_at, "2026-11-10T00:00:00.000Z");
+    assert.match(r.value.note!, /2026-11-06/);
+    assert.match(r.value.note!, /9 days/);
+    assert.match(r.value.note!, /ENOTFOUND/);
   });
 });
 

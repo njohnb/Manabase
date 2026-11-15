@@ -111,8 +111,11 @@ try {
       check("cr_effective_date is an ISO date", /^\d{4}-\d{2}-\d{2}$/.test(d.cr_effective_date), d.cr_effective_date);
       check("citation_url is Wizards' dated document on media.wizards.com", /^https:\/\/media\.wizards\.com\/.+MagicCompRules%20\d{8}\.(pdf|txt)$/.test(d.citation_url), d.citation_url);
       check("cache_age_days is 0 on a fresh download", d.cache_age_days === 0);
+      check("a fresh download is not stale, and was checked when it was fetched", d.stale === false && d.checked_at === d.fetched_at, `stale ${d.stale}, checked_at ${d.checked_at}`);
     }
-    const txt = join(cacheDir, "rules", "cr.txt");
+    // One TXT per date stamp (CAP-04's revalidation), named from the citation's own stamp.
+    const stamp = /MagicCompRules%20(\d{8})\./.exec(first?.data.citation_url ?? "")?.[1];
+    const txt = join(cacheDir, "rules", `cr-${stamp}.txt`);
     check("the CR is cached under the resolved cache directory", existsSync(txt) && existsSync(join(cacheDir, "rules", "meta.json")), existsSync(txt) ? `${statSync(txt).size} bytes` : "missing");
   } finally {
     one.close();
