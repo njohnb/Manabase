@@ -67,15 +67,16 @@ could not find rather than answering about fewer cards
 ([`docs/MCP-PRD.md` CAP-03](./docs/MCP-PRD.md#cap-03--card-rulings), delivered against all ten of
 its criteria).
 
-**Comprehensive Rules lookup is partly built on a branch, 2026-11-15, and is in nothing you can
+**Comprehensive Rules lookup is built on a branch, 2026-11-15, and is in nothing you can
 install.** A fifth tool, `rules_lookup`, returns a rule by number — `702.19` and every subrule
-under it — with the rules version it came from and a link to Wizards' dated document
-([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), still `specified`). A later
-branch the same day adds search by keyword — ask about "trample" and it returns the
-glossary definition first, then the rules that mention it with their numbers, saying so when a
-broad word matched more than fits in one answer. Another branch adds the weekly check for a newer
-rules version: if Wizards' site cannot be reached, lookups keep answering from the cached copy and
-say how old it is.
+under it — with the rules version it came from and a link to Wizards' dated document. It also
+searches by keyword: ask about "trample" and it returns the glossary definition first, then the
+rules that mention it with their numbers, and it tells you when a broad word matches more than
+fits in one answer. Once a week it checks for a newer rules version. If Wizards' site cannot be
+reached, lookups keep answering from the cached copy and say how old it is. All of this is now on
+one branch and the capability is complete
+([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), `delivered`). It is not merged or
+released yet.
 
 ## Where it runs
 

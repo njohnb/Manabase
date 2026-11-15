@@ -908,6 +908,7 @@ typecheck clean, `lint:docs` OK, `npm run acceptance:rules` **17/17** live, Wiza
 No open question moved (`OQ-03`, `OQ-08` unmoved), no `D-` minted, plugin version deliberately not
 bumped (the CI bump job writes it on the PR to `main`). The Commands-block test count still keeps
 ticket 01's 347/82, as ticket 02 left it.
+
 **Rules plan ticket 04 (weekly CR refresh and stale fallback) landed 2026-11-15 as `a9378e4` (code)
 and `8aeddbc` (docs) on `ticket/04-rules-refresh` — unmerged, no PR, not a roadmap slice.** `CAP-04`
 criterion 11 is **verified by unit tests with a fake clock and fake I/O, never live** — a failed
@@ -920,6 +921,18 @@ still read. Responses gain `checked_at` and `stale`. Nothing at startup, no hook
 in practice for the CR only). `OQ-03` stays open for tag discovery; `Status` stays `specified`
 because criterion 10 (ticket 03) is not built. `npm test` **425 tests, 105 suites**, typecheck
 clean, `npm run acceptance:rules` 11/11 live. No `D-`/`P-` minted, no `PC` moved, version not bumped.
+
+**Post-merge 2026-11-15: `CAP-04` is DELIVERED.** `feat/mtg-rules` (ticket 03) was merged into
+`ticket/04-rules-refresh` as `160abd4`, which puts criteria 10 and 11 on one branch. All thirteen
+criteria are now verified and `Status` moved `specified` → `delivered (2026-11-15)`. That supersedes
+the "stays `specified`" in both ticket paragraphs above and the "never write `CAP-04` as delivered"
+in ticket 02's. Criterion 7 rests on mocks and criterion 11 on fakes, both permanently. `Phase`
+stays unassigned, as `CAP-03`'s did. **Delivered is not released**: nothing is on `main`, there is
+no PR, and no bundle carries `rules_lookup`. The stale note comes before either mode's note, and
+`checked_at`/`stale` appear on every success in both modes. Merged branch: `npm test` **450 tests,
+110 suites** (+1 merge test, a stale keyword query), typecheck clean, `dist/` rebuilt, `lint:docs`
+OK, `npm run acceptance:rules` **18/18** live with two Wizards requests. No open question moved. The
+Commands-block count still keeps ticket 01's 347/82.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions

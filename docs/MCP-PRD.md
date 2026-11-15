@@ -2270,7 +2270,7 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
 
 ### CAP-04 — Comprehensive Rules lookup
 
-- **Status:** specified
+- **Status:** delivered (2026-11-15)
 - **Phase:** unassigned
 - **User need:** When I ask how a rule works, I want the Comprehensive Rules' actual text with its
   rule number and the version it came from, and a link to Wizards' own document, so I can trust the
@@ -2432,6 +2432,18 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
       branch into it; still exactly two Wizards requests and no Scryfall call.
 - **Open questions:** [OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)'s
   "ever" half stays open; the resolver complies with it rather than answering it.
+- **Delivered 2026-11-15, on a branch.** All thirteen criteria are verified once
+  [ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md)'s branch
+  (criterion 10) was merged into
+  [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)'s
+  (criterion 11) as `160abd4`. Criterion 7 rests on mocks and criterion 11 on fakes, both
+  permanently, because a block cannot be provoked live honestly. On the merged branch:
+  `npm test` 450 tests, 110 suites — including one merge test, a keyword `query` on a stale copy
+  carrying `stale` and the stale note — typecheck clean, `dist/` rebuilt, and
+  `npm run acceptance:rules` 18/18 live. The stale note comes before either mode's own note, and
+  `checked_at` and `stale` are on every success in both modes. **Delivered here means built and
+  verified, not released**: nothing is merged to `main` and no bundle carries `rules_lookup`.
+  `Phase` stays unassigned, as [CAP-03](#cap-03--card-rulings)'s did when it was delivered.
 
 ---
 
@@ -2555,6 +2567,12 @@ unchanged, and no other capability's position moved.
 [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)), and
 [CAP-04](#cap-04--comprehensive-rules-lookup)'s criterion 11 is verified. Keyword search
 (criterion 10) is still not built, so `Status` stays `specified` and no phase is assigned.
+
+**Post-merge 2026-11-15: [CAP-04](#cap-04--comprehensive-rules-lookup) is delivered.** Ticket
+03's keyword search and ticket 04's revalidation were merged onto one branch (`160abd4`), so all
+thirteen criteria are verified and `Status` moved `specified` → `delivered`. This supersedes the
+"stays `specified`" in the two paragraphs above, which are left as written. No phase is assigned,
+which is the same treatment [CAP-03](#cap-03--card-rulings) got, and the table above is unchanged.
 
 ---
 
@@ -3359,6 +3377,7 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-11-15 | **[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) answered for the Comprehensive Rules cache: its refresh-trigger and first-run halves.** Refresh is lazy (first `rules_lookup` call, never at startup) with the landing page re-checked at most once every seven days; first run blocks on one ~1 MB download, measured at 1,249 ms cold. A dated paragraph corrects the entry's "resolves by tag discovery" expectation without rewriting it. The question **stays open for tag discovery only**. | [CAP-04](#cap-04--comprehensive-rules-lookup) turned out to be the first capability to persist anything, not tag discovery, so the question was answered by the capability that actually needed it. Tag discovery's bulk files are a different corpus with a different update signal (Scryfall's bulk manifest, [§4.2](#42-scryfall-bulk-data)), so an answer for the CR does not transfer to them and the entry is not closed. The seven-day check and the stale fallback are decided here and built later; the cold-cache path is built and verified. |
 | 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) criterion 10 verified — `rules_lookup` gains its keyword `query`** ([ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md), `4b17ea1`). The parser now also reads the glossary; a call takes exactly one of `rule` or `query`; a query returns glossary terms first, then rules by text with their numbers, filled to the 50,000-character budget with both totals and `truncated`. Criterion 4 is **extended** to the glossary rather than a new criterion added; 12 is re-confirmed with a description-level manifest drift check; 13 grew to 17/17 live. The block's behavior bullet saying the query "is not yet built" now describes it. `npm test` 100 suites / 409 tests → 105 / 433; typecheck clean; `npm run acceptance:rules` 17/17 live, Wizards contacted twice, no Scryfall call. **`Status` stays `specified`** — criterion 11 (ticket 04) is not built. No `D-` minted, no open question moved, [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | Glossary-first is the plan's ordering ([`docs/plans/2026-11-15-mtg-rules-prd.md`](./plans/2026-11-15-mtg-rules-prd.md)): a question about a game term wants its definition before the rules that use it. The budget reuses the rule-number path's 50,000 characters, so both modes of one tool share one bound, and a cut is reported through totals, `truncated` and a `note` so it is never silent ([§3.6](#36-error-surface)). Query mode has **no paging or offset by the implementing session's design**, recorded here as built: the totals and the note steer the model to narrow the query instead. The word-boundary start keeps `ward` from matching `toward`. |
 | 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) criterion 11 verified — weekly revalidation and the stale fallback built** (`a9378e4`, plan [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)). A dated bullet appended to the block's behavior records the mechanism; criterion 13's live check re-ran 11/11 with one check added; a dated paragraph in [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) and one in [§6](#6-phases) note the build. `npm test` 425 tests, 105 suites, typecheck clean, `dist/` rebuilt. `Status` stays `specified` because criterion 10 is not built. | The revalidation was decided when the block was appended and is now built, so the "not yet built" texts are superseded by dated notes rather than rewritten. Criterion 11 rests on fakes, like criterion 7: a failed check cannot be provoked live honestly ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)). No open question moved — [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) stays open for tag discovery — no `D-` was minted, and [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-external-dependencies) are untouched. |
+| 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) DELIVERED — `Status` `specified` → `delivered`, all thirteen criteria verified on one branch.** Ticket 03's branch (criterion 10, `4b17ea1`) was merged into ticket 04's (criterion 11, `a9378e4`) as `160abd4`. On the merged branch `npm test` gives 450 tests, 110 suites, with one new merge test for a stale keyword query; typecheck clean; `dist/` rebuilt; `npm run acceptance:rules` 18/18 live, Wizards contacted exactly twice and Scryfall never. A dated delivery bullet was appended to the block and a dated post-merge paragraph to [§6](#6-phases). The "stays `specified`" texts are left as written. `Phase` stays unassigned. | The two missing criteria were built on parallel branches, and each ticket's record correctly said the other was missing. Merging them is the first point at which every criterion holds on one tree, so `Status` moves on the same rule [CAP-03](#cap-03--card-rulings) and [CAP-02](#cap-02--combo-discovery) followed: delivered when every criterion is verified, recorded on the branch, and not the same thing as released. Criteria 7 and 11 rest on mocks and fakes, which is the footing [CAP-01](#cap-01--card-search)'s 429 criterion has. No open question moved, no `D-` was minted, and [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-external-dependencies) are untouched. |
 
 ---
 
