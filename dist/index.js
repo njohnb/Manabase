@@ -16476,6 +16476,56 @@ function lookupRule(index, input) {
   }
   return { ok: true, value: { rules, truncated: false } };
 }
+var SEARCH_ENVELOPE_RESERVE = 800;
+function searchRules(index, query) {
+  const phrase = query.trim().replace(/\s+/g, " ").toLowerCase();
+  if (phrase === "") {
+    return {
+      ok: false,
+      error: {
+        code: "bad_request",
+        message: 'The query is empty. Pass a rules term such as "trample" or "mana value".'
+      }
+    };
+  }
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+");
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}`, "iu");
+  const exactFirst = (items, isExact) => [...items.filter(isExact), ...items.filter((item) => !isExact(item))];
+  const glossary = exactFirst(
+    index.glossary.filter((entry) => pattern.test(entry.term)),
+    (entry) => entry.term.toLowerCase() === phrase
+  );
+  const rules = exactFirst(
+    index.rules.filter((entry) => pattern.test(entry.text)),
+    (entry) => entry.text.toLowerCase() === phrase
+  );
+  let bytes = SEARCH_ENVELOPE_RESERVE + 2 * query.length;
+  let shown = 0;
+  let full = false;
+  const fits = (item) => {
+    if (full) return false;
+    const cost = JSON.stringify(item).length + 1;
+    if (shown > 0 && bytes + cost > RULES_BYTE_BUDGET) {
+      full = true;
+      return false;
+    }
+    bytes += cost;
+    shown++;
+    return true;
+  };
+  const keptGlossary = glossary.filter(fits);
+  const keptRules = rules.filter(fits);
+  return {
+    ok: true,
+    value: {
+      glossary: keptGlossary,
+      rules: keptRules,
+      total_glossary_matches: glossary.length,
+      total_rule_matches: rules.length,
+      truncated: keptGlossary.length + keptRules.length < glossary.length + rules.length
+    }
+  };
+}
 
 // src/rules/store.ts
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -16535,7 +16585,28 @@ function parseRules(raw) {
 ${line}`;
   }
   if (rules.length === 0) return shapeChanged("no numbered rules between the contents and the glossary");
-  return { ok: true, value: { effectiveDate, rules, positions } };
+  const glossary = parseGlossary(trimmed, bodyEnd);
+  if (glossary.length === 0) return shapeChanged("no entries under the Glossary heading");
+  return { ok: true, value: { effectiveDate, rules, positions, glossary } };
+}
+function parseGlossary(trimmed, heading) {
+  const credits = trimmed.indexOf("Credits", heading + 1);
+  const section = trimmed.slice(heading + 1, credits < 0 ? void 0 : credits);
+  const glossary = [];
+  let block = [];
+  const flush = () => {
+    const [term, ...definition] = block;
+    if (term !== void 0 && definition.length > 0) {
+      glossary.push({ term, definition: definition.join("\n") });
+    }
+    block = [];
+  };
+  for (const line of section) {
+    if (line === "") flush();
+    else block.push(line);
+  }
+  flush();
+  return glossary;
 }
 
 // src/rules/source.ts
@@ -16739,36 +16810,79 @@ async function ensureRules(deps) {
 
 // src/tools/rules-lookup.ts
 var DAY_MS = 864e5;
+function badRequest(message) {
+  return { ok: false, error: { code: "bad_request", message } };
+}
+function cacheAgeDays(deps, loaded) {
+  return Math.max(0, Math.floor((deps.now() - loaded.fetchedAt) / DAY_MS));
+}
+function provenance(deps, loaded) {
+  return {
+    cr_effective_date: loaded.index.effectiveDate,
+    fetched_at: new Date(loaded.fetchedAt).toISOString(),
+    cache_age_days: cacheAgeDays(deps, loaded),
+    checked_at: new Date(loaded.checkedAt).toISOString(),
+    stale: loaded.stale,
+    citation_url: loaded.citationUrl
+  };
+}
+function withStaleNote(deps, loaded, modeNote) {
+  if (!loaded.stale) return modeNote;
+  const stale = `These rules are from the cached ${loaded.index.effectiveDate} version, downloaded ${cacheAgeDays(deps, loaded)} days ago; the weekly check for a newer version failed (${loaded.staleReason ?? "no reason given"}). Tell the user which version you are citing and that a newer one may exist.`;
+  return modeNote !== void 0 ? `${stale} ${modeNote}` : stale;
+}
 async function rulesLookup(deps, params) {
-  if (normalizeRuleNumber(params.rule) === void 0) return notARuleNumber(params.rule);
+  const { rule, query } = params;
+  if (rule === void 0 === (query === void 0)) {
+    return badRequest(
+      'Pass exactly one of `rule` (a Comprehensive Rules number such as "702.19") or `query` (a rules term such as "trample"), not ' + (rule === void 0 ? "neither." : "both.")
+    );
+  }
+  if (rule !== void 0 && normalizeRuleNumber(rule) === void 0) return notARuleNumber(rule);
+  if (query !== void 0 && query.trim() === "") {
+    return badRequest('The query is empty. Pass a rules term such as "trample" or "mana value".');
+  }
   const loaded = await ensureRules(deps);
   if (!loaded.ok) return loaded;
-  const { index, citationUrl, fetchedAt, checkedAt, stale, staleReason } = loaded.value;
-  const found = lookupRule(index, params.rule);
+  return rule !== void 0 ? byNumber(deps, loaded.value, rule) : byKeyword(deps, loaded.value, query);
+}
+function byNumber(deps, loaded, rule) {
+  const found = lookupRule(loaded.index, rule);
   if (!found.ok) return found;
   const { rules, truncated, next_rule } = found.value;
-  const cacheAgeDays = Math.max(0, Math.floor((deps.now() - fetchedAt) / DAY_MS));
-  const notes = [
-    ...stale ? [
-      `These rules are from the cached ${index.effectiveDate} version, downloaded ${cacheAgeDays} days ago; the weekly check for a newer version failed (${staleReason ?? "no reason given"}). Tell the user which version you are citing and that a newer one may exist.`
-    ] : [],
-    ...next_rule !== void 0 ? [
-      `Rules under ${rules[0].number} were cut at the size budget; ${next_rule} is the first one omitted. Look up a narrower number to read the rest.`
-    ] : []
-  ];
+  const note = withStaleNote(
+    deps,
+    loaded,
+    next_rule !== void 0 ? `Rules under ${rules[0].number} were cut at the size budget; ${next_rule} is the first one omitted. Look up a narrower number to read the rest.` : void 0
+  );
   return {
     ok: true,
     value: {
       rules,
       truncated,
       ...next_rule !== void 0 ? { next_rule } : {},
-      cr_effective_date: index.effectiveDate,
-      fetched_at: new Date(fetchedAt).toISOString(),
-      cache_age_days: cacheAgeDays,
-      checked_at: new Date(checkedAt).toISOString(),
-      stale,
-      citation_url: citationUrl,
-      ...notes.length > 0 ? { note: notes.join(" ") } : {}
+      ...provenance(deps, loaded),
+      ...note !== void 0 ? { note } : {}
+    }
+  };
+}
+function byKeyword(deps, loaded, query) {
+  const found = searchRules(loaded.index, query);
+  if (!found.ok) return found;
+  const { glossary, rules, total_glossary_matches, total_rule_matches, truncated } = found.value;
+  const modeNote = total_glossary_matches + total_rule_matches === 0 ? `No glossary term or rule text contains "${query}". Try the term's singular form, a shorter phrase, or a related term; if you know the rule number, pass \`rule\` instead.` : truncated ? `Matches were cut at the size budget: ${glossary.length} of ${total_glossary_matches} glossary entries and ${rules.length} of ${total_rule_matches} matching rules are shown. Narrow the query, or look up a rule number from these results with \`rule\`.` : void 0;
+  const note = withStaleNote(deps, loaded, modeNote);
+  return {
+    ok: true,
+    value: {
+      query,
+      glossary,
+      rules,
+      total_glossary_matches,
+      total_rule_matches,
+      truncated,
+      ...provenance(deps, loaded),
+      ...note !== void 0 ? { note } : {}
     }
   };
 }
@@ -16842,13 +16956,13 @@ var CARD_RULINGS_INPUT_SCHEMA = {
 };
 var CARD_SEARCH_TOOL_NAME = "card_search";
 var CARD_RULINGS_TOOL_NAME = "card_rulings";
-var RULES_LOOKUP_DESCRIPTION = 'Look up a rule in the Magic: The Gathering Comprehensive Rules by number \u2014 a section ("7"), rule ("702", "702.19") or subrule ("702.19a") \u2014 and get its text and every rule under it. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards\' official dated document: cite the rule number and that version. The rules are downloaded from Wizards on first use, cached, and checked for a newer version weekly; `stale: true` means that check failed and the cached version was served, so say which version you cite. Subrule letters skip l and o; an unknown number is reported, not guessed. A broad rule is cut at a size budget and `next_rule` names the first one omitted.';
+var RULES_LOOKUP_DESCRIPTION = 'Look up the Magic: The Gathering Comprehensive Rules. Pass exactly one of `rule` or `query`. `rule` takes a number \u2014 a section ("7"), rule ("702", "702.19") or subrule ("702.19a") \u2014 and returns its text and every rule under it. `query` takes a rules term or phrase ("trample", "mana value") and returns matching glossary definitions first, then every rule whose text contains it, each with its rule number. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards\' official dated document: cite the rule number and that version. The rules are downloaded from Wizards on first use, cached, and checked for a newer version weekly; `stale: true` means that check failed and the cached version was served, so say which version you cite. Subrule letters skip l and o; an unknown number is reported, not guessed, and a query with no match is an empty result. Results are cut at a size budget and `truncated` says so: for a rule, `next_rule` names the first one omitted; for a query, the totals count every match \u2014 narrow it, or look up a number from the results.';
 var RULES_LOOKUP_INPUT_SCHEMA = {
   type: "object",
   properties: {
-    rule: { type: "string", description: 'A Comprehensive Rules number, e.g. "702.19" or "702.19a".' }
-  },
-  required: ["rule"]
+    rule: { type: "string", description: 'A Comprehensive Rules number, e.g. "702.19" or "702.19a".' },
+    query: { type: "string", description: 'A rules term or phrase, e.g. "trample" or "mana value".' }
+  }
 };
 var RULES_LOOKUP_TOOL_NAME = "rules_lookup";
 var COMBO_SEARCH_TOOL_NAME = "combo_search";
@@ -16903,11 +17017,11 @@ async function dispatchToolCall(clients2, name, args) {
   throw new Error(`Unknown tool: ${name}`);
 }
 async function dispatchRulesLookup(deps, args) {
-  if (typeof args !== "object" || args === null || Array.isArray(args) || typeof args.rule !== "string") {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
     return errorResult({
       error: {
         code: "bad_request",
-        message: 'Missing required argument `rule`: a Comprehensive Rules number such as "702.19".'
+        message: 'Tool arguments must be an object with `rule` (a number such as "702.19") or `query` (a term such as "trample").'
       }
     });
   }
@@ -16916,7 +17030,11 @@ async function dispatchRulesLookup(deps, args) {
       error: { code: "unexpected", message: "rules_lookup is not configured in this server build." }
     });
   }
-  return toolResult(await rulesLookup(deps, { rule: args.rule }));
+  const raw = args;
+  return toolResult(await rulesLookup(deps, {
+    ...typeof raw.rule === "string" ? { rule: raw.rule } : {},
+    ...typeof raw.query === "string" ? { query: raw.query } : {}
+  }));
 }
 function readQuery(args, language) {
   if (typeof args !== "object" || args === null || Array.isArray(args)) {

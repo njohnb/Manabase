@@ -41,6 +41,16 @@ describe("mcpb/manifest.json tools vs register.ts", () => {
   test("the two sets are the same size (no duplicates hiding a mismatch)", () => {
     assert.equal(declared.size, registered.size);
   });
+
+  // A tool that gains a mode (rules_lookup's `query`) changes its description, not its name, so a
+  // names-only check would let Desktop keep rendering the old capability.
+  test("every declared tool carries its registered description verbatim", () => {
+    const declaredTools = manifest.tools as Array<{ name: string; description?: string }>;
+    for (const tool of toolDefinitions) {
+      const entry = declaredTools.find((t) => t.name === tool.name);
+      assert.equal(entry?.description, tool.description, `manifest description drifted: ${tool.name}`);
+    }
+  });
 });
 
 describe("APP_VERSION is kept in sync with package.json", () => {

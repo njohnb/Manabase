@@ -44,7 +44,7 @@ npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
 npm test            # node --experimental-strip-types --test  (347 tests, 82 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 14 LIVE checks against real Scryfall
-npm run acceptance:rules # scripts/cr-live.mjs — 11 LIVE checks, 2 Wizards requests, no Scryfall
+npm run acceptance:rules # scripts/cr-live.mjs — 18 LIVE checks, 2 Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -66,10 +66,11 @@ src/scryfall/client.ts  spec: two lanes (500/100 ms), Scryfall's details reader.
 src/spellbook/client.ts spec: one 500 ms lane, the Django-REST field-error details reader
 src/wizards/client.ts   two text clients, one per Wizards host (site, media), 500 ms lane each
 src/rules/source.ts     resolveCrSource() — newest .txt by date stamp, same-stamp PDF citation
-src/rules/parser.ts     parseRules() — the CR TXT into a RulesIndex
+src/rules/parser.ts     parseRules() — the CR TXT into a RulesIndex, rules plus the glossary
 src/rules/store.ts      ensureRules() — download on first use, cache under <cacheDir>/rules/,
                         revalidate weekly, serve the cache `stale` on failure; injected fs
-src/rules/lookup.ts     lookupRule() — rule plus descendants on a number boundary, 50,000 budget
+src/rules/lookup.ts     lookupRule() — rule plus descendants on a number boundary, 50,000 budget;
+                        searchRules() — glossary terms first, then rule text, same budget
 src/scryfall/prices.ts  resolvePrice() — the three price traps
 src/scryfall/collection.ts resolveNames() — POST /cards/collection batched at 75; the misses come
                         back as unresolved names rather than being dropped
@@ -87,7 +88,7 @@ src/tools/combo-find-deck.ts comboFindDeck() — names resolved through Scryfall
                         combo request carrying no limit and no offset; six buckets, capped after
 src/tools/card-rulings.ts cardRulings() (CAP-03) — ≤10 names via resolveNames, then one
                         GET /cards/{id}/rulings per distinct card on the 10/sec lane
-src/tools/rules-lookup.ts rulesLookup() — CAP-04's rule-number path over the cached CR
+src/tools/rules-lookup.ts rulesLookup() — CAP-04 over the cached CR: exactly one of rule or query
 src/tools/register.ts     tool definitions + dispatchToolCall(clients, name, args) + registerTools
 tests/                  handlers called as plain functions; fixtures under tests/fixtures/
 dist/index.js           committed build output — NOT gitignored
@@ -889,6 +890,24 @@ from `feat/mtg-rules`, `rules_lookup` is the **fifth** tool and the merged branc
 100 suites**; the Commands-block count keeps ticket 01's 347/82. Evidence: the `CAP-04` criteria in
 `MCP-PRD.md`; there is no results doc.
 
+**Rules plan ticket 03 (`rules_lookup` by keyword) landed 2026-11-15 as `4b17ea1` on
+`ticket/03-rules-keyword-search`, based on `feat/mtg-rules` — unmerged, no PR, not a roadmap
+slice.** `CAP-04` criterion 10 is **verified**: a call takes **exactly one** of `rule` or `query`
+(both or neither is `bad_request` before any download); a query returns glossary entries matched
+**by term only** first, then rules by text with their numbers, a case-insensitive phrase match that
+must start at a word boundary (`ward` never matches `toward`), filled to the same 50,000-character
+budget with `total_glossary_matches`, `total_rule_matches` and `truncated`. **No paging or offset
+in query mode, by design** — the totals and a `note` tell the model to narrow. No match is a
+successful empty result with a `note`. The parser now also reads the glossary, and a zero-entry
+glossary is a changed shape, never cached; criterion 4 is extended to it, not a new criterion.
+`tests/manifest.test.ts` now compares every manifest tool description verbatim against
+`register.ts`, not only the names — so a description edit without the manifest is a red test.
+**`Status` stays `specified`**: criterion 11 (ticket 04, revalidation and stale fallback) runs in
+parallel and is not built. Branch figures: `npm test` **433 tests, 105 suites** (was 409/100),
+typecheck clean, `lint:docs` OK, `npm run acceptance:rules` **17/17** live, Wizards contacted twice.
+No open question moved (`OQ-03`, `OQ-08` unmoved), no `D-` minted, plugin version deliberately not
+bumped (the CI bump job writes it on the PR to `main`). The Commands-block test count still keeps
+ticket 01's 347/82, as ticket 02 left it.
 **Rules plan ticket 04 (weekly CR refresh and stale fallback) landed 2026-11-15 as `a9378e4` (code)
 and `8aeddbc` (docs) on `ticket/04-rules-refresh` — unmerged, no PR, not a roadmap slice.** `CAP-04`
 criterion 11 is **verified by unit tests with a fake clock and fake I/O, never live** — a failed

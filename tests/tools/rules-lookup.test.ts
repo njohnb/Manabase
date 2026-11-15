@@ -133,6 +133,103 @@ describe("rulesLookup — the weekly check and the stale copy", () => {
     assert.match(r.value.note!, /9 days/);
     assert.match(r.value.note!, /ENOTFOUND/);
   });
+
+  test("a keyword query on a stale copy carries stale and the same note", async () => {
+    const { deps, setNow } = harness();
+    await rulesLookup(deps, { query: "trample" });
+
+    setNow(DOWNLOADED_AT + 9 * DAY);
+    deps.site = {
+      get: () => Promise.resolve({ ok: false, error: { code: "network", message: "Could not reach Wizards of the Coast: ENOTFOUND" } }),
+      post: () => Promise.reject(new Error("no POST")),
+    };
+    const r = await rulesLookup(deps, { query: "trample" });
+
+    assert.ok(r.ok, r.ok ? "" : r.error.message);
+    assert.equal(r.value.stale, true);
+    assert.equal(r.value.glossary!.length, 1);
+    assert.match(r.value.note!, /2026-11-06/);
+  });
+});
+
+describe("rulesLookup — keyword query", () => {
+  test("returns the glossary entry first, then numbered rules, with the same version and citation", async () => {
+    const { deps } = harness();
+
+    const r = await rulesLookup(deps, { query: "trample" });
+
+    assert.ok(r.ok, r.ok ? "" : r.error.message);
+    assert.equal(r.value.query, "trample");
+    assert.deepEqual(r.value.glossary, [{ term: "Trample", definition: "A synthetic keyword ability. See rule 702.19." }]);
+    assert.deepEqual(r.value.rules.map((e) => e.number), ["702.19", "702.19a", "702.19b", "702.19c"]);
+    assert.equal(r.value.cr_effective_date, "2026-11-06");
+    assert.equal(r.value.citation_url, `${MEDIA}/2026/downloads/MagicCompRules%2020261106.pdf`);
+    assert.equal(r.value.cache_age_days, 0);
+    assert.equal(r.value.truncated, false);
+    assert.equal("note" in r.value, false);
+  });
+
+  test("no match is a successful empty result with a note to rephrase", async () => {
+    const { deps } = harness();
+
+    const r = await rulesLookup(deps, { query: "banding" });
+
+    assert.ok(r.ok, r.ok ? "" : r.error.message);
+    assert.deepEqual(r.value.glossary, []);
+    assert.deepEqual(r.value.rules, []);
+    assert.equal(r.value.total_rule_matches, 0);
+    assert.equal(r.value.truncated, false);
+    assert.match(r.value.note!, /no glossary term or rule/i);
+  });
+
+  test("a broad term is cut to the budget, says how many matched, and the whole response fits", async () => {
+    let lines: readonly string[] = SYNTHETIC_LINES;
+    for (const n of ["702.19a", "702.19b", "702.19c", "704.5k", "704.5m"]) {
+      const copy = [...lines];
+      copy[copy.findIndex((l) => l.startsWith(`${n} `))] = `${n} damage ${"z".repeat(20_000)}`;
+      lines = copy;
+    }
+    const { deps } = harness(syntheticCr(lines));
+
+    const r = await rulesLookup(deps, { query: "damage" });
+
+    assert.ok(r.ok);
+    assert.equal(r.value.truncated, true);
+    assert.equal(r.value.total_rule_matches, 5);
+    assert.match(r.value.note!, new RegExp(`${r.value.rules.length} of 5 matching rules`));
+    assert.ok(JSON.stringify(r.value).length <= 50_000, `${JSON.stringify(r.value).length} chars`);
+  });
+
+  test("both rule and query is a bad_request, refused before any download", async () => {
+    const { deps, requests } = harness();
+
+    const r = await rulesLookup(deps, { rule: "702.19", query: "trample" });
+
+    assert.ok(r.ok === false);
+    assert.equal(r.error.code, "bad_request");
+    assert.deepEqual(requests, []);
+  });
+
+  test("neither rule nor query is a bad_request, refused before any download", async () => {
+    const { deps, requests } = harness();
+
+    const r = await rulesLookup(deps, {});
+
+    assert.ok(r.ok === false);
+    assert.equal(r.error.code, "bad_request");
+    assert.match(r.error.message, /`rule`.*`query`/);
+    assert.deepEqual(requests, []);
+  });
+
+  test("an empty query is a bad_request, refused before any download", async () => {
+    const { deps, requests } = harness();
+
+    const r = await rulesLookup(deps, { query: "  " });
+
+    assert.ok(r.ok === false);
+    assert.equal(r.error.code, "bad_request");
+    assert.deepEqual(requests, []);
+  });
 });
 
 describe("rulesLookup — failures", () => {

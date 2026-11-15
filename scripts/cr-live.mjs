@@ -74,8 +74,12 @@ async function initialize(server) {
 }
 
 async function lookup(server, rule) {
+  return call(server, { rule });
+}
+
+async function call(server, args) {
   const started = Date.now();
-  const message = await server.request("tools/call", { name: "rules_lookup", arguments: { rule } });
+  const message = await server.request("tools/call", { name: "rules_lookup", arguments: args });
   const result = message.result;
   return {
     isError: result.isError === true,
@@ -129,6 +133,23 @@ try {
     check("a new process answers from the cache: same fetched_at, no download", !warm.isError && warm.data.fetched_at === first?.data.fetched_at, `${warm.ms} ms, fetched_at ${warm.data.fetched_at}`);
     const unknown = await lookup(two, "702.999");
     check("an unknown rule number is a structured not_found", unknown.isError && unknown.data.error.code === "not_found", unknown.data.error?.message);
+
+    // --- Keyword `query` (ticket 03). Still served from the same cache: no further request. ---
+    const keyword = await call(two, { query: "trample" });
+    const k = keyword.data;
+    check("query \"trample\" succeeds from the cache", !keyword.isError && k.fetched_at === first?.data.fetched_at, keyword.isError ? JSON.stringify(k) : `${keyword.ms} ms, ${keyword.chars} chars`);
+    if (!keyword.isError) {
+      check("the glossary definition of Trample comes first", k.glossary[0]?.term === "Trample", k.glossary.map((g) => g.term).join(", "));
+      check("rule hits carry their numbers, 702.19 among them", k.rules.length > 0 && k.rules.every((r) => /^\d/.test(r.number)) && k.rules.some((r) => r.number === "702.19"), k.rules.slice(0, 8).map((r) => r.number).join(", "));
+      check("the query carries the same CR date and citation as a rule lookup", k.cr_effective_date === first?.data.cr_effective_date && k.citation_url === first?.data.citation_url, k.cr_effective_date);
+    }
+    const broad = await call(two, { query: "damage" });
+    const b = broad.data;
+    check("broad query \"damage\" is bounded, flagged truncated, and counts every match", !broad.isError && b.truncated === true && broad.chars <= 50_000 && b.total_rule_matches > b.rules.length, broad.isError ? JSON.stringify(b) : `${b.glossary.length}/${b.total_glossary_matches} glossary, ${b.rules.length}/${b.total_rule_matches} rules, ${broad.chars} chars`);
+    const none = await call(two, { query: "zzqx no such rules term" });
+    check("a query with no match is a successful empty result", !none.isError && none.data.glossary.length === 0 && none.data.rules.length === 0, none.data.note);
+    const both = await call(two, { rule: "702.19", query: "trample" });
+    check("both rule and query is a structured bad_request", both.isError && both.data.error.code === "bad_request", both.data.error?.message);
   } finally {
     two.close();
   }

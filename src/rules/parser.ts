@@ -8,6 +8,12 @@ export interface RuleEntry {
   text: string;
 }
 
+/** One glossary entry. A multi-line definition (numbered senses, a "See rule" line) is joined with `\n`. */
+export interface GlossaryEntry {
+  term: string;
+  definition: string;
+}
+
 export interface RulesIndex {
   /** ISO `YYYY-MM-DD`, read from the document's own "effective as of" line. */
   effectiveDate: string;
@@ -15,6 +21,8 @@ export interface RulesIndex {
   rules: RuleEntry[];
   /** `number` → position in `rules`. */
   positions: Map<string, number>;
+  /** Every glossary entry in document order (alphabetical in the real file). */
+  glossary: GlossaryEntry[];
 }
 
 const MONTHS = [
@@ -84,5 +92,32 @@ export function parseRules(raw: string): Result<RulesIndex> {
   }
 
   if (rules.length === 0) return shapeChanged("no numbered rules between the contents and the glossary");
-  return { ok: true, value: { effectiveDate, rules, positions } };
+
+  const glossary = parseGlossary(trimmed, bodyEnd);
+  if (glossary.length === 0) return shapeChanged("no entries under the Glossary heading");
+  return { ok: true, value: { effectiveDate, rules, positions, glossary } };
+}
+
+/**
+ * The glossary runs from the body's `Glossary` heading to the closing `Credits` line. Each entry
+ * is a term line, then its definition lines, then a blank (or whitespace-only) line.
+ */
+function parseGlossary(trimmed: readonly string[], heading: number): GlossaryEntry[] {
+  const credits = trimmed.indexOf("Credits", heading + 1);
+  const section = trimmed.slice(heading + 1, credits < 0 ? undefined : credits);
+  const glossary: GlossaryEntry[] = [];
+  let block: string[] = [];
+  const flush = () => {
+    const [term, ...definition] = block;
+    if (term !== undefined && definition.length > 0) {
+      glossary.push({ term, definition: definition.join("\n") });
+    }
+    block = [];
+  };
+  for (const line of section) {
+    if (line === "") flush();
+    else block.push(line);
+  }
+  flush();
+  return glossary;
 }

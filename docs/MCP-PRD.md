@@ -2282,7 +2282,23 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
     in document order. Descendants are decided on a number **boundary**, never a bare prefix:
     `702.190` is not under `702.19`. Input is normalised — a trailing period, surrounding spaces, a
     capital letter and a leading `rule` are accepted. A keyword `query` over the glossary and then
-    the full text is part of this capability and is not yet built.
+    the full text is the second input, built 2026-11-15 and described in the next bullet. A call
+    takes **exactly one** of `rule` and `query`; both or neither is a structured `bad_request`
+    refused before any download, and a wrong-typed value is dropped rather than rejected, as the
+    other tools treat theirs.
+  - **`query` returns glossary entries first, then rules, each rule with its number.** Matching is a
+    case-insensitive phrase match with whitespace collapsed that must start at a word boundary, so
+    `ward` does not match `toward`. Glossary entries match by **term only** — the exact term first,
+    then other matching terms in document order; rules match on their text — an exact-heading match
+    first (`trample` puts `702.19` "Trample" ahead), then document order. The response carries
+    `query`, `glossary`, `rules`, `total_glossary_matches`, `total_rule_matches`, `truncated`, and
+    the same `cr_effective_date`, `fetched_at`, `cache_age_days` and `citation_url` as a rule
+    lookup. It is filled to the same 50,000-character budget, glossary first, with an envelope
+    reserve of 800 plus twice the query's length; the first match is always shown and the shown set
+    is always a prefix of the ordered matches. A cut sets `truncated` and a `note` naming the
+    shown-of-total counts. **There is no paging and no offset in this mode, by design** — the totals
+    and the note tell the model to narrow the query. **No match is a successful empty result** with
+    a `note` suggesting a rephrase, never a failure; an empty query is `bad_request`.
   - **The source is Wizards of the Coast, on two hosts**
     ([§4.6](#46-comprehensive-rules-wizards-of-the-coast)). The landing page on `magic.wizards.com`
     names the dated files, which live on `media.wizards.com`. A source spec carries one base URL,
@@ -2305,6 +2321,9 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
     `Credits` to the body's `Glossary` heading, so numbered glossary definitions never parse as
     sections), subrule letters matched as any run of lowercase letters (they skip `l` and `o`, and
     run past `z` to `aa`), and `Example:` and indented continuation lines joined to the rule above.
+    The glossary is read separately, from the body's `Glossary` heading to the closing `Credits`, as
+    `{ term, definition }` entries: a term line, then definition lines joined with a newline, then
+    a blank or whitespace-only line. A glossary with zero entries is a changed shape.
     A file that does not parse is a failure and is never cached.
   - **Fetched at runtime, cached locally, never bundled**
     ([D-08](#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)). The first call
@@ -2364,7 +2383,10 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
   4. The parser handles the BOM, CRLF, the contents section, the `l`/`o` letter skip, double
      letters, a trailing period after a subrule letter, and numbered glossary definitions; its
      tests use short synthetic fixtures only and the CR is never committed or bundled.
-     **Verified 2026-11-15.**
+     **Verified 2026-11-15.** **Extended 2026-11-15** ([ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md),
+     `4b17ea1`) to the glossary — the term, definition and blank-line pattern including multi-line
+     definitions, and a zero-entry glossary failing as a changed shape — verified by unit tests on
+     the synthetic CR. The same criterion, widened; not a new one.
   5. The first call downloads and caches under the resolved cache directory, and a later call
      makes no request; all I/O is injected ([D-03](#d-03--testability-handlers-callable-as-plain-functions)).
      **Verified 2026-11-15** — unit tests with recording fakes, and live: a second server process
@@ -2381,7 +2403,14 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
      `note`. **Verified 2026-11-15** by unit tests; against the 20261106 file, rule `7` returns 187
      rules in 49,823 characters with `next_rule` `701.31b`.
   10. `query` returns glossary hits first, then full-text rule matches with their numbers, filled
-      to a byte budget. **Not implemented.**
+      to a byte budget. **Verified 2026-11-15**
+      ([ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md), `4b17ea1`)
+      by unit tests on the synthetic CR — glossary-first ordering, the budget on a broad term, no
+      match, both-or-neither — and live against the 20261106 file: `trample` returns glossary
+      "Trample" then "Trample Over Planeswalkers", then rules from `702.19`, `111.4`, `111.10k`,
+      `122.1b`, `702.1c`, `702.19a`…, in 9,699 characters; `damage` returns 8 of 8 glossary entries
+      and 103 of 181 rules in 49,581 characters with `truncated` true; a no-match query is a
+      successful empty result.
   11. The landing page is revalidated at most once every seven days, the CR is re-downloaded only
       when the stamp changed, and a failed revalidation serves the cache with `stale` and its age.
       **Verified 2026-11-15 by unit tests with a fake clock and fake I/O, not live** — the 7-day
@@ -2390,13 +2419,17 @@ updating [§6](#6-phases), [§7](#7-open-questions), and [§9](#9-revision-log) 
       were not exercised live: a real block cannot be provoked honestly
       ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)), the footing of criterion 7.
   12. The tool is registered, the MCPB manifest declares it, and `dist/` is rebuilt.
-      **Verified 2026-11-15.**
+      **Verified 2026-11-15.** Re-confirmed after the `query` mode (`4b17ea1`): the manifest
+      description is updated and [`tests/manifest.test.ts`](../tests/manifest.test.ts) now checks every manifest tool
+      description equals its registered one verbatim, not only the names.
   13. A spaced live check (`npm run acceptance:rules`, [`scripts/cr-live.mjs`](../scripts/cr-live.mjs)) fetches the real CR
       once and looks up a known rule, contacting Wizards exactly twice and never Scryfall.
-      **Verified 2026-11-15**, 10/10. Re-run 2026-11-15 after
-      [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md):
-      **11/11**, the added check being that a fresh download reports `stale: false` with
-      `checked_at` equal to `fetched_at`; still exactly two Wizards requests and no Scryfall call.
+      **Verified 2026-11-15**, 10/10; **17/17** after `4b17ea1` added seven keyword checks, all
+      served from the warm cache, Wizards still contacted exactly twice.
+      [Ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md) added
+      one check — a fresh download reports `stale: false` with `checked_at` equal to `fetched_at`
+      — measured **11/11** on its own branch, and **18/18** on 2026-11-15 after merging ticket 03's
+      branch into it; still exactly two Wizards requests and no Scryfall call.
 - **Open questions:** [OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)'s
   "ever" half stays open; the resolver complies with it rather than answering it.
 
@@ -3324,6 +3357,7 @@ means this project will use." [OQ-10](#oq-10--will-moxfield-grant-this-applicati
 | 2026-11-15 | **[CAP-03](#cap-03--card-rulings) — card rulings — appended, specified and delivered in one session.** A `card_rulings` tool takes up to 10 card names, resolves them through [§4.1.2](#412-batch-resolution), issues one `GET /cards/{id}/rulings` per distinct resolved card on the 10/second lane, and returns each ruling's `source`, `published_at` and `comment` with each card's `scryfall_uri` and a required `unresolved_cards`. Added [§4.1.5](#415-per-card-rulings) as a dated **verified** record of the rulings response shape from one spaced live probe; `source: "scryfall"` was not observed and stays documented-only. All ten criteria verified: tests 330 → 347, suites 79 → 82, typecheck clean, `npm run acceptance` 14/14 with no 429. [§6](#6-phases) records the capability as phase-unassigned; [§7](#7-open-questions) records [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) unmoved. | The rules-and-rulings plan ([`docs/plans/2026-11-15-mtg-rules-prd.md`](./plans/2026-11-15-mtg-rules-prd.md)) ships rulings first because they are stateless. That rests on the **author-confirmed reading of [D-07](#d-07--three-way-cache-split)** (2026-11-15), stated once inside the [CAP-03](#cap-03--card-rulings) block and not repeated here; **D-07 is not edited** — [§2](#2-locked-decisions) is locked. The shape was probed before the handler was written because the plan's field names were recalled, not measured. No `D-` minted, [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. |
 | 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) appended — Comprehensive Rules lookup, `Status` `specified`, phase unassigned — with its rule-number path built.** `rules_lookup` takes `rule` and returns that rule and every rule under it, `cr_effective_date`, `fetched_at`, `cache_age_days` and `citation_url`. Wizards of the Coast joins as a source on **two hosts, one client each**, 500 ms per host; the shared HTTP client gained an optional `Accept` and a text body mode. Criteria **1–9, 12 and 13 verified**, 7 against mocks only and permanently; **10 (keyword `query`) and 11 (seven-day revalidation and the stale fallback) are not implemented**, which is why `Status` stays `specified`. [§6](#6-phases)'s queued-table row now points at the block. [§4.6](#46-comprehensive-rules-wizards-of-the-coast) gains a dated addendum: the 20261106 file, subrule letters past `z` (`704.5aa`), a stray period after `119.1d`, and indented continuation lines. `npm test` 79 suites / 330 tests → 97 / 392; `npm run typecheck` clean; `npm run acceptance:rules` 10/10 live, two Wizards requests and no Scryfall call. No `D-` minted; [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | The two-host question was the one design call the plan left open. One client per host was chosen over a single client with an absolute-URL escape hatch because it is the pattern the server already uses for its other two sources, keeps the `SourceSpec` contract (one base URL) intact, and lets the media client refuse any host it was not built for: the TXT link is scraped from a page, and a scraped URL must not be able to steer a request elsewhere. The budget reuses the combo tools' 50,000 characters because section 7 alone is hundreds of kilobytes and issue #25 already measured what an unbounded payload costs. [OQ-08](#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled) is complied with, not answered: one more single-listing observation is weak evidence about a year of behaviour. |
 | 2026-11-15 | **[OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) answered for the Comprehensive Rules cache: its refresh-trigger and first-run halves.** Refresh is lazy (first `rules_lookup` call, never at startup) with the landing page re-checked at most once every seven days; first run blocks on one ~1 MB download, measured at 1,249 ms cold. A dated paragraph corrects the entry's "resolves by tag discovery" expectation without rewriting it. The question **stays open for tag discovery only**. | [CAP-04](#cap-04--comprehensive-rules-lookup) turned out to be the first capability to persist anything, not tag discovery, so the question was answered by the capability that actually needed it. Tag discovery's bulk files are a different corpus with a different update signal (Scryfall's bulk manifest, [§4.2](#42-scryfall-bulk-data)), so an answer for the CR does not transfer to them and the entry is not closed. The seven-day check and the stale fallback are decided here and built later; the cold-cache path is built and verified. |
+| 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) criterion 10 verified — `rules_lookup` gains its keyword `query`** ([ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md), `4b17ea1`). The parser now also reads the glossary; a call takes exactly one of `rule` or `query`; a query returns glossary terms first, then rules by text with their numbers, filled to the 50,000-character budget with both totals and `truncated`. Criterion 4 is **extended** to the glossary rather than a new criterion added; 12 is re-confirmed with a description-level manifest drift check; 13 grew to 17/17 live. The block's behavior bullet saying the query "is not yet built" now describes it. `npm test` 100 suites / 409 tests → 105 / 433; typecheck clean; `npm run acceptance:rules` 17/17 live, Wizards contacted twice, no Scryfall call. **`Status` stays `specified`** — criterion 11 (ticket 04) is not built. No `D-` minted, no open question moved, [§2](#2-locked-decisions) and [§3](#3-constraints) untouched. | Glossary-first is the plan's ordering ([`docs/plans/2026-11-15-mtg-rules-prd.md`](./plans/2026-11-15-mtg-rules-prd.md)): a question about a game term wants its definition before the rules that use it. The budget reuses the rule-number path's 50,000 characters, so both modes of one tool share one bound, and a cut is reported through totals, `truncated` and a `note` so it is never silent ([§3.6](#36-error-surface)). Query mode has **no paging or offset by the implementing session's design**, recorded here as built: the totals and the note steer the model to narrow the query instead. The word-boundary start keeps `ward` from matching `toward`. |
 | 2026-11-15 | **[CAP-04](#cap-04--comprehensive-rules-lookup) criterion 11 verified — weekly revalidation and the stale fallback built** (`a9378e4`, plan [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)). A dated bullet appended to the block's behavior records the mechanism; criterion 13's live check re-ran 11/11 with one check added; a dated paragraph in [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) and one in [§6](#6-phases) note the build. `npm test` 425 tests, 105 suites, typecheck clean, `dist/` rebuilt. `Status` stays `specified` because criterion 10 is not built. | The revalidation was decided when the block was appended and is now built, so the "not yet built" texts are superseded by dated notes rather than rewritten. Criterion 11 rests on fakes, like criterion 7: a failed check cannot be provoked live honestly ([§3.7](#37-undocumented-and-bot-protected-third-party-apis)). No open question moved — [OQ-03](#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) stays open for tag discovery — no `D-` was minted, and [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-external-dependencies) are untouched. |
 
 ---

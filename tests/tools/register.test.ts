@@ -769,6 +769,42 @@ describe("dispatchToolCall — rules_lookup", () => {
     assert.deepEqual(requests, []);
   });
 
+  test("routes `query` to the handler: glossary first, then numbered rules", async () => {
+    const { clients, scryfallCalls, spellbookCalls } = makeClients();
+    const { deps } = rulesDeps();
+
+    const result = await dispatchToolCall({ ...clients, rules: deps }, "rules_lookup", { query: "trample" });
+
+    assert.equal(result.isError, undefined);
+    const body = JSON.parse(result.content[0]!.text);
+    assert.equal(body.glossary[0].term, "Trample");
+    assert.equal(body.rules[0].number, "702.19");
+    assert.equal(body.cr_effective_date, "2026-11-06");
+    assert.equal(scryfallCalls.length + spellbookCalls.length, 0);
+  });
+
+  test("both `rule` and `query` is a structured bad_request with no download", async () => {
+    const { clients } = makeClients();
+    const { deps, requests } = rulesDeps();
+
+    const result = await dispatchToolCall(
+      { ...clients, rules: deps }, "rules_lookup", { rule: "702.19", query: "trample" },
+    );
+
+    assert.equal(result.isError, true);
+    assert.equal(JSON.parse(result.content[0]!.text).error.code, "bad_request");
+    assert.deepEqual(requests, []);
+  });
+
+  test("the input schema offers `rule` and `query` and requires neither by itself", () => {
+    const tool = toolDefinitions.find((t) => t.name === "rules_lookup")!;
+    const schema = tool.inputSchema as { properties: Record<string, unknown>; required?: string[] };
+
+    assert.deepEqual(Object.keys(schema.properties).sort(), ["query", "rule"]);
+    assert.equal(schema.required, undefined);
+    assert.match(tool.description, /query/);
+  });
+
   test("an unknown rule number reaches the model as a structured not_found", async () => {
     const { clients } = makeClients();
     const { deps } = rulesDeps();

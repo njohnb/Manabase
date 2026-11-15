@@ -70,9 +70,11 @@ its criteria).
 **Comprehensive Rules lookup is partly built on a branch, 2026-11-15, and is in nothing you can
 install.** A fifth tool, `rules_lookup`, returns a rule by number — `702.19` and every subrule
 under it — with the rules version it came from and a link to Wizards' dated document
-([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), still `specified`). Searching the
-rules by keyword is not built yet. The weekly check for a newer version is built (on a branch,
-2026-11-15): if Wizards' site cannot be reached, lookups keep answering from the cached copy and
+([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), still `specified`). A later
+branch the same day adds search by keyword — ask about "trample" and it returns the
+glossary definition first, then the rules that mention it with their numbers, saying so when a
+broad word matched more than fits in one answer. Another branch adds the weekly check for a newer
+rules version: if Wizards' site cannot be reached, lookups keep answering from the cached copy and
 say how old it is.
 
 ## Where it runs
@@ -280,7 +282,7 @@ npm run typecheck   # tsc --noEmit
 npm run lint:docs   # every doc link and heading anchor resolves — no network
 npm test            # node --test, with TypeScript stripped at runtime
 npm run acceptance  # 14 live harness checks against real Scryfall — slow on purpose
-npm run acceptance:rules  # 11 live rules-lookup checks — two Wizards requests, no Scryfall
+npm run acceptance:rules  # 18 live rules-lookup checks — two Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
