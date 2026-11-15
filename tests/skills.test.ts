@@ -142,6 +142,12 @@ describe("skills — the rules skill ships (PLUGIN-PRD PC-06)", () => {
     assert.ok(combo);
     assert.match(readFileSync(combo, "utf8"), /`mtg-rules`/);
   });
+
+  test("the deck skill points rules questions at it by name", () => {
+    const deck = skillFiles.find((f) => /[\\/]commander-deck-ratios[\\/]SKILL\.md$/.test(f));
+    assert.ok(deck);
+    assert.match(readFileSync(deck, "utf8"), /`mtg-rules`/);
+  });
 });
 
 describe("skills — the colon-space trap", () => {

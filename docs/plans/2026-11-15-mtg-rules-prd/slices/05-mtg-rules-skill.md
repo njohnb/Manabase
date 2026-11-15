@@ -12,8 +12,9 @@ missing Claude says so. The combo and deck skills send "does this actually work?
 
 The block was appended as [PC-06](../../../PLUGIN-PRD.md#pc-06--rules-and-rulings), not PC-05: PC-05 is
 taken on `main` by the Commander deck-ratios component, which this branch does not carry. Criteria
-text left as written. The last two unticked boxes are author-TODO; the deck-skill half of the
-pointer box waits on the deck skill reaching this branch (the combo-skill pointer is done).
+text left as written. The last two unticked boxes are author-TODO. The pointer box is ticked as of
+2026-11-15: the combo-skill pointer landed with the skill, and the deck-skill pointer landed once
+`main` (and the deck skill with it) was merged into this branch.
 
 - [x] A PC-05 block is appended to [PLUGIN-PRD §5](../../../PLUGIN-PRD.md#5-components) under its
       template, and §6, §7 and §9 are updated.
@@ -26,7 +27,7 @@ pointer box waits on the deck skill reaching this branch (the combo-skill pointe
       `npm test` passes.
 - [x] It teaches the no-fallback rule explicitly: a missing tool is reported, never replaced by
       web search or memory.
-- [ ] The combo and deck skills each gain a pointer to it by name. They do not automatically
+- [x] The combo and deck skills each gain a pointer to it by name. They do not automatically
       re-check Commander Spellbook results.
 - [ ] The skill is confirmed **loaded** in a real session's skill listing, not by the
       `/reload-plugins` count.

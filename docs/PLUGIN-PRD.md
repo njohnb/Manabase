@@ -1951,8 +1951,9 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
      search or memory. **Verified 2026-11-15** by reading the file (static).
   6. The combo skill and the deck skill each point to it by name, and neither re-checks Commander
      Spellbook results automatically. **Combo half verified 2026-11-15** (a test asserts the
-     pointer). **Deck half not met on this branch** — the deck skill is not on the integration
-     branch this was built on; the pointer is added when the two lines meet.
+     pointer). **Deck half verified 2026-11-15**, once `main` was merged into the integration
+     branch and brought [PC-05](#pc-05--commander-deck-ratios)'s skill with it; a test asserts that
+     pointer too. **Both halves are done.**
   7. **Loads in a real harness**: the skill appears in a session's skill listing as
      `manabase:mtg-rules` — not judged by `/reload-plugins`' count, which reads 0 in the working
      state. **Not verified — author-TODO.** Install the branch's plugin on a cold profile (or
