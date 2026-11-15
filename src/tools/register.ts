@@ -253,7 +253,7 @@ function errorResult(body: unknown): ToolCallResult {
 
 /**
  * Card names off an arguments object. A non-array is `undefined`; a wrong-typed ENTRY is dropped
- * rather than rejected (MCP-PRD D-07), exactly as `unique` and `legalities` are treated above.
+ * rather than rejected, exactly as `unique` and `legalities` are treated above.
  */
 function asNames(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
@@ -264,7 +264,7 @@ function asNames(value: unknown): string[] | undefined {
  * All `tools/call` logic, separated from the transport so it is directly testable with no
  * server and no transport (MCP-PRD D-03).
  *
- * Argument validation is minimal (MCP-PRD D-07): the two search tools need an object with a
+ * Argument validation is minimal: the two search tools need an object with a
  * string `q`. The query string itself is never parsed, validated, or rewritten — the source owns
  * its query language, Scryfall for `card_search` and Commander Spellbook for `combo_search`.
  * Optional params pass through when they carry the right primitive type; wrong-typed values and
@@ -312,7 +312,7 @@ async function dispatchRulesLookup(
       error: { code: "unexpected", message: "rules_lookup is not configured in this server build." },
     });
   }
-  // (MCP-PRD D-07) a wrong-typed value is dropped, not rejected; the handler then refuses
+  // (MCP-PRD CAP-04) a wrong-typed value is dropped, not rejected; the handler then refuses
   // neither-or-both with one message, before any download.
   const raw = args as Record<string, unknown>;
   return toolResult(await rulesLookup(deps, {
@@ -382,7 +382,7 @@ async function dispatchComboSearch(client: HttpClient, args: unknown): Promise<T
 
   const raw = args as Record<string, unknown>;
 
-  // (MCP-PRD D-07) A wrong-typed `offset` or `format` is silently dropped and the handler's
+  // A wrong-typed `offset` or `format` is silently dropped and the handler's
   // default applies, exactly as `unique` and `legalities` are treated above. A missing or
   // non-string `q` stays the one rejection. An unknown *format string* is a different matter and
   // is refused by the handler, which is where the valid set is named.

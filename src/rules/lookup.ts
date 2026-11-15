@@ -1,12 +1,13 @@
+import { BYTE_BUDGET } from "../budget.ts";
 import type { Result } from "../result.ts";
 import type { GlossaryEntry, RuleEntry, RulesIndex } from "./parser.ts";
 
 /**
- * Characters of rule entries one lookup may return. The same figure as the combo tools' page
- * budget, for the same reason (issue #25): section 7 alone is hundreds of kilobytes, and a
- * response past the harness ceiling is lost whole.
+ * Characters of rule entries one lookup may return: THE shared budget, not a copy of its number,
+ * for the same reason the combo tools use it (issue #25) — section 7 alone is hundreds of
+ * kilobytes, and a response past the harness ceiling is lost whole.
  */
-export const RULES_BYTE_BUDGET = 50_000;
+export const RULES_BYTE_BUDGET = BYTE_BUDGET;
 
 export interface RuleLookup {
   /** The requested rule first, then its descendants in document order. */
