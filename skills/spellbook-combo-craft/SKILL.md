@@ -23,10 +23,14 @@ Two different questions take two different tools. Pick before you write a query.
 |---|---|---|
 | **Combos** — what a card enables, infinite loops, wincons, what pieces go together | **combo search** (this skill) | "what can I do with Kiki-Jiki?" |
 | **Cards** — finding cards by color/type/cost/text, prices, one card's legality | **card search** (`scryfall-query-craft`) | "cheap red creatures under $1" |
+| **Rules** — whether a combo actually works, how its pieces interact | **rules lookup + card rulings** (`mtg-rules`) | "does this combo I came up with really work?" |
 
 They compose. A combo result lists each piece's `name` and `oracle_id`; to price those pieces, or
 read their oracle text, run a **card search** on them (`oracle_id` joins back to Scryfall via
 `oracleid:`). Combo search never returns prices — `D-06` makes Scryfall the price source.
+
+Report Commander Spellbook's combos as returned; do not rules-check each one. Hand a combo to
+`mtg-rules` only when the user asks whether it works, or when the combo is one they devised.
 
 ## Procedure
 
