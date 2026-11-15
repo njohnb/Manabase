@@ -3,7 +3,7 @@
 **What to build:** evidence that the rules tools and skill produce correctly cited answers. It is
 measured the same way the [OQ-14 combo eval](../../../slices/OQ14-combo-eval-results.md) was: a
 set of known-answer rules questions run with the skill and against a clean-room baseline, with the
-results written up and the acceptance criteria of CAP-03, CAP-04 and PC-05 marked verified.
+results written up and the acceptance criteria of CAP-03, CAP-04 and PC-06 marked verified.
 
 **Blocked by:** 04, 05.
 
@@ -20,5 +20,5 @@ results written up and the acceptance criteria of CAP-03, CAP-04 and PC-05 marke
       the CR version stated, and the ruling source labelled.
 - [ ] A results document records per-case tallies, the axes where the skill helps and where it
       doesn't, and any confounds.
-- [ ] Verified criteria are marked in the CAP-03, CAP-04 and PC-05 blocks with dated evidence, by
+- [ ] Verified criteria are marked in the CAP-03, CAP-04 and PC-06 blocks with dated evidence, by
       `doc-sync`. Nothing is marked from this run that it didn't measure.
