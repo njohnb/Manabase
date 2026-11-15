@@ -1,5 +1,5 @@
 import type { Result } from "../result.ts";
-import type { RuleEntry, RulesIndex } from "./parser.ts";
+import type { GlossaryEntry, RuleEntry, RulesIndex } from "./parser.ts";
 
 /**
  * Characters of rule entries one lookup may return. The same figure as the combo tools' page
@@ -81,4 +81,86 @@ export function lookupRule(index: RulesIndex, input: string): Result<RuleLookup>
     bytes += cost;
   }
   return { ok: true, value: { rules, truncated: false } };
+}
+
+export interface RuleSearch {
+  /** Glossary entries whose term matches, the exact term first. Always ahead of `rules`. */
+  glossary: GlossaryEntry[];
+  /** Rules whose text matches, each with its number: an exact heading first, then document order. */
+  rules: RuleEntry[];
+  /** Every glossary match, shown or not. */
+  total_glossary_matches: number;
+  /** Every rule match, shown or not. */
+  total_rule_matches: number;
+  /** True when matches were cut at the budget. Never a silent cut. */
+  truncated: boolean;
+}
+
+/**
+ * Characters reserved for everything around the matches — this result's own counts and flag, and
+ * the handler's version, age, citation and note — plus twice the query, which the response echoes
+ * in `query` and in its note. Generous on purpose, as `ENVELOPE_RESERVE` is for the combo tools:
+ * overshooting the budget matters and under-filling it by a few hundred characters does not.
+ */
+export const SEARCH_ENVELOPE_RESERVE = 800;
+
+/**
+ * Pure. Glossary terms, then rule text, matching `query` as a case-insensitive phrase that must
+ * start at a word (so "ward" does not match "toward"), filled to `RULES_BYTE_BUDGET` with the
+ * glossary first. No match is a successful empty result.
+ */
+export function searchRules(index: RulesIndex, query: string): Result<RuleSearch> {
+  const phrase = query.trim().replace(/\s+/g, " ").toLowerCase();
+  if (phrase === "") {
+    return {
+      ok: false,
+      error: {
+        code: "bad_request",
+        message: 'The query is empty. Pass a rules term such as "trample" or "mana value".',
+      },
+    };
+  }
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+");
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}`, "iu");
+
+  const exactFirst = <T>(items: T[], isExact: (item: T) => boolean): T[] =>
+    [...items.filter(isExact), ...items.filter((item) => !isExact(item))];
+  const glossary = exactFirst(
+    index.glossary.filter((entry) => pattern.test(entry.term)),
+    (entry) => entry.term.toLowerCase() === phrase,
+  );
+  const rules = exactFirst(
+    index.rules.filter((entry) => pattern.test(entry.text)),
+    (entry) => entry.text.toLowerCase() === phrase,
+  );
+
+  let bytes = SEARCH_ENVELOPE_RESERVE + 2 * query.length;
+  let shown = 0;
+  let full = false;
+  const fits = (item: GlossaryEntry | RuleEntry): boolean => {
+    if (full) return false;
+    const cost = JSON.stringify(item).length + 1;
+    // The first match is always shown, however large: an empty answer to a matching query is worse.
+    // Once one match is cut, every later one is too, so what is shown is always a prefix.
+    if (shown > 0 && bytes + cost > RULES_BYTE_BUDGET) {
+      full = true;
+      return false;
+    }
+    bytes += cost;
+    shown++;
+    return true;
+  };
+  const keptGlossary = glossary.filter(fits);
+  const keptRules = rules.filter(fits);
+
+  return {
+    ok: true,
+    value: {
+      glossary: keptGlossary,
+      rules: keptRules,
+      total_glossary_matches: glossary.length,
+      total_rule_matches: rules.length,
+      truncated: keptGlossary.length + keptRules.length < glossary.length + rules.length,
+    },
+  };
 }

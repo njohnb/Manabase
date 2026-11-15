@@ -50,7 +50,7 @@
     },
     {
       "name": "rules_lookup",
-      "description": "Look up a rule in the Magic: The Gathering Comprehensive Rules by number — a section (\"7\"), rule (\"702\", \"702.19\") or subrule (\"702.19a\") — and get its text and every rule under it. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards' official dated document: cite the rule number and that version. The rules are downloaded from Wizards on first use and cached. Subrule letters skip l and o; an unknown number is reported, not guessed. A broad rule is cut at a size budget and `next_rule` names the first one omitted."
+      "description": "Look up the Magic: The Gathering Comprehensive Rules. Pass exactly one of `rule` or `query`. `rule` takes a number — a section (\"7\"), rule (\"702\", \"702.19\") or subrule (\"702.19a\") — and returns its text and every rule under it. `query` takes a rules term or phrase (\"trample\", \"mana value\") and returns matching glossary definitions first, then every rule whose text contains it, each with its rule number. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards' official dated document: cite the rule number and that version. The rules are downloaded from Wizards on first use and cached. Subrule letters skip l and o; an unknown number is reported, not guessed, and a query with no match is an empty result. Results are cut at a size budget and `truncated` says so: for a rule, `next_rule` names the first one omitted; for a query, the totals count every match — narrow it, or look up a number from the results."
     }
   ],
   "compatibility": {

@@ -178,20 +178,24 @@ export const CARD_RULINGS_TOOL_NAME = "card_rulings";
 // (MCP-PRD CAP-04) Names the version and citation fields because the point of the tool is a
 // citable answer, and says first use downloads, so a slow first call is not read as a hang.
 const RULES_LOOKUP_DESCRIPTION =
-  "Look up a rule in the Magic: The Gathering Comprehensive Rules by number — a section (\"7\"), " +
-  "rule (\"702\", \"702.19\") or subrule (\"702.19a\") — and get its text and every rule under " +
-  "it. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and " +
-  "`citation_url`, Wizards' official dated document: cite the rule number and that version. " +
-  "The rules are downloaded from Wizards on first use and cached. Subrule letters skip l and o; " +
-  "an unknown number is reported, not guessed. A broad rule is cut at a size budget and " +
-  "`next_rule` names the first one omitted.";
+  "Look up the Magic: The Gathering Comprehensive Rules. Pass exactly one of `rule` or `query`. " +
+  "`rule` takes a number — a section (\"7\"), rule (\"702\", \"702.19\") or subrule " +
+  "(\"702.19a\") — and returns its text and every rule under it. `query` takes a rules term or " +
+  "phrase (\"trample\", \"mana value\") and returns matching glossary definitions first, then " +
+  "every rule whose text contains it, each with its rule number. Every response carries " +
+  "`cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards' " +
+  "official dated document: cite the rule number and that version. The rules are downloaded " +
+  "from Wizards on first use and cached. Subrule letters skip l and o; an unknown number is " +
+  "reported, not guessed, and a query with no match is an empty result. Results are cut at a " +
+  "size budget and `truncated` says so: for a rule, `next_rule` names the first one omitted; for " +
+  "a query, the totals count every match — narrow it, or look up a number from the results.";
 
 const RULES_LOOKUP_INPUT_SCHEMA = {
   type: "object",
   properties: {
     rule: { type: "string", description: "A Comprehensive Rules number, e.g. \"702.19\" or \"702.19a\"." },
+    query: { type: "string", description: "A rules term or phrase, e.g. \"trample\" or \"mana value\"." },
   },
-  required: ["rule"],
 } as const;
 
 export const RULES_LOOKUP_TOOL_NAME = "rules_lookup";
@@ -290,12 +294,13 @@ async function dispatchRulesLookup(
   deps: RulesStoreDeps | undefined,
   args: unknown,
 ): Promise<ToolCallResult> {
-  if (typeof args !== "object" || args === null || Array.isArray(args) ||
-      typeof (args as Record<string, unknown>).rule !== "string") {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
     return errorResult({
       error: {
         code: "bad_request",
-        message: 'Missing required argument `rule`: a Comprehensive Rules number such as "702.19".',
+        message:
+          'Tool arguments must be an object with `rule` (a number such as "702.19") or `query` ' +
+          '(a term such as "trample").',
       },
     });
   }
@@ -304,7 +309,13 @@ async function dispatchRulesLookup(
       error: { code: "unexpected", message: "rules_lookup is not configured in this server build." },
     });
   }
-  return toolResult(await rulesLookup(deps, { rule: (args as { rule: string }).rule }));
+  // (MCP-PRD D-07) a wrong-typed value is dropped, not rejected; the handler then refuses
+  // neither-or-both with one message, before any download.
+  const raw = args as Record<string, unknown>;
+  return toolResult(await rulesLookup(deps, {
+    ...(typeof raw.rule === "string" ? { rule: raw.rule } : {}),
+    ...(typeof raw.query === "string" ? { query: raw.query } : {}),
+  }));
 }
 
 /** Reads `q` off the arguments object, or returns the one rejection either search tool makes. */

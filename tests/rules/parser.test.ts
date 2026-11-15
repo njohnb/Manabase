@@ -74,6 +74,33 @@ describe("parseRules — structure", () => {
   });
 });
 
+describe("parseRules — the glossary", () => {
+  test("each entry is a term line, its definition lines, then a blank line, in document order", () => {
+    assert.deepEqual(parsed().glossary, [
+      {
+        term: "Ability",
+        definition:
+          "1. A numbered glossary definition that must not parse as section 1.\n2. A second numbered definition.",
+      },
+      { term: "Mana Value", definition: "The synthetic total of a mana cost.\nSee rule 702.1." },
+      { term: "Trample", definition: "A synthetic keyword ability. See rule 702.19." },
+    ]);
+  });
+
+  test("the glossary heading in the contents section is not mistaken for the glossary", () => {
+    assert.equal(parsed().glossary.some((entry) => entry.term === "Credits"), false);
+  });
+
+  test("a glossary with no entries is a changed shape, not an empty glossary", () => {
+    const at = SYNTHETIC_LINES.lastIndexOf("Glossary");
+    const end = SYNTHETIC_LINES.lastIndexOf("Credits");
+    const r = parseRules(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
+    assert.ok(r.ok === false);
+    assert.equal(r.error.code, "unexpected");
+    assert.match(r.error.message, /glossary/i);
+  });
+});
+
 describe("parseRules — a file that changed shape is a failure, never a partial index", () => {
   const without = (drop: (line: string) => boolean) =>
     syntheticCr(SYNTHETIC_LINES.filter((line) => !drop(line)));
