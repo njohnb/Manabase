@@ -7,7 +7,7 @@ export const APP_VERSION = "0.0.0";
 export interface Config {
   /** Sent on every outbound request. Names the app per Scryfall's requirement. */
   userAgent: string;
-  /** CLAUDE_PLUGIN_DATA when set; otherwise the platform user-cache dir. Unused until a capability needs persistence. */
+  /** CLAUDE_PLUGIN_DATA when set; otherwise the platform user-cache dir. The CR cache lives under it, in `rules/` (CAP-04). */
   cacheDir: string;
   /** "https://api.scryfall.com" in production; overridable so tests never hit the network. */
   scryfallBaseUrl: string;

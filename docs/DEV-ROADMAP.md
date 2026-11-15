@@ -476,6 +476,36 @@ sharpening its user-facing half rather than closing it. Phase 1 stays open behin
 rows below carry the pre-slice figures, and the CI row's `ci.yml` naming is left as historical.
 Evidence: [`docs/slices/TrackC-Slice19-results.md`](./slices/TrackC-Slice19-results.md).
 
+**Unscheduled work, 2026-11-15 — ticket 02 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[`rules_lookup` by rule number](./plans/2026-11-15-mtg-rules-prd/slices/02-rules-lookup-by-number.md),
+landed as `6dba6f2` (code) and `f572771` (docs) on `ticket/02-rules-lookup`; unmerged, no PR.** It
+is **not a slice in this document** and is given no slice number here. It specifies and partly
+builds [`MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup): `Status`
+`specified`, phase unassigned, criteria 1–9, 12 and 13 verified 2026-11-15 (7 against mocks only,
+permanently), with criterion 10, the keyword `query`
+([ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md)), and criterion 11,
+the seven-day revalidation and stale fallback
+([ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)), not
+built. Wizards of the Coast joins as a source on two hosts, one text client each on a 500 ms lane;
+the CR is fetched at runtime and cached under the resolved cache directory, never bundled
+([D-08](./MCP-PRD.md#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)).
+[OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) is
+answered **for the CR cache only** — lazy first-use refresh, a weekly check, first use blocking on
+one download measured at 1,249 ms — and stays open for tag discovery;
+[OQ-08](./MCP-PRD.md#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)
+is complied with, not answered. Evidence: `npm test` 79 suites / 330 tests → **97 / 392**,
+typecheck clean, `npm run lint:docs` OK, and `npm run acceptance:rules`
+([`scripts/cr-live.mjs`](../scripts/cr-live.mjs)) **10/10 live**, two Wizards requests and no
+Scryfall call; the full `npm run acceptance` was deliberately not run because ticket 01 runs
+Scryfall live checks in parallel. No `D-` was minted, **no
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft), [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)
+or [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status**, and the
+plugin version was not bumped on the ticket branch. The table below carries the pre-ticket
+figures, and [§6](#6-beyond-phase-1--queued-slice-packs)'s Comprehensive Rules lookup and Tag
+discovery rows predate this work — [`MCP-PRD.md` §6](./MCP-PRD.md#6-phases)'s dated 2026-11-15
+note is the current record.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |

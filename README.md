@@ -60,6 +60,12 @@ acceptance criteria, closed by
 does not mean:** the work is still on a branch, no new bundle has been released, and the newest
 one — `v0.1.1` — carries `card_search` alone. Nothing installed anywhere has the combo tools today.
 
+**Comprehensive Rules lookup is partly built on a branch, 2026-11-15, and is in nothing you can
+install.** A fourth tool, `rules_lookup`, returns a rule by number — `702.19` and every subrule
+under it — with the rules version it came from and a link to Wizards' dated document
+([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), still `specified`). Searching the
+rules by keyword and the weekly check for a newer version are not built yet.
+
 ## Where it runs
 
 Manabase is a Claude Code plugin, and a plugin does not reach every surface the same way. Surface
@@ -230,14 +236,15 @@ skills/
 src/                   MCP server source (TypeScript)
 dist/                  committed build output — NOT gitignored (P-09)
 tests/                 handlers called as plain functions, no server (MCP-PRD D-03)
-scripts/               cap01-live.mjs (live CAP-01 harness), pack-mcpb.mjs (bundle packer),
-                       check-doc-links.mjs (documentation link checker)
+scripts/               cap01-live.mjs (live CAP-01 harness), cr-live.mjs (live CAP-04 harness),
+                       pack-mcpb.mjs (bundle packer), check-doc-links.mjs (documentation link checker)
 evals/                 PC-01 behavioral and trigger eval cases (Slice 9)
 docs/
   MCP-PRD.md           what the server does — tools, data sources, capabilities
   PLUGIN-PRD.md        what the user installs — packaging, install, skills
   DEV-ROADMAP.md       sequencing only — 17 slices (Phase 1's 1-14, Phase 2's 15-17) and status
   slices/              per-slice specs, and the live acceptance results
+  plans/               plan documents and their tickets, outside the roadmap's slice numbering
   prompts/             planning prompts for Claude Code sessions
 CLAUDE.md              working agreements for Claude Code sessions in this repo
 ```
@@ -264,6 +271,7 @@ npm run typecheck   # tsc --noEmit
 npm run lint:docs   # every doc link and heading anchor resolves — no network
 npm test            # node --test, with TypeScript stripped at runtime
 npm run acceptance  # 13 live harness checks against real Scryfall — slow on purpose
+npm run acceptance:rules  # 10 live rules-lookup checks — two Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -292,6 +300,12 @@ retries a failed check — Scryfall's rate limits are a hard constraint, and a s
 risks the application being banned for everyone using it
 ([`docs/MCP-PRD.md` §3.4](./docs/MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)).
 
+`npm run acceptance:rules` ([`scripts/cr-live.mjs`](./scripts/cr-live.mjs)) talks to live Wizards
+of the Coast and never to Scryfall, so it can run beside a Scryfall run. It starts the built server
+on a fresh temporary cache and contacts Wizards exactly twice — the rules page, then the dated rules
+file — and answers every later check from the cache
+([`docs/MCP-PRD.md` §3.7](./docs/MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis)).
+
 ## Data on disk
 
 Caches live under `${CLAUDE_PLUGIN_DATA}`, which survives plugin updates. Nothing is written
@@ -300,6 +314,12 @@ two weeks later ([`docs/PLUGIN-PRD.md` P-06](./docs/PLUGIN-PRD.md#p-06--cached-d
 
 Phase 1 caches nothing — every card search goes to Scryfall — but the directory rule is already
 implemented and settled, so the first capability that needs persistence inherits it.
+
+**Rules lookup is that first capability** (built on a branch 2026-11-15, not yet released). Its
+first call downloads the Comprehensive Rules — about 1 MB — and caches the file under `rules/` in
+that directory; later calls read the cache. Where `${CLAUDE_PLUGIN_DATA}` is not set, the directory is the platform's user cache directory instead (`manabase`
+under `%LOCALAPPDATA%` on Windows, `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache`
+elsewhere).
 
 ## If something is wrong
 
@@ -445,8 +465,9 @@ reached today: [Archidekt](https://archidekt.com) and [Moxfield](https://moxfiel
 data, and Scryfall's Tags API for tag discovery. Deck reading is planned for Archidekt first and
 Moxfield second ([`docs/MCP-PRD.md` D-13](./docs/MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)); neither
 needs an account, and reading a private deck is not something the plugin will be able to do.
-Comprehensive Rules text is © Wizards of the Coast; when rules lookup lands, the plugin will
-resolve and fetch the official published file at runtime rather than redistribute a copy
+Comprehensive Rules text is © Wizards of the Coast; `rules_lookup` (built on a branch
+2026-11-15, not yet released) resolves and fetches the official published file at runtime rather
+than redistribute a copy, and cites Wizards' dated document with every answer
 ([`docs/MCP-PRD.md` D-08](./docs/MCP-PRD.md#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)).
 
 ---

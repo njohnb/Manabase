@@ -44,6 +44,7 @@ npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
 npm test            # node --experimental-strip-types --test  (330 tests, 79 suites)
 npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
+npm run acceptance:rules # scripts/cr-live.mjs — 10 LIVE checks, 2 Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -56,12 +57,18 @@ stay that way — see the rate-limit rule below.
 
 ```
 src/index.ts            entry point — the ONLY module that may read process.env/process.platform
-src/config.ts           resolveConfig(env, platform) — User-Agent, cacheDir, the two base URLs
+src/config.ts           resolveConfig(env, platform) — User-Agent, cacheDir, the four base URLs
 src/result.ts           Result<T> = Success<T> | Failure; FailureCode union
 src/http/client.ts      the one HTTP module: createHttpClient(spec, deps) — headers, lanes,
-                        429 backoff, GET and POST. Everything below is a SourceSpec over it
+                        429 backoff, GET and POST, JSON or text body. Everything below is a
+                        SourceSpec over it
 src/scryfall/client.ts  spec: two lanes (500/100 ms), Scryfall's details reader. Thin factory
 src/spellbook/client.ts spec: one 500 ms lane, the Django-REST field-error details reader
+src/wizards/client.ts   two text clients, one per Wizards host (site, media), 500 ms lane each
+src/rules/source.ts     resolveCrSource() — newest .txt by date stamp, same-stamp PDF citation
+src/rules/parser.ts     parseRules() — the CR TXT into a RulesIndex
+src/rules/store.ts      ensureRules() — download once, cache under <cacheDir>/rules/, injected fs
+src/rules/lookup.ts     lookupRule() — rule plus descendants on a number boundary, 50,000 budget
 src/scryfall/prices.ts  resolvePrice() — the three price traps
 src/scryfall/collection.ts resolveNames() — POST /cards/collection batched at 75; the misses come
                         back as unresolved names rather than being dropped
@@ -77,14 +84,15 @@ src/tools/card-search.ts  cardSearch() — query in, shaped CardSearchData out
 src/tools/combo-search.ts comboSearch() — one upstream request per call, byte-filled page, offset
 src/tools/combo-find-deck.ts comboFindDeck() — names resolved through Scryfall first, then ONE
                         combo request carrying no limit and no offset; six buckets, capped after
+src/tools/rules-lookup.ts rulesLookup() — CAP-04's rule-number path over the cached CR
 src/tools/register.ts     tool definitions + dispatchToolCall(clients, name, args) + registerTools
 tests/                  handlers called as plain functions; fixtures under tests/fixtures/
 dist/index.js           committed build output — NOT gitignored
 ```
 
-Data flows one way: `index.ts` builds config → creates both clients → `registerTools` wires the SDK
-handlers to `dispatchToolCall` → `cardSearch` / `comboSearch` / `comboFindDeck` → `client.get` or
-`client.post`. `dispatchToolCall` takes a `Clients` bundle rather than positional clients, and each
+Data flows one way: `index.ts` builds config → creates the clients → `registerTools` wires the SDK
+handlers to `dispatchToolCall` → `cardSearch` / `comboSearch` / `comboFindDeck` / `rulesLookup` →
+`client.get` or `client.post`. `dispatchToolCall` takes a `Clients` bundle rather than positional clients, and each
 handler receives the client(s) it needs and no more, so no handler can reach a source it has no
 business calling. `comboFindDeck` is the **only** handler holding both — deliberately, because
 Commander Spellbook silently ignores a card name it does not know, so Scryfall resolves the names
@@ -850,6 +858,21 @@ Phase 1 stays open behind Slice 12's second cold run and Slice 13's remnant, whi
 not close. **The Commands-block header above read `325 tests, 77 suites` and is corrected to
 330/79; the dated records keep their figures.** Evidence:
 `docs/slices/TrackC-Slice19-results.md`.
+
+**Rules plan ticket 02 (`rules_lookup` by rule number) landed 2026-11-15 as `6dba6f2` (code) and
+`f572771` (docs) on `ticket/02-rules-lookup` — unmerged, no PR, not a roadmap slice.** Plan:
+`docs/plans/2026-11-15-mtg-rules-prd.md`. `CAP-04` is appended to `MCP-PRD.md`, `Status`
+**`specified`**, phase unassigned: criteria 1–9, 12, 13 verified (7 against mocks, permanently);
+**10 (keyword `query`, ticket 03) and 11 (seven-day revalidation and stale fallback, ticket 04) are
+not built — never write `CAP-04` as delivered.** Wizards is a new source on two hosts, one client
+each, 500 ms per host; the media client never fetches a scraped URL on another host. First use
+downloads ~1 MB and blocks (1,249 ms cold); nothing is fetched at startup. `OQ-03` is answered for
+the CR cache only and **stays open for tag discovery**; `OQ-08` is complied with, not answered. No
+`D-` minted, no `PC` criterion moved, plugin version not bumped (the PR's bump job writes it).
+Branch figures: `npm test` **392 tests, 97 suites**, typecheck clean, `lint:docs` OK,
+`npm run acceptance:rules` 10/10 live; full `npm run acceptance` not run. The Commands-block count
+still reads 330/79 because it tracks `main` and ticket 01 changes it in parallel. Evidence: the
+`CAP-04` criteria in `MCP-PRD.md`; there is no results doc.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
