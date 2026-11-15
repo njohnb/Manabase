@@ -8,6 +8,8 @@ const config: Config = {
   cacheDir: "unused",
   scryfallBaseUrl: "https://scryfall.test",
   spellbookBaseUrl: "https://spellbook.test",
+  wizardsSiteBaseUrl: "https://site.wizards.test",
+  wizardsMediaBaseUrl: "https://media.wizards.test",
 };
 
 const jsonResponse = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
@@ -126,6 +128,21 @@ describe("scryfall client — rate limiting", () => {
     // the first non-card call behind the card call's 500ms spacing.
     assert.equal(cardCalls[0]!.at, 0);
     assert.equal(otherCalls[0]!.at, 0);
+  });
+
+  test("[CAP-03] /cards/{id}/rulings rides the 100ms lane, not the 500ms card lane", async () => {
+    // MCP-PRD §3.4: only the card-search family is 2/sec. A rulings path begins `/cards/` but no
+    // card prefix matches it, and a regression to the card lane would be safe but would make a
+    // ten-card call five times slower than it needs to be.
+    const { deps, sleeps } = makeHarness([jsonResponse(200, {}), jsonResponse(200, {})]);
+    const client = createScryfallClient(config, deps);
+
+    await Promise.all([
+      client.get("/cards/1d779f19-3068-4976-b96b-8f93d156900b/rulings"),
+      client.get("/cards/726e8b29-13e9-4138-b6a9-d2a0d8188d1c/rulings"),
+    ]);
+
+    assert.deepEqual(sleeps, [100]);
   });
 
   test("cards/random and /cards/collection share the 500ms card lane", async () => {

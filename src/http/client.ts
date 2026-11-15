@@ -27,6 +27,13 @@ export interface SourceSpec {
   defaultLane: string;
   /** Reads a source's own error text out of a non-2xx body. Must never throw. */
   detailsFrom: (text: string) => string | undefined;
+  /** Sent as `Accept`. Default `application/json`. */
+  accept?: string;
+  /**
+   * How a 2xx body is returned. Default `"json"` (parsed; a non-JSON body is a failure).
+   * `"text"` returns the decoded body string unparsed — Wizards serves HTML and a TXT, not JSON.
+   */
+  responseBody?: "json" | "text";
 }
 
 export interface HttpClient {
@@ -79,6 +86,7 @@ async function mapResponse(spec: SourceSpec, response: Response): Promise<Result
   const name = spec.sourceName;
 
   if (status >= 200 && status < 300) {
+    if (spec.responseBody === "text") return { ok: true, value: text };
     try {
       return { ok: true, value: JSON.parse(text) };
     } catch {
@@ -130,7 +138,7 @@ export function createHttpClient(spec: SourceSpec, deps?: ClientDeps): HttpClien
 
   function baseHeaders(): Record<string, string> {
     // (MCP-PRD §3.4, §3.7) both are required on every outbound request, every source.
-    return { "User-Agent": spec.userAgent, "Accept": "application/json" };
+    return { "User-Agent": spec.userAgent, "Accept": spec.accept ?? "application/json" };
   }
 
   async function attemptOnce(url: string, init: RequestInit): Promise<Attempt> {

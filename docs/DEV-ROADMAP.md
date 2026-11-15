@@ -476,6 +476,134 @@ sharpening its user-facing half rather than closing it. Phase 1 stays open behin
 rows below carry the pre-slice figures, and the CI row's `ci.yml` naming is left as historical.
 Evidence: [`docs/slices/TrackC-Slice19-results.md`](./slices/TrackC-Slice19-results.md).
 
+**[CAP-03](./MCP-PRD.md#cap-03--card-rulings) — card rulings — was specified and delivered
+2026-11-15 as commit `23adcc4` on `ticket/01-card-rulings`, not yet a PR. It is not a slice in this
+document** and no slice number is assigned by this entry: it is ticket
+[01](./plans/2026-11-15-mtg-rules-prd/slices/01-card-rulings.md) of the plan
+[`docs/plans/2026-11-15-mtg-rules-prd.md`](./plans/2026-11-15-mtg-rules-prd.md), and the branch
+merges into the integration branch `feat/mtg-rules`, not `main`. A fourth tool, `card_rulings`,
+takes up to 10 names, resolves them through
+[§4.1.2](./MCP-PRD.md#412-batch-resolution) and issues one rulings request per distinct resolved
+card on the 10/second lane. **All ten [CAP-03](./MCP-PRD.md#cap-03--card-rulings) criteria are
+verified** — `npm test` 347 tests / 82 suites (was 330 / 79), typecheck clean, `npm run lint:docs`
+OK, `dist/` rebuilt, `npm run acceptance` **14/14** live with no 429; the response shape is the
+dated record in [§4.1.5](./MCP-PRD.md#415-per-card-rulings). Its `Phase` is **unassigned**
+([`MCP-PRD.md` §6](./MCP-PRD.md#6-phases)), so nothing in [§4](#4-phase-1-slices),
+[§5](#5-order-and-parallelism) or [§7](#7-phase-2-slices--combo-discovery) moves. **No open question
+was resolved**, no `D-` or `P-` was minted, no `PC` criterion changed status, and
+[PQ-06](./PLUGIN-PRD.md#pq-06--what-keeps-the-committed-dist-honest) moved in neither half. **The
+plugin version bump was not run** — the local tag set lags origin, so it would compute a spent
+version — and is left to the integration PR to `main`. The plan's ticket 02, rules lookup by number,
+runs on a separate branch and is not recorded here.
+
+**Unscheduled work, 2026-11-15 — ticket 02 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[`rules_lookup` by rule number](./plans/2026-11-15-mtg-rules-prd/slices/02-rules-lookup-by-number.md),
+landed as `6dba6f2` (code) and `f572771` (docs) on `ticket/02-rules-lookup`; unmerged, no PR.** It
+is **not a slice in this document** and is given no slice number here. It specifies and partly
+builds [`MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup): `Status`
+`specified`, phase unassigned, criteria 1–9, 12 and 13 verified 2026-11-15 (7 against mocks only,
+permanently), with criterion 10, the keyword `query`
+([ticket 03](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md)), and criterion 11,
+the seven-day revalidation and stale fallback
+([ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)), not
+built. Wizards of the Coast joins as a source on two hosts, one text client each on a 500 ms lane;
+the CR is fetched at runtime and cached under the resolved cache directory, never bundled
+([D-08](./MCP-PRD.md#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)).
+[OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) is
+answered **for the CR cache only** — lazy first-use refresh, a weekly check, first use blocking on
+one download measured at 1,249 ms — and stays open for tag discovery;
+[OQ-08](./MCP-PRD.md#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)
+is complied with, not answered. Evidence: `npm test` 79 suites / 330 tests → **97 / 392**,
+typecheck clean, `npm run lint:docs` OK, and `npm run acceptance:rules`
+([`scripts/cr-live.mjs`](../scripts/cr-live.mjs)) **10/10 live**, two Wizards requests and no
+Scryfall call; the full `npm run acceptance` was deliberately not run because ticket 01 runs
+Scryfall live checks in parallel. No `D-` was minted, **no
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft), [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server)
+or [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status**, and the
+plugin version was not bumped on the ticket branch. The table below carries the pre-ticket
+figures, and [§6](#6-beyond-phase-1--queued-slice-packs)'s Comprehensive Rules lookup and Tag
+discovery rows predate this work — [`MCP-PRD.md` §6](./MCP-PRD.md#6-phases)'s dated 2026-11-15
+note is the current record.
+
+**Unscheduled work, 2026-11-15 — ticket 03 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[`rules_lookup` by keyword](./plans/2026-11-15-mtg-rules-prd/slices/03-rules-keyword-search.md),
+landed as `4b17ea1` on `ticket/03-rules-keyword-search`, based on `feat/mtg-rules`; unmerged, no
+PR, nothing pushed.** Like ticket 02 it is **not a slice in this document** and gets no slice
+number. It verifies [`MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup)
+criterion 10: `rules_lookup` takes exactly one of `rule` or `query`, and a query returns glossary
+terms first, then rule-text matches with their numbers, filled to the same 50,000-character budget
+with both totals and `truncated`; no match is a successful empty result, both-or-neither is a
+`bad_request` before any download. Criterion 4 is extended to the glossary, 12 re-confirmed with a
+description-level manifest drift check, 13 grown to 17/17. **`Status` stays `specified`** —
+criterion 11, the seven-day revalidation and stale fallback
+([ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)), runs in
+parallel and is not built here. Evidence: `npm test` 100 suites / 409 tests → **105 / 433**,
+typecheck clean, `npm run lint:docs` OK, `dist/` rebuilt, and `npm run acceptance:rules`
+([`scripts/cr-live.mjs`](../scripts/cr-live.mjs)) **17/17 live** — Wizards contacted exactly
+twice, no Scryfall call. **No open question moved**
+([OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) and
+[OQ-08](./MCP-PRD.md#oq-08--does-the-cr-landing-page-ever-offer-more-than-one-date-stamped-txt-and-how-are-mid-cycle-corrections-handled)
+unchanged), no `D-` was minted, no `PC` criterion changed status, and the plugin version was
+deliberately not bumped — the CI bump job writes it on the PR to `main`. The table below still
+carries pre-ticket figures.
+
+**Unscheduled work, 2026-11-15 — ticket 04 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[weekly CR refresh and cached-copy fallback](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md),
+landed as `a9378e4` (code) and `8aeddbc` (docs) on `ticket/04-rules-refresh`; unmerged, no PR.**
+Not a slice in this document and given no slice number. It builds
+[`MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup)'s criterion 11, **verified
+2026-11-15 by unit tests with a fake clock and fake I/O, not live** — a failed check cannot be
+provoked honestly. A copy checked under seven days ago makes no request; at seven or more, one
+landing-page request, a re-download only on a changed date stamp, and any failed check serves the
+cache as a success marked `stale`. Nothing runs at startup and no hook ships, which answers
+[`PLUGIN-PRD.md` PQ-03](./PLUGIN-PRD.md#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook)
+in practice **for the CR cache only**;
+[OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced)
+stays open for tag discovery. Criterion 10 (ticket 03) is still not built, so `Status` stays
+`specified`. Evidence: `npm test` **425 tests, 105 suites**, typecheck clean, `dist/` rebuilt,
+`npm run lint:docs` OK, `npm run acceptance:rules` **11/11 live** (one check added), two Wizards
+requests and no Scryfall call. No `D-` or `P-` was minted, no `PC` criterion changed status, and
+the plugin version was not bumped on the ticket branch — the PR's bump job writes it.
+
+**Post-merge 2026-11-15: [`MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup)
+is delivered.** `feat/mtg-rules`, which carries ticket 03, was merged into `ticket/04-rules-refresh`
+as `160abd4`. With criteria 10 and 11 on one branch, all thirteen are verified and `Status` moved
+`specified` → `delivered`. This supersedes the "`Status` stays `specified`" in both ticket
+paragraphs above, which are left as written. `Phase` stays unassigned, so nothing in
+[§4](#4-phase-1-slices), [§5](#5-order-and-parallelism) or [§7](#7-phase-2-slices--combo-discovery)
+moves. Merged-branch evidence: `npm test` **450 tests, 110 suites**, including one merge test for a
+stale keyword query; typecheck clean; `dist/` rebuilt; `npm run lint:docs` OK;
+`npm run acceptance:rules` **18/18 live**, Wizards contacted exactly twice and Scryfall never.
+Unmerged to `main`, no PR, no release, and the plugin version is not bumped. No open question moved
+and no `PC` criterion changed status.
+
+**Unscheduled work, 2026-11-15 — ticket 05 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[the `mtg-rules` skill](./plans/2026-11-15-mtg-rules-prd/slices/05-mtg-rules-skill.md), landed as
+`b73ec0a` (skill and tests) and `e72c440` (PRD block) on `ticket/05-mtg-rules-skill`, based on
+`feat/mtg-rules`; unmerged, no PR.** **Not a slice in this document** and given no slice number.
+It writes [`skills/mtg-rules/SKILL.md`](../skills/mtg-rules/SKILL.md) and appends
+[`PLUGIN-PRD.md` PC-06](./PLUGIN-PRD.md#pc-06--rules-and-rulings) — the plan's working name was
+PC-05, an ID already taken on `main` by a component this branch does not carry, so the block is
+PC-06 and is not renumbered. `Status` **`specified`**, phase unassigned; criteria 1–5 verified
+2026-11-15, all static (613 frontmatter characters, frontmatter and scoped-tool-string tests, a
+zero-flag no-facts review by a reviewer with no authoring context, no-fallback taught); criterion 6
+**combo half only** — the deck skill is not on this branch; **7 (loads in a real session's skill
+listing) and 8 (always-on cost measured) are author-TODO**, and 9 is
+[ticket 06](./plans/2026-11-15-mtg-rules-prd/slices/06-rules-eval-run.md)'s eval run, not run.
+Evidence: `npm test` 105 suites / 433 tests → **107 / 445**, typecheck clean, `npm run lint:docs`
+OK, no `src/` change and `dist/` unchanged; there is no results doc — the dated criterion notes in
+the block are the record. **No open question resolved**
+([PQ-02](./PLUGIN-PRD.md#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed)
+gains a dated addendum noting a third always-on description, not an answer), no `CAP` criterion
+moved, no `D-` or `P-` minted, and no
+[PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft),
+[PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
+[PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |
@@ -484,11 +612,11 @@ Evidence: [`docs/slices/TrackC-Slice19-results.md`](./slices/TrackC-Slice19-resu
 | `marketplace.json` | present; relative `./` source ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), disclaimer present |
 | `.mcp.json` | present; server key `mtg`, `node ${CLAUDE_PLUGIN_ROOT}/dist/index.js` ([P-09](./PLUGIN-PRD.md#p-09--server-ships-as-committed-built-javascript), [P-12](./PLUGIN-PRD.md#p-12--plugin-name-and-server-key)) |
 | README | install instructions in `owner/repo` form with the raw-URL trap warning ([P-11](./PLUGIN-PRD.md#p-11--the-repo-is-its-own-marketplace)), version floor, disclaimer |
-| Server source | `config.ts`, `index.ts`, `result.ts`, `http/client.ts`, `scryfall/{client,collection,prices,types}.ts`, `spellbook/{client,combos,types}.ts`, `tools/{card-search,combo-find-deck,combo-search,register}.ts` — **fifteen** files since [Slice 17](./slices/TrackA-Slice17.md) (2026-08-25), which added `scryfall/collection.ts` and `tools/combo-find-deck.ts` to the thirteen [Slice 16](./slices/TrackA-Slice16.md) left, itself up from the ten [Slice 15](./slices/TrackA-Slice15.md) left. [Slice 15](./slices/TrackA-Slice15.md) made `http/client.ts` **the one transport** and left `scryfall/client.ts` and `spellbook/client.ts` as source specs over it; [Slice 17](./slices/TrackA-Slice17.md) moved the byte budget and the shared page filler into `spellbook/combos.ts`, so both combo tools spend **one** constant |
-| Tests | 70 suites, **297 tests, 297 passing**; `tsc --noEmit` clean — re-run 2026-08-25 ([Slice 17](./slices/TrackA-Slice17.md) took it from 56 suites and **215** tests, [Slice 16](./slices/TrackA-Slice16.md) from 39 and 150, [Slice 15](./slices/TrackA-Slice15.md) from 27 and 101, [Slice 14](./slices/TrackA-Slice14.md) from 21 and 73). **The 215 corrects a 210 this row carried**: the count moved again inside [Slice 16](./slices/TrackA-Slice16.md)'s byte-budget follow-up and the row was not re-measured, so 210 was one step behind rather than wrong when written. **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so a change to a shared interface passes it and fails only `npm run typecheck`, which is how [Slice 15](./slices/TrackA-Slice15.md) found three test fakes broken by `ScryfallClient` becoming an alias. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
-| `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules`. Since [Slice 17](./slices/TrackA-Slice17.md) (2026-08-25) the rebuilt bundle lists **three** tools, `card_search`, `combo_search` and `combo_find_deck` — [Slice 16](./slices/TrackA-Slice16.md) earlier the same day took it from one to two |
+| Server source | `config.ts`, `index.ts`, `result.ts`, `http/client.ts`, `scryfall/{client,collection,prices,types}.ts`, `spellbook/{client,combos,types}.ts`, `tools/{card-rulings,card-search,combo-find-deck,combo-search,register}.ts` — **sixteen** files since [CAP-03](./MCP-PRD.md#cap-03--card-rulings) (2026-11-15, `23adcc4`) added `tools/card-rulings.ts`; **fifteen** since [Slice 17](./slices/TrackA-Slice17.md) (2026-08-25), which added `scryfall/collection.ts` and `tools/combo-find-deck.ts` to the thirteen [Slice 16](./slices/TrackA-Slice16.md) left, itself up from the ten [Slice 15](./slices/TrackA-Slice15.md) left. [Slice 15](./slices/TrackA-Slice15.md) made `http/client.ts` **the one transport** and left `scryfall/client.ts` and `spellbook/client.ts` as source specs over it; [Slice 17](./slices/TrackA-Slice17.md) moved the byte budget and the shared page filler into `spellbook/combos.ts`, so both combo tools spend **one** constant |
+| Tests | 82 suites, **347 tests** passing, `tsc --noEmit` clean — 2026-11-15, [CAP-03](./MCP-PRD.md#cap-03--card-rulings) (`23adcc4`), from 79 and 330 at Slice 19 ([`docs/slices/TrackC-Slice19-results.md`](./slices/TrackC-Slice19-results.md)). Earlier: 70 suites, **297 tests, 297 passing**; `tsc --noEmit` clean — re-run 2026-08-25 ([Slice 17](./slices/TrackA-Slice17.md) took it from 56 suites and **215** tests, [Slice 16](./slices/TrackA-Slice16.md) from 39 and 150, [Slice 15](./slices/TrackA-Slice15.md) from 27 and 101, [Slice 14](./slices/TrackA-Slice14.md) from 21 and 73). **The 215 corrects a 210 this row carried**: the count moved again inside [Slice 16](./slices/TrackA-Slice16.md)'s byte-budget follow-up and the row was not re-measured, so 210 was one step behind rather than wrong when written. **`npm test` does not typecheck** — `--experimental-strip-types` strips types without checking them, so a change to a shared interface passes it and fails only `npm run typecheck`, which is how [Slice 15](./slices/TrackA-Slice15.md) found three test fakes broken by `ScryfallClient` becoming an alias. Includes [`tests/skills.test.ts`](../tests/skills.test.ts), which parses every `skills/**/SKILL.md` frontmatter as YAML — the guard for the [Slice 8](./slices/TrackB-Slice8.md) defect, verified to fail against the unfixed file |
+| `dist/index.js` | built and committed; verified 2026-08-04 to complete an initialize handshake and list `card_search` from a directory containing no `node_modules`. Since [Slice 17](./slices/TrackA-Slice17.md) (2026-08-25) the rebuilt bundle lists **three** tools, `card_search`, `combo_search` and `combo_find_deck` — [Slice 16](./slices/TrackA-Slice16.md) earlier the same day took it from one to two. Since [CAP-03](./MCP-PRD.md#cap-03--card-rulings) (2026-11-15, `23adcc4`, branch only) it lists **four**, adding `card_rulings` |
 | CI | `.github/workflows/ci.yml` since 2026-08-09 ([Slice 11](./slices/TrackC-Slice11.md), PR #32): `npm ci` → `npm run lint:docs` (added 2026-08-10, PR #36) → `npm run typecheck` → `npm test` → rebuild `dist/` and fail on a non-empty `git status --porcelain -- dist/`, on every pull request and every push to `main`. Green on `main`, and demonstrated failing on a deliberately stale `dist/`. `.nvmrc` (`22`) pins the toolchain Node for both workflows; `.gitattributes` holds one rule, `dist/index.js text eol=lf`. `release.yml` **ran for the first time 2026-08-10** on tag `v0.1.0` (run `31421682409`), after its `actions/checkout`, `setup-node` and `upload-artifact` pins were bumped to `@v7` — `upload-artifact@v6` is the first major on `node24`, so `@v5` still carried the Node-20 deprecation annotation that prompted the bump |
-| Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 13 live checks, ≥600 ms apart, no 429 provoked |
+| Acceptance harness | `scripts/cap01-live.mjs` (`npm run acceptance`) — 14 live checks since 2026-11-15 (check 14, `card_rulings`, added for [CAP-03](./MCP-PRD.md#cap-03--card-rulings)), ≥600 ms apart, no 429 provoked |
 | `SKILL.md` | **written and measured** 2026-08-04 — [Slice 8](./slices/TrackB-Slice8.md), PR #19: 764 listing characters, 2,169 body tokens, no card facts. **Frontmatter fixed the same day** (`fix/skill-frontmatter-yaml`, `ed82ceb`, PR #22): it was unparsable YAML and the skill loaded nowhere. Re-measured after the fix by a YAML parser — `name` 20 + `description` 269 + `when_to_use` 494 = **783 of 1,536** characters. [Slice 9](./slices/TrackB-Slice9.md) re-measured and **explains the spread**: 783 counts `name`, 763 does not (783 − 763 = 20 = the length of `scryfall-query-craft`), and 764 is a one-off arithmetic slip on [Slice 8](./slices/TrackB-Slice8.md)'s own 269 + 494. No measurement was wrong; the labels were. **`description` + `when_to_use` = 763 of 1,536** is the figure [PC-01](./PLUGIN-PRD.md#pc-01--scryfall-query-craft) criterion 1 measures; the dated records that carry 764 and 783 stand as written |
 | MCPB bundle | **Released 2026-08-10 as `v0.1.0`, then `v0.1.1`** — `manabase.mcpb`, 111,760 then 113,631 bytes, downloadable from a GitHub Release. `v0.1.1` carries [Slice 14](./slices/TrackA-Slice14.md)'s issue-#25 fix; `v0.1.0` was not moved or deleted, because a released bundle cannot be withdrawn. `mcpb/manifest.json`, `scripts/pack-mcpb.mjs` (`npm run pack:mcpb`) and `.github/workflows/release.yml` landed 2026-08-04, superseding the spike that produced the same artifact by hand. The pack step stamps the version ([PQ-09](./PLUGIN-PRD.md#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08) answered and implemented), refuses a `dist/` older than `src/`, and since 2026-08-10 unpacks the archive it just wrote to assert its `server/index.js` is the committed `dist/index.js` ([PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion 7). The Chat-tab install is now a download rather than a local build; a bundle still has **no update path** once installed. [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) stays `in progress` — **criteria 1–7 and 9–11 verified, criterion 8 the only one left** — and was **reassigned 2026-08-09 from [Slice 11](./slices/TrackC-Slice11.md) to [Slice 13](./slices/TrackC-Slice13.md)**, which executed this half on 2026-08-10 without closing the slice: [P-08](./PLUGIN-PRD.md#p-08--version-scheme) is untouched and `plugin.json` still carries no `version` |
 | Known open defect | **None open.** Issue #25 — a `card_search` payload exceeding the harness tool-result ceiling below one page, first measured at 111 cards and 116,626 characters with `legalities` 54.5% of the bytes — was **fixed 2026-08-10** by [Slice 14](./slices/TrackA-Slice14.md), which implemented both of [`MCP-PRD.md` OQ-02](./MCP-PRD.md#oq-02--how-verbose-should-a-search-result-be)'s levers and closed that question: the same query now measures 53,043 characters and all 111 cards stay reachable across two pages. **Shipped to the Chat tab the same day as `v0.1.1`.** One carry-over that is not a defect in this tree: an installed bundle never updates itself, so anyone still on `v0.1.0` carries the old payload until they reinstall from the latest release |

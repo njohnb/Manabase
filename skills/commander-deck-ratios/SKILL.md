@@ -115,6 +115,9 @@ judgment they cannot.
 
 For deck testing and adapting to a playgroup, read `reference/deck-review.md`.
 
+Whether a card or an interaction actually works is a rules question: hand it to `mtg-rules` only
+when the user asks, and do not rules-check every card you recommend.
+
 ## Turning a slot into a query
 
 Constrain every search to the deck: `id:<commander identity>` and `f:commander`. Add `usd<=N` when

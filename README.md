@@ -60,6 +60,31 @@ acceptance criteria, closed by
 does not mean:** the work is still on a branch, no new bundle has been released, and the newest
 one — `v0.1.1` — carries `card_search` alone. Nothing installed anywhere has the combo tools today.
 
+**Card rulings — a fourth tool, `card_rulings` — landed 2026-11-15 on a branch and is in no
+release.** Name up to 10 cards and it returns each card's rulings — date, whether the ruling is
+from Wizards or a Scryfall note, and a link to the card's Scryfall page — and lists any name it
+could not find rather than answering about fewer cards
+([`docs/MCP-PRD.md` CAP-03](./docs/MCP-PRD.md#cap-03--card-rulings), delivered against all ten of
+its criteria).
+
+**Comprehensive Rules lookup is built on a branch, 2026-11-15, and is in nothing you can
+install.** A fifth tool, `rules_lookup`, returns a rule by number — `702.19` and every subrule
+under it — with the rules version it came from and a link to Wizards' dated document. It also
+searches by keyword: ask about "trample" and it returns the glossary definition first, then the
+rules that mention it with their numbers, and it tells you when a broad word matches more than
+fits in one answer. Once a week it checks for a newer rules version. If Wizards' site cannot be
+reached, lookups keep answering from the cached copy and say how old it is. All of this is now on
+one branch and the capability is complete
+([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), `delivered`). It is not merged or
+released yet.
+
+**A rules skill was written on a branch, 2026-11-15, and is in nothing you can install.** It
+teaches Claude to answer a rules or card-interaction question by looking it up with those two
+tools and citing the rule number, the rules version and each ruling's date and source — and to say
+so when the tools are missing rather than answering from memory
+([`docs/PLUGIN-PRD.md` PC-06](./docs/PLUGIN-PRD.md#pc-06--rules-and-rulings), still `specified`).
+It passes its static checks; nobody has yet confirmed it loads in a real session.
+
 ## Where it runs
 
 Manabase is a Claude Code plugin, and a plugin does not reach every surface the same way. Surface
@@ -227,17 +252,19 @@ mcpb/
   manifest.json        MCPB manifest — the Chat tab's artifact (PC-03, P-14)
 skills/
   scryfall-query-craft/  PC-01 — SKILL.md plus reference/ files read on demand
+  mtg-rules/             PC-06 — rules and rulings citation; SKILL.md only
 src/                   MCP server source (TypeScript)
 dist/                  committed build output — NOT gitignored (P-09)
 tests/                 handlers called as plain functions, no server (MCP-PRD D-03)
-scripts/               cap01-live.mjs (live CAP-01 harness), pack-mcpb.mjs (bundle packer),
-                       check-doc-links.mjs (documentation link checker)
+scripts/               cap01-live.mjs (live CAP-01 harness), cr-live.mjs (live CAP-04 harness),
+                       pack-mcpb.mjs (bundle packer), check-doc-links.mjs (documentation link checker)
 evals/                 PC-01 behavioral and trigger eval cases (Slice 9)
 docs/
   MCP-PRD.md           what the server does — tools, data sources, capabilities
   PLUGIN-PRD.md        what the user installs — packaging, install, skills
   DEV-ROADMAP.md       sequencing only — 17 slices (Phase 1's 1-14, Phase 2's 15-17) and status
   slices/              per-slice specs, and the live acceptance results
+  plans/               plan PRDs and their per-ticket specs
   prompts/             planning prompts for Claude Code sessions
 CLAUDE.md              working agreements for Claude Code sessions in this repo
 ```
@@ -263,7 +290,8 @@ npm run build       # esbuild bundle -> dist/index.js, self-contained
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # every doc link and heading anchor resolves — no network
 npm test            # node --test, with TypeScript stripped at runtime
-npm run acceptance  # 13 live harness checks against real Scryfall — slow on purpose
+npm run acceptance  # 14 live harness checks against real Scryfall — slow on purpose
+npm run acceptance:rules  # 18 live rules-lookup checks — two Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -292,6 +320,12 @@ retries a failed check — Scryfall's rate limits are a hard constraint, and a s
 risks the application being banned for everyone using it
 ([`docs/MCP-PRD.md` §3.4](./docs/MCP-PRD.md#34-rate-limits-are-hard-constraints-not-guidance)).
 
+`npm run acceptance:rules` ([`scripts/cr-live.mjs`](./scripts/cr-live.mjs)) talks to live Wizards
+of the Coast and never to Scryfall, so it can run beside a Scryfall run. It starts the built server
+on a fresh temporary cache and contacts Wizards exactly twice — the rules page, then the dated rules
+file — and answers every later check from the cache
+([`docs/MCP-PRD.md` §3.7](./docs/MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis)).
+
 ## Data on disk
 
 Caches live under `${CLAUDE_PLUGIN_DATA}`, which survives plugin updates. Nothing is written
@@ -300,6 +334,14 @@ two weeks later ([`docs/PLUGIN-PRD.md` P-06](./docs/PLUGIN-PRD.md#p-06--cached-d
 
 Phase 1 caches nothing — every card search goes to Scryfall — but the directory rule is already
 implemented and settled, so the first capability that needs persistence inherits it.
+
+**Rules lookup is that first capability** (built on a branch 2026-11-15, not yet released). Its
+first call downloads the Comprehensive Rules — about 1 MB — and caches the file under `rules/` in
+that directory, as `cr-<date>.txt` beside a small `meta.json`; later calls read the cache. A call
+made seven or more days after the last check asks Wizards whether a newer version exists and
+downloads it only if so; nothing is checked at startup. Where `${CLAUDE_PLUGIN_DATA}` is not set, the directory is the platform's user cache directory instead (`manabase`
+under `%LOCALAPPDATA%` on Windows, `~/Library/Caches` on macOS, `$XDG_CACHE_HOME` or `~/.cache`
+elsewhere).
 
 ## If something is wrong
 
@@ -445,8 +487,9 @@ reached today: [Archidekt](https://archidekt.com) and [Moxfield](https://moxfiel
 data, and Scryfall's Tags API for tag discovery. Deck reading is planned for Archidekt first and
 Moxfield second ([`docs/MCP-PRD.md` D-13](./docs/MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)); neither
 needs an account, and reading a private deck is not something the plugin will be able to do.
-Comprehensive Rules text is © Wizards of the Coast; when rules lookup lands, the plugin will
-resolve and fetch the official published file at runtime rather than redistribute a copy
+Comprehensive Rules text is © Wizards of the Coast; `rules_lookup` (built on a branch
+2026-11-15, not yet released) resolves and fetches the official published file at runtime rather
+than redistribute a copy, and cites Wizards' dated document with every answer
 ([`docs/MCP-PRD.md` D-08](./docs/MCP-PRD.md#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)).
 
 ---

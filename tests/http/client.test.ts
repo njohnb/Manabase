@@ -13,6 +13,8 @@ const config: Config = {
   cacheDir: "unused",
   scryfallBaseUrl: "https://scryfall.test",
   spellbookBaseUrl: "https://spellbook.test",
+  wizardsSiteBaseUrl: "https://site.wizards.test",
+  wizardsMediaBaseUrl: "https://media.wizards.test",
 };
 
 /** Scryfall's reader, inlined: this file tests the transport, not `src/scryfall/client.ts`. */
@@ -469,6 +471,51 @@ describe("http client — url assembly and the backstop", () => {
 
     assert.ok(r.ok === false);
     assert.equal(r.error.code, "unexpected");
+  });
+});
+
+describe("http client — a text source (Wizards serves HTML and TXT, not JSON)", () => {
+  const textSpec = specWith({ accept: "text/plain", responseBody: "text" });
+
+  test("a 2xx body is returned verbatim as a string, never JSON-parsed", async () => {
+    // No BOM here: `Response.text()` is WHATWG UTF-8 decode, which strips one. The parser handles
+    // a BOM anyway, because a file read back from the cache is not decoded that way.
+    const body = "Magic: The Gathering Comprehensive Rules\r\n";
+    const { deps } = makeHarness([new Response(body, { status: 200 })]);
+    const client = createHttpClient(textSpec, deps);
+
+    const r = await client.get("/rules.txt");
+
+    assert.deepEqual(r, { ok: true, value: body });
+  });
+
+  test("the spec's Accept header is sent, and the User-Agent still names the app", async () => {
+    const { deps, calls } = makeHarness([new Response("x", { status: 200 })]);
+    const client = createHttpClient(textSpec, deps);
+
+    await client.get("/rules.txt");
+
+    assert.equal(calls[0]!.headers["Accept"], "text/plain");
+    assert.equal(calls[0]!.headers["User-Agent"], USER_AGENT);
+  });
+
+  test("a JSON source still defaults to Accept: application/json", async () => {
+    const { deps, calls } = makeHarness([jsonResponse(200, {})]);
+    const client = createHttpClient(scryfallSpec, deps);
+
+    await client.get("/sets");
+
+    assert.equal(calls[0]!.headers["Accept"], "application/json");
+  });
+
+  test("a non-2xx on a text source keeps the status-mapped failure", async () => {
+    const { deps } = makeHarness([new Response("<html>denied</html>", { status: 403 })]);
+    const client = createHttpClient(textSpec, deps);
+
+    const r = await client.get("/rules.txt");
+
+    assert.ok(r.ok === false);
+    assert.equal(r.error.status, 403);
   });
 });
 

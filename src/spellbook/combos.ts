@@ -1,3 +1,4 @@
+import { BYTE_BUDGET } from "../budget.ts";
 import type { SpellbookVariant } from "./types.ts";
 
 /**
@@ -162,13 +163,12 @@ export function toComboSummary(
  * 85% of the 116,626 that breached a harness ceiling in issue #25) starves an ordinary
  * `card:"..."` query of two thirds of the combos that would have fit.
  *
- * 50,000 matches CAP-01's delivered band and is under half the known-bad 116,626 — which is a
- * value known to FAIL rather than the limit, the true ceiling being unknown and lower.
+ * The figure itself, and why it is 50,000, lives in `src/budget.ts`, shared with `rules_lookup`.
  *
  * ONE budget serves the whole capability. `combo_search` and `combo_find_deck` both fill against
  * this constant through the one `fillPage` below; two copies would be two places it can drift.
  */
-export const BYTE_BUDGET = 50_000;
+export { BYTE_BUDGET };
 
 /**
  * Reserved for the keys around `combos` — `total_combos`, `offset`, `next_offset`, `has_more`,

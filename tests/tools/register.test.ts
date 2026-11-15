@@ -11,6 +11,9 @@ import type { ComboSearchData } from "../../src/tools/combo-search.ts";
 import type { ComboFindDeckData } from "../../src/tools/combo-find-deck.ts";
 import { dispatchToolCall, toolDefinitions } from "../../src/tools/register.ts";
 import type { Clients } from "../../src/tools/register.ts";
+import { createRulesStore } from "../../src/rules/store.ts";
+import type { RulesStore } from "../../src/rules/store.ts";
+import { syntheticCr } from "../rules/synthetic-cr.ts";
 
 // Same pattern as card-search.test.ts: loaded at runtime, so no `resolveJsonModule` and
 // identical behaviour under type stripping and under the esbuild bundle.
@@ -167,12 +170,31 @@ describe("toolDefinitions", () => {
     assert.equal(tool.description, EXPECTED_DESCRIPTION);
   });
 
-  test("[Slice 17 #19] tools/list reports exactly THREE tools", () => {
-    assert.equal(toolDefinitions.length, 3);
+  test("[CAP-03, CAP-04] tools/list reports exactly FIVE tools, card_rulings then rules_lookup", () => {
+    assert.equal(toolDefinitions.length, 5);
     assert.deepEqual(
       toolDefinitions.map((t) => t.name),
-      ["card_search", "combo_search", "combo_find_deck"],
+      ["card_search", "combo_search", "combo_find_deck", "card_rulings", "rules_lookup"],
     );
+  });
+
+  test("[CAP-03] card_rulings' description names the cap, unresolved_cards and the one-face-name rule", () => {
+    const description = toolDefinitions[3]!.description;
+    assert.match(description, /at most 10/);
+    assert.match(description, /unresolved_cards/);
+    // Same verified §4.1.2 trap as combo_find_deck: the batch resolver rejects `Front // Back`.
+    assert.match(description, /Front \/\/ Back/);
+    assert.match(description, /ONE face name/);
+  });
+
+  test("[CAP-03] card_rulings input schema requires cards", () => {
+    const schema = toolDefinitions[3]!.inputSchema as {
+      required: string[];
+      properties: Record<string, { type: string; maxItems?: number }>;
+    };
+    assert.deepEqual(schema.required, ["cards"]);
+    assert.equal(schema.properties.cards!.type, "array");
+    assert.equal(schema.properties.cards!.maxItems, 10);
   });
 
   test("[requirement 14] combo_search carries the spec's description exactly", () => {
@@ -494,6 +516,62 @@ describe("dispatchToolCall — each tool reaches ONE source", () => {
     assert.equal(body.color_identity, "UBR");
     assert.deepEqual(body.unresolved_cards, []);
   });
+
+  test("[CAP-03] card_rulings reaches scryfall and never spellbook", async () => {
+    const scryfallCalls: string[] = [];
+    const spellbookCalls: string[] = [];
+    const clients: Clients = {
+      scryfall: {
+        get(path) {
+          scryfallCalls.push(`GET ${path}`);
+          return Promise.resolve({ ok: true, value: { object: "list", has_more: false, data: [] } });
+        },
+        post(path) {
+          scryfallCalls.push(`POST ${path}`);
+          return Promise.resolve({
+            ok: true,
+            value: {
+              object: "list",
+              not_found: [],
+              data: [{ name: "Sol Ring", id: "abc", scryfall_uri: "https://scryfall.com/card/x/1/sol-ring" }],
+            },
+          });
+        },
+      },
+      spellbook: {
+        get(path) {
+          spellbookCalls.push(path);
+          return Promise.reject(new Error("card_rulings must not reach spellbook"));
+        },
+        post(path) {
+          spellbookCalls.push(path);
+          return Promise.reject(new Error("card_rulings must not reach spellbook"));
+        },
+      },
+    };
+
+    const result = await dispatchToolCall(clients, "card_rulings", { cards: ["Sol Ring"] });
+
+    assert.ok(!("isError" in result) || result.isError !== true);
+    assert.deepEqual(scryfallCalls, ["POST /cards/collection", "GET /cards/abc/rulings"]);
+    assert.deepEqual(spellbookCalls, []);
+    assert.deepEqual(parseBody(result), {
+      cards: [{ name: "Sol Ring", scryfall_uri: "https://scryfall.com/card/x/1/sol-ring", rulings: [] }],
+      unresolved_cards: [],
+    });
+  });
+
+  test("[CAP-03] card_rulings with non-object args or a non-array cards is bad_request, no call", async () => {
+    const { clients, scryfallCalls, spellbookCalls } = makeClients();
+
+    for (const args of [undefined, "Sol Ring", { cards: "Sol Ring" }, {}]) {
+      const result = await dispatchToolCall(clients, "card_rulings", args);
+      assert.equal(result.isError, true);
+      assert.equal((parseBody(result) as Failure).error.code, "bad_request");
+    }
+    assert.equal(scryfallCalls.length, 0);
+    assert.equal(spellbookCalls.length, 0);
+  });
 });
 
 describe("dispatchToolCall — combo_find_deck argument handling", () => {
@@ -635,5 +713,115 @@ describe("dispatchToolCall — combo_search argument handling", () => {
     assert.equal(body.error.code, "bad_request");
     assert.match(body.error.message, /historic/);
     assert.equal(spellbookCalls.length, 0);
+  });
+});
+
+describe("dispatchToolCall — rules_lookup", () => {
+  const LANDING =
+    '<a href="https://media.wizards.com/2026/downloads/MagicCompRules 20261106.txt">txt</a>';
+
+  function rulesDeps(): { deps: RulesStore; requests: string[] } {
+    const requests: string[] = [];
+    const text = (body: string): HttpClient => ({
+      get(path) { requests.push(path); return Promise.resolve({ ok: true, value: body }); },
+      post: () => Promise.reject(new Error("no POST to Wizards")),
+    });
+    const files = new Map<string, string>();
+    return {
+      requests,
+      deps: createRulesStore({
+        site: text(LANDING),
+        media: text(syntheticCr()),
+        siteBaseUrl: "https://magic.wizards.com",
+        mediaBaseUrl: "https://media.wizards.com",
+        fs: {
+          readText: (p) => Promise.resolve(files.get(p)),
+          writeText: (p, t) => { files.set(p, t); return Promise.resolve(); },
+          remove: (p) => { files.delete(p); return Promise.resolve(); },
+        },
+        now: () => 0,
+        cacheDir: "cache-root",
+      }),
+    };
+  }
+
+  test("routes `rule` to the handler and never touches Scryfall or Commander Spellbook", async () => {
+    const { clients, scryfallCalls, spellbookCalls } = makeClients();
+    const { deps } = rulesDeps();
+
+    const result = await dispatchToolCall({ ...clients, rules: deps }, "rules_lookup", { rule: "702.19" });
+
+    assert.equal(result.isError, undefined);
+    const body = JSON.parse(result.content[0]!.text);
+    assert.equal(body.rules[0].number, "702.19");
+    assert.equal(body.cr_effective_date, "2026-11-06");
+    assert.equal(scryfallCalls.length + spellbookCalls.length, 0);
+  });
+
+  test("a missing or non-string `rule` is a structured bad_request with no download", async () => {
+    const { clients } = makeClients();
+    const { deps, requests } = rulesDeps();
+
+    for (const args of [{}, { rule: 702.19 }, null]) {
+      const result = await dispatchToolCall({ ...clients, rules: deps }, "rules_lookup", args);
+      assert.equal(result.isError, true);
+      assert.equal(JSON.parse(result.content[0]!.text).error.code, "bad_request");
+    }
+    assert.deepEqual(requests, []);
+  });
+
+  test("routes `query` to the handler: glossary first, then numbered rules", async () => {
+    const { clients, scryfallCalls, spellbookCalls } = makeClients();
+    const { deps } = rulesDeps();
+
+    const result = await dispatchToolCall({ ...clients, rules: deps }, "rules_lookup", { query: "trample" });
+
+    assert.equal(result.isError, undefined);
+    const body = JSON.parse(result.content[0]!.text);
+    assert.equal(body.glossary[0].term, "Trample");
+    assert.equal(body.rules[0].number, "702.19");
+    assert.equal(body.cr_effective_date, "2026-11-06");
+    assert.equal(scryfallCalls.length + spellbookCalls.length, 0);
+  });
+
+  test("both `rule` and `query` is a structured bad_request with no download", async () => {
+    const { clients } = makeClients();
+    const { deps, requests } = rulesDeps();
+
+    const result = await dispatchToolCall(
+      { ...clients, rules: deps }, "rules_lookup", { rule: "702.19", query: "trample" },
+    );
+
+    assert.equal(result.isError, true);
+    assert.equal(JSON.parse(result.content[0]!.text).error.code, "bad_request");
+    assert.deepEqual(requests, []);
+  });
+
+  test("the input schema offers `rule` and `query` and requires neither by itself", () => {
+    const tool = toolDefinitions.find((t) => t.name === "rules_lookup")!;
+    const schema = tool.inputSchema as { properties: Record<string, unknown>; required?: string[] };
+
+    assert.deepEqual(Object.keys(schema.properties).sort(), ["query", "rule"]);
+    assert.equal(schema.required, undefined);
+    assert.match(tool.description, /query/);
+  });
+
+  test("an unknown rule number reaches the model as a structured not_found", async () => {
+    const { clients } = makeClients();
+    const { deps } = rulesDeps();
+
+    const result = await dispatchToolCall({ ...clients, rules: deps }, "rules_lookup", { rule: "999.9" });
+
+    assert.equal(result.isError, true);
+    assert.equal(JSON.parse(result.content[0]!.text).error.code, "not_found");
+  });
+
+  test("a bundle with no rules dependencies is a structured failure, never a throw", async () => {
+    const { clients } = makeClients();
+
+    const result = await dispatchToolCall(clients, "rules_lookup", { rule: "702.19" });
+
+    assert.equal(result.isError, true);
+    assert.equal(JSON.parse(result.content[0]!.text).error.code, "unexpected");
   });
 });

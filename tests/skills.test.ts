@@ -85,6 +85,71 @@ describe("skills — frontmatter is loadable", () => {
   }
 });
 
+// PLUGIN-PRD P-12 (as amended by P-14): the scoped tool name is built per surface —
+// `mcp__plugin_manabase_mtg__card_search` in Claude Code, `Manabase:card_search` via MCPB — and
+// is not a property of the server. A skill travels to every surface, so a scoped string written
+// into one is wrong on at least one of them, and a skill that tests for it reports "absent" where
+// the tool works. Skills name tools in plain words ("the rules lookup tool") and skills by bare
+// name. Covers every markdown file under skills/, reference files included.
+const SCOPED_TOOL_NAME = /mcp__[a-z0-9_]+|\bManabase:[a-z_]+/g;
+
+function scopedToolNames(text: string): string[] {
+  return text.match(SCOPED_TOOL_NAME) ?? [];
+}
+
+function findMarkdownFiles(dir: string): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      found.push(...findMarkdownFiles(full));
+    } else if (entry.endsWith(".md")) {
+      found.push(full);
+    }
+  }
+  return found;
+}
+
+describe("skills — no scoped tool string", () => {
+  test("the detector flags both surfaces' scoped forms and passes a bare name", () => {
+    assert.deepEqual(scopedToolNames("call mcp__plugin_manabase_mtg__rules_lookup now"), [
+      "mcp__plugin_manabase_mtg__rules_lookup",
+    ]);
+    assert.deepEqual(scopedToolNames("call Manabase:card_rulings now"), ["Manabase:card_rulings"]);
+    assert.deepEqual(scopedToolNames("call the rules lookup tool (`rules_lookup`)"), []);
+  });
+
+  for (const file of findMarkdownFiles(SKILLS_DIR)) {
+    test(`${file} — names no scoped tool string`, () => {
+      assert.deepEqual(scopedToolNames(readFileSync(file, "utf8")), []);
+    });
+  }
+});
+
+describe("skills — the rules skill ships (PLUGIN-PRD PC-06)", () => {
+  const rulesSkill = skillFiles.find((f) => /[\\/]mtg-rules[\\/]SKILL\.md$/.test(f));
+
+  test("skills/mtg-rules/SKILL.md exists and is named mtg-rules", () => {
+    assert.ok(rulesSkill, "no skills/mtg-rules/SKILL.md");
+    const match = readFileSync(rulesSkill, "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    assert.ok(match);
+    const parsed = parse(match[1] as string) as Record<string, unknown>;
+    assert.equal(parsed["name"], "mtg-rules");
+  });
+
+  test("the combo skill points rules questions at it by name", () => {
+    const combo = skillFiles.find((f) => /[\\/]spellbook-combo-craft[\\/]SKILL\.md$/.test(f));
+    assert.ok(combo);
+    assert.match(readFileSync(combo, "utf8"), /`mtg-rules`/);
+  });
+
+  test("the deck skill points rules questions at it by name", () => {
+    const deck = skillFiles.find((f) => /[\\/]commander-deck-ratios[\\/]SKILL\.md$/.test(f));
+    assert.ok(deck);
+    assert.match(readFileSync(deck, "utf8"), /`mtg-rules`/);
+  });
+});
+
 describe("skills — the colon-space trap", () => {
   // Regression guard for the exact defect, independent of the parser: an unquoted plain scalar
   // containing ": " is what broke Slice 8's skill.

@@ -1871,6 +1871,110 @@ basis, not just the number — [§4.6](#46-context-cost-accounting) has the meas
 
 ---
 
+### PC-06 — Rules and rulings
+
+- **Type:** skill
+- **Status:** specified
+- **Phase:** unassigned
+- **User need:** When I ask how a rule works or how my cards interact, I want Claude to look it up
+  and show me where the answer comes from — the rule number and which version of the rules, or the
+  ruling's date and whether Wizards or Scryfall wrote it — and to tell me when it cannot reach the
+  rules rather than answering from memory.
+- **Surface:** auto-invoked by description on a rules, keyword, game-term or card-interaction
+  question. Also reachable as `/manabase:mtg-rules`, and **by name from the combo skill** for "does
+  this combo actually work?". Not `disable-model-invocation` — a rules question is exactly the one
+  a user never prefixes with "look it up".
+- **Behavior:**
+  - **Look up, then cite.** The skill teaches which tool answers which question —
+    [`docs/MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup)'s `rules_lookup`
+    for a keyword, mechanic, game term or rule number;
+    [CAP-03](./MCP-PRD.md#cap-03--card-rulings)'s `card_rulings` for every card in an interaction,
+    together, because a ruling attaches to one card; card search for a card's own text. An
+    interaction is answered from every involved card's rulings **plus** the CR rules they rest on,
+    and where the model connects the two it says the connection is its reading of two cited
+    sources.
+  - **Citation format.** A CR claim carries its rule number, and the answer names the CR version
+    once — `cr_effective_date`, linked to `citation_url`, Wizards' own dated document. A ruling
+    carries its `published_at`, its `source` labelled (`wotc` an official Wizards ruling,
+    `scryfall` a Scryfall note) and the card's `scryfall_uri`.
+  - **Reading the results.** `unresolved_cards` means a card the answer knows nothing about, so
+    the model asks rather than answering about fewer cards; `rulings: []` is an answer, falling
+    back to the CR; `truncated` with `next_rule` or the match totals means narrow or follow, never
+    quote a partial list as whole; a no-match query is a rephrase into the CR's own wording; a
+    ruling older than the cited CR version is surfaced, never silently overridden.
+  - **Freshness.** It teaches `cache_age_days` and `stale` as CAP-04 specifies them: `stale: true`
+    means the weekly check failed and the cached version was served, so the answer is given on that
+    version with its effective date and a note that a newer CR may exist. Written to the CAP-04
+    spec while that refresh work was built in parallel, and re-checked against the merged
+    `rules_lookup` description once ticket 04 landed: it matches.
+  - **No fallback.** If the tool a question needs is absent, the model says which one and stops —
+    no web search, rules site, CR mirror or recollection. A Wizards refusal is reported, never
+    worked around ([`docs/MCP-PRD.md` §3.7](./MCP-PRD.md#37-undocumented-and-bot-protected-third-party-apis)).
+    Tournament policy (MTR, IPG) is out of both tools' scope and is said to be.
+  - **Instructions only** ([§3.6](#36-skills-carry-instructions-never-facts)): no rules text, no
+    rulings, no card facts. Card names and rule numbers appear only as illustrations of a request
+    or a citation's syntax. **No scoped tool string** ([P-12](#p-12--plugin-name-and-server-key)) —
+    tools are named in plain words — and no link outside `skills/mtg-rules/`.
+  - **Commander Spellbook results are not re-checked by default.** The combo skill gains a pointer
+    to this one by name for "does this work?" and for user-devised combos, and says its own results
+    are reported as returned.
+- **Depends on:** [PC-02](#pc-02--bundled-mcp-server) (the server). [`docs/MCP-PRD.md`
+  CAP-03](./MCP-PRD.md#cap-03--card-rulings) and
+  [CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup). Harness features: skill
+  auto-invocation by description ([§4.1](#41-harness-features-relied-on)). No other PC.
+- **Context cost:**
+  - **Always-on: estimated ~150 tokens, not measured.** `description` 264 + `when_to_use` 349 =
+    **613 characters** of [§3.1](#31-context-budget)'s 1,536 ceiling, measured by reading the
+    file; the token figure is characters ÷ 4 and is an estimate, against
+    [PC-01](#pc-01--scryfall-query-craft)'s measured ~260–270 for 763 characters. It is a third
+    always-on skill description; [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed)'s
+    headroom was measured with one.
+  - **On-invoke: estimated ~1,500 tokens** — `SKILL.md` is 6,026 characters including frontmatter,
+    one file and no `reference/`, because every branch it covers needs the citation and
+    no-fallback rules. Inside [§3.1](#31-context-budget)'s 5,000-token re-attach bound.
+  - **Justification:** without it a rules question is answered from memory, which is the worst
+    place in the domain to do so — the CR changes several times a year and a confident wrong
+    answer looks like a right one.
+- **Acceptance criteria:**
+  1. `description` plus `when_to_use` measures ≤1,536 characters ([§3.1](#31-context-budget)).
+     **Verified 2026-11-15** — 613.
+  2. The frontmatter parses and every value containing a colon-space is quoted; the frontmatter
+     tests in `npm test` pass. **Verified 2026-11-15** — 445/445, 107 suites.
+  3. **The skill asserts no rules text and no card facts** ([§3.6](#36-skills-carry-instructions-never-facts)).
+     A review of the file finds none presented as fact. **Verified 2026-11-15** by a reviewer with
+     no authoring context.
+  4. It names no scoped tool string ([P-12](#p-12--plugin-name-and-server-key)) and links nothing
+     outside its own directory. **Verified 2026-11-15** — `tests/skills.test.ts` now fails any
+     `mcp__…` or `Manabase:…` string in any markdown file under `skills/`, and `npm run lint:docs`
+     checks the link boundary.
+  5. It teaches the no-fallback rule explicitly: a missing tool is reported, never replaced by web
+     search or memory. **Verified 2026-11-15** by reading the file (static).
+  6. The combo skill and the deck skill each point to it by name, and neither re-checks Commander
+     Spellbook results automatically. **Combo half verified 2026-11-15** (a test asserts the
+     pointer). **Deck half verified 2026-11-15**, once `main` was merged into the integration
+     branch and brought [PC-05](#pc-05--commander-deck-ratios)'s skill with it; a test asserts that
+     pointer too. **Both halves are done.**
+  7. **Loads in a real harness**: the skill appears in a session's skill listing as
+     `manabase:mtg-rules` — not judged by `/reload-plugins`' count, which reads 0 in the working
+     state. **Not verified — author-TODO.** Install the branch's plugin on a cold profile (or
+     `/plugin marketplace update` then reinstall), start a fresh session, and confirm
+     `manabase:mtg-rules` in the session skill listing.
+  8. **Always-on cost measured** against the listing budget and recorded here. **Not verified —
+     author-TODO.** With the installed plugin's cache SHA confirmed to include this skill, run
+     `claude plugin details manabase` and `/context` (Skills row), record the per-skill figure
+     and the listing total beside the model, as [Slice 10](./slices/TrackC-Slice10.md) did.
+  9. Behavioral, by the rules eval run ([ticket 06](./plans/2026-11-15-mtg-rules-prd/slices/06-rules-eval-run.md)),
+     with and without the skill against a clean-room baseline: correct rule or ruling citation,
+     zero uncited rules claims, the CR version stated, and the ruling source labelled.
+     **Not run.**
+- **Open questions:** none raised. [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed)
+  gains a third always-on description to re-measure. Built from the plan
+  [`docs/plans/2026-11-15-mtg-rules-prd.md`](./plans/2026-11-15-mtg-rules-prd.md), whose working
+  name for this component was PC-05 — that ID is taken on `main` by a component this branch does
+  not yet carry, so it is appended as PC-06 ([ticket 05](./plans/2026-11-15-mtg-rules-prd/slices/05-mtg-rules-skill.md)).
+
+---
+
 ## 6. Roadmap
 
 **Phase 1 — [PC-01](#pc-01--scryfall-query-craft) and [PC-02](#pc-02--bundled-mcp-server) together.**
@@ -2004,6 +2108,16 @@ the reason the question exists ([`docs/MCP-PRD.md` §4.8.1](./MCP-PRD.md#481-the
 measured one Moxfield deck at 1.63 MB). A second skill in the listing does, however, put
 [PQ-14](#pq-14--does-a-second-skill-degrade-pc-01s-measured-trigger-accuracy) in front of it.
 
+**[PC-06](#pc-06--rules-and-rulings) is `specified` and unassigned, added 2026-11-15, and it is not
+Phase 1.** Phase 1 is still [PC-01](#pc-01--scryfall-query-craft) and
+[PC-02](#pc-02--bundled-mcp-server). The skill is written and its static criteria are verified, but
+it teaches two tools that no released bundle or installed plugin yet carries
+([`docs/MCP-PRD.md` CAP-03](./MCP-PRD.md#cap-03--card-rulings) and
+[CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup), both on the rules integration branch),
+and its load-in-a-harness and cost criteria wait on an install of that branch. Its behavioral
+criterion waits on the rules eval run
+([ticket 06](./plans/2026-11-15-mtg-rules-prd/slices/06-rules-eval-run.md)).
+
 ### Queued and unassigned
 
 | Component | Type (expected) | Blocked on |
@@ -2097,6 +2211,12 @@ a health-check workflow that neither prices the listing against a budget nor nam
 `/context` is the instrument that works; see the [§4.6](#46-context-cost-accounting) addendum. Record:
 [`docs/slices/TrackC-Slice10-results.md`](./slices/TrackC-Slice10-results.md).
 
+**Addendum 2026-11-15 — the answer above is for one skill, and the plugin now ships more.**
+[PC-06](#pc-06--rules-and-rulings) adds an always-on description of 613 characters, estimated
+~150 tokens and **not measured**. The answer stands as a dated measurement and is not reopened; it
+is simply no longer the plugin's whole always-on cost. Re-measuring with `/context` once the rules
+skill is installed is that component's criterion 8.
+
 ### PQ-03 — What triggers a refresh of the bulk data and the Comprehensive Rules cache, and should it ever be a `SessionStart` hook?
 
 Recording a disagreement rather than a gap. A session-start hook is the obvious mechanism, but
@@ -2130,6 +2250,21 @@ forecloses one mechanism, not the goal that mechanism would have served.
 download. Nothing was implemented and no [§5](#5-components) criterion changed status.
 *Resolves by:* unchanged — the capability that first needs local persistence, tag discovery or
 rules lookup.
+
+**Answered in practice 2026-11-15 for the Comprehensive Rules cache: a staleness check inside the
+tool call.** [`docs/MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup) is the
+first capability to persist anything, and its refresh is built as the third mechanism the
+paragraph above allows. The CR downloads on the first `rules_lookup` call; a later call whose copy
+was last checked seven or more days ago re-reads Wizards' landing page inside that call,
+re-downloads only when the date stamp moved, and serves the cached copy marked `stale` when the
+check fails. Nothing runs at server startup and the plugin ships no hook, so a session in a project
+that never asks a rules question makes no request — the objection this entry raised is met by
+construction. Plan [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md)
+built it; the storage layout is `<cacheDir>/rules/`, one TXT per date stamp plus a metadata file.
+**This is the CR's answer only.** Tag discovery's bulk data has a different update signal and
+stays undecided, so this entry stays open for it, as does
+[OQ-03](./MCP-PRD.md#oq-03--what-is-the-bulk-data-storage-strategy-and-when-is-it-introduced) in
+`docs/MCP-PRD.md`. No [§5](#5-components) criterion changed status.
 
 ### PQ-04 — How would the author detect that a friend's skill listing has been budget-trimmed?
 
@@ -2688,6 +2823,8 @@ and the correct move is to say so and stop.
 | 2026-08-25 | **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) gains a dated amendment and three criteria (12–14): the release path is automated and its trigger moves from a `v*` tag to merge-on-`main` ([Slice 18](./slices/TrackC-Slice18.md), executing [P-08](#p-08--version-scheme)).** [`release.yml`](../.github/workflows/ci-release.yml) is rewritten to one merge-triggered job; the tag trigger is removed so `claude plugin tag` and the job cannot both cut the same `v*`. [`scripts/bump-version.mjs`](../scripts/bump-version.mjs) computes the version from the conventional-commit range (last `v*` tag → `HEAD`) and writes it into [`plugin.json`](../.claude-plugin/plugin.json), which becomes version-bearing for the first time — one authored number reaching the plugin, the tag and the bundle. [`mcpb/manifest.json`](../mcpb/manifest.json)'s `tools` list was corrected to declare both registered tools and [`tests/manifest.test.ts`](../tests/manifest.test.ts) makes that drift fail `npm test`, along with `APP_VERSION` ≠ `package.json`. **Status is build-and-rehearse: the script, the manifest fix, the tests and the workflow are built and verified locally (13/13 live acceptance, 237/237 tests, both bump refusals demonstrated); the three-merge live sequence publishing `v0.2.0` → *(no release)* → `v0.3.0` and the three `/plugin update` tests are the author's and are pending.** [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-harness-and-delivery) are untouched, no `P-` decision was added or amended, [P-08](#p-08--version-scheme)'s text is unchanged (this executes it), and [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) moves in **neither** half — its user-facing half is sharpened, not closed. Evidence: [`docs/slices/TrackC-Slice18-results.md`](./slices/TrackC-Slice18-results.md). | Track C [Slice 18](./slices/TrackC-Slice18.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)). The version and the release trigger were one problem, not two: a merge-triggered release needs a number that moves, and the only honest source is the one [P-08](#p-08--version-scheme) already reserves — [`plugin.json`](../.claude-plugin/plugin.json)'s `version` — computed rather than typed, which dissolves [PQ-09](#pq-09--how-does-the-mcpb-manifest-version-relate-to-p-08)'s fourth-copy objection instead of arguing past it. Recorded as a component amendment rather than a new decision because setting `version` **executes** [P-08](#p-08--version-scheme) and does not amend it; the criteria are added now, at build-and-rehearse, and flip to verified as the live sequence runs, so a criterion's status is never claimed ahead of the merge that proves it — the reporting failure [Slice 12](./slices/TrackC-Slice12.md) paid for. |
 | 2026-08-25 | **The first automated release shipped — `v0.2.0` — and the branch-protection revision that made it possible; [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criteria 12 (release-warranted path) and 13 verified.** [Slice 18](./slices/TrackC-Slice18.md)'s mechanism went live. [PR #54](https://github.com/njohnb/Manabase/pull/54)'s merge ran the release job and **failed** — `main` had gained branch protection (`required_pull_request_reviews`) after the slice's "`main` is not branch-protected" precondition was verified, so the `GITHUB_TOKEN` push of the bumped [`plugin.json`](../.claude-plugin/plugin.json) was rejected (`GH006`); nothing published, a clean failure. The job was revised so it **no longer pushes to `main`** — the version rides in the PR, written by [`scripts/bump-version.mjs`](../scripts/bump-version.mjs) and merged through the protected-PR flow, and the merge job runs `--check` (read-only) then tags and publishes (tags are not branch-protected). [PR #55](https://github.com/njohnb/Manabase/pull/55) (commit `ddbfd4c`) carried [`plugin.json`](../.claude-plugin/plugin.json) at `0.2.0` and its merge cut **`v0.2.0`**: tag on `ddbfd4c`, Release published 2026-08-26T01:23:37Z (not draft, not prerelease, Latest), asset `manabase.mcpb` at **117,883 bytes**, one run with the `dist/` gate first and criterion 7's byte-identity assertion passing in CI. [`plugin.json`](../.claude-plugin/plugin.json) on `main` is now version-bearing at `0.2.0` — the [P-08](#p-08--version-scheme) switchover, executed not amended. The no-release path is **corroborated** green by [PR #56](https://github.com/njohnb/Manabase/pull/56)'s merge (no bump → no tag/Release/bundle); the sequence's canonical docs-only merge and the three `/plugin update` tests (criterion 14) remain the author's. [§2](#2-locked-decisions), [§3](#3-constraints) and [§4](#4-harness-and-delivery) untouched; no `P-`/`D-` minted; [P-08](#p-08--version-scheme)'s text unchanged (this executes it); [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) moves in **neither** half — automation ships more never-self-updating bundles, sharpening its user-facing half. Evidence: [`docs/slices/TrackC-Slice18-results.md`](./slices/TrackC-Slice18-results.md). | Track C [Slice 18](./slices/TrackC-Slice18.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)). The 2026-08-25 build-and-rehearse row promised criteria 12–14 would flip "as the live sequence runs, so a criterion's status is never claimed ahead of the merge that proves it" — this is that merge for criterion 12's release path and for 13. The discrepancy that the release fired from the **fix PR (#55)** rather than the slice PR (#54) is recorded rather than smoothed over: the precondition the slice verified true had changed under it, which requirement 5 anticipated by writing the failure mode down, and the recovery needed no bypass because it stopped depending on a bot push to a protected branch. Criterion 14 and criterion 12's canonical no-release merge stay pending because [Slice 12](./slices/TrackC-Slice12.md)'s reporting lesson binds — the `/plugin update` semantics and the sequence's own docs-only merge are not yet observed, and Phase 1 stays open. |
 | 2026-08-26 | **[PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) gains a dated amendment: the CI and release workflows are combined into one gated pipeline and the version bump is auto-committed to the PR branch ([Slice 19](./slices/TrackC-Slice19-results.md), executing [P-08](#p-08--version-scheme)).** [`ci.yml`](../.github/workflows/ci-release.yml) and [`release.yml`](../.github/workflows/ci-release.yml) are deleted and folded into one [`.github/workflows/ci-release.yml`](../.github/workflows/ci-release.yml) — a `verify` gate feeding a `bump` job (`pull_request`) and a `release` job (`push: main` + `workflow_dispatch`), both `needs: verify` — so the release is gated by the same run that checks the code. A new `--pr` write mode in [`scripts/bump-version.mjs`](../scripts/bump-version.mjs) computes the version from the newest-tag range and commits it onto the PR branch, idempotent so a re-push recomputes the same number; the bump *criteria* (conventional-commit prefixes) and every binding release constraint from [Slice 18](./slices/TrackC-Slice18.md) are unchanged. **Build-and-locally-verified only: typecheck clean, `npm test` 330/330 (79 suites, up from 325/77), `dist/` clean, `npm run lint:docs` 0 broken; nothing merged, no PR, no CI run of the combined workflow — the PR auto-commit, the merge release and the concurrency behavior are the author's to confirm.** No [PC-03](#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status (12 and 13 stand as [Slice 18](./slices/TrackC-Slice18.md) left them, 14 stays pending); no `P-`/`D-` minted, [P-08](#p-08--version-scheme)'s text unchanged (this executes it), [§2](#2-locked-decisions)/[§3](#3-constraints)/[§4](#4-harness-and-delivery) untouched, and [PQ-06](#pq-06--what-keeps-the-committed-dist-honest) moves in **neither** half — automation ships more never-self-updating bundles, sharpening its user-facing half. Evidence: [`docs/slices/TrackC-Slice19-results.md`](./slices/TrackC-Slice19-results.md). | Track C [Slice 19](./slices/TrackC-Slice19-results.md) ([`docs/DEV-ROADMAP.md`](./DEV-ROADMAP.md)). It **evolves** [Slice 18](./slices/TrackC-Slice18.md) rather than adding to it: one pipeline where the release rides the run that already verified the commit, and one bump the author no longer hand-commits. Recorded as a component amendment rather than a decision because combining the workflows and auto-committing the computed `version` **executes** [P-08](#p-08--version-scheme) and does not amend it; no criterion is claimed verified because the live pipeline has not run — the same rule [Slice 18](./slices/TrackC-Slice18.md)'s build-and-rehearse rows held, so a criterion's status is never claimed ahead of the merge that proves it. |
+| 2026-11-15 | **[PQ-03](#pq-03--what-triggers-a-refresh-of-the-bulk-data-and-the-comprehensive-rules-cache-and-should-it-ever-be-a-sessionstart-hook) answered in practice for the Comprehensive Rules cache: a staleness check inside the tool call.** A dated paragraph appended to that entry; its existing text is unchanged. [`docs/MCP-PRD.md` CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup)'s weekly revalidation re-checks Wizards' landing page inside a `rules_lookup` call whose copy was last checked seven or more days ago, re-downloads only on a changed date stamp, and serves the cache marked `stale` on failure; nothing runs at startup and no hook ships. | Plan [ticket 04](./plans/2026-11-15-mtg-rules-prd/slices/04-rules-refresh-and-fallback.md) built the refresh, which makes the CR the first cache whose trigger is implemented rather than decided. Recorded for the CR only: tag discovery's bulk data has a different update signal, so the entry stays open for it. No [§5](#5-components) criterion changed status, and [§2](#2-locked-decisions)/[§3](#3-constraints)/[§4](#4-harness-and-delivery) are untouched. |
+| 2026-11-15 | **[PC-06](#pc-06--rules-and-rulings) appended (Rules and rulings, skill) with `Status: specified`, and the skill was written — [`skills/mtg-rules/SKILL.md`](../skills/mtg-rules/SKILL.md)**, over [`docs/MCP-PRD.md` CAP-03](./MCP-PRD.md#cap-03--card-rulings) and [CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup), from [ticket 05](./plans/2026-11-15-mtg-rules-prd/slices/05-mtg-rules-skill.md). Criteria **1–5 verified** (613 frontmatter characters; frontmatter tests green at 445/445, 107 suites; zero flags from a reviewer with no authoring context; a new `tests/skills.test.ts` guard fails any scoped tool string under `skills/`; the no-fallback rule is explicit), **6's combo half verified and its deck half not met on this branch**, **7 and 8 author-TODO**, **9 not run**. The combo skill gains a pointer to the new one by name. [§6](#6-roadmap) records it unassigned; [PQ-02](#pq-02--what-is-this-plugins-measured-always-on-cost-and-does-it-fit-alongside-what-the-author-already-has-installed) gains a dated addendum. **No `P-` decision, [§2](#2-locked-decisions)/[§3](#3-constraints)/[§8](#8-out-of-scope) untouched, and no other component's criteria moved.** | The plan named this component PC-05, and **that ID is taken on `main`** by a component this integration branch does not yet carry; IDs are never reused, so it is PC-06 — the plan itself says its working names become IDs only when appended. The same gap is why the deck-skill pointer is not met: the deck skill is not on this branch. **Criteria 7 and 8 are deliberately not claimed from a subagent session** — a skill that never loaded passes every static check, which this project has paid for once already, and the ~150-token always-on figure is characters ÷ 4, not a measurement. The skill teaches `stale` to CAP-04's spec while that field's refresh work lands in parallel. |
 
 ---
 

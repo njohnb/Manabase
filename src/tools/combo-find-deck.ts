@@ -1,6 +1,9 @@
 import type { Result } from "../result.ts";
 import type { Clients } from "./register.ts";
-import { resolveNames } from "../scryfall/collection.ts";
+// `cleanNames` is NOT decklist parsing. A leading quantity survives untouched — `"1 Sol Ring"`
+// goes upstream as written and surfaces in `unresolved_cards`, which is loud and correct (MCP-PRD
+// CAP-02 criterion 5). Only the empty and whitespace-only entry is dropped.
+import { cleanNames, resolveNames } from "../scryfall/collection.ts";
 import type { SpellbookDeckResults, SpellbookFindMyCombos } from "../spellbook/types.ts";
 import type { SpellbookVariant } from "../spellbook/types.ts";
 import {
@@ -82,24 +85,6 @@ function normalizeOffset(raw: number | undefined): number {
   return truncated >= 0 ? truncated : 0;
 }
 
-/**
- * Trim, and drop entries that are not names at all.
- *
- * This is NOT decklist parsing. A leading quantity survives untouched — `"1 Sol Ring"` goes
- * upstream as written and surfaces in `unresolved_cards`, which is loud and correct (MCP-PRD
- * CAP-02 criterion 5). What is dropped is only the empty and whitespace-only entry, which names no
- * card and would be submitted to Scryfall as an identifier matching nothing.
- */
-function cleanNames(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  const names: string[] = [];
-  for (const entry of raw) {
-    if (typeof entry !== "string") continue;
-    const trimmed = entry.trim();
-    if (trimmed.length > 0) names.push(trimmed);
-  }
-  return names;
-}
 
 /** No `status`: our determination from the parameters, not an HTTP outcome. */
 function unknownFormatFailure(requested: string): Result<ComboFindDeckData> {
@@ -319,7 +304,9 @@ export async function comboFindDeck(
 
   // A name-resolution FAILURE is not a combo-search failure, and the two must not collapse. If the
   // batch call itself fails we return that rather than proceeding blind; a successful resolution
-  // that merely finds misses proceeds normally with the misses reported.
+  // that merely finds misses proceeds normally with the misses reported. `unhandled` is not read:
+  // a card Scryfall matched is a real card whether or not it came back with an id, and combo
+  // search needs only the match.
   const resolution = await resolveNames(clients.scryfall, [...cards, ...commanders]);
   if (!resolution.ok) return resolution;
 

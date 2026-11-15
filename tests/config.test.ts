@@ -104,3 +104,13 @@ describe("resolveConfig — spellbookBaseUrl", () => {
     assert.equal(config.spellbookBaseUrl, "https://backend.commanderspellbook.com");
   });
 });
+
+describe("resolveConfig — the two Wizards hosts", () => {
+  test("the rules landing page and the media download are two separate production hosts", () => {
+    for (const platform of ["win32", "darwin", "linux", undefined]) {
+      const config = resolveConfig({}, platform);
+      assert.equal(config.wizardsSiteBaseUrl, "https://magic.wizards.com");
+      assert.equal(config.wizardsMediaBaseUrl, "https://media.wizards.com");
+    }
+  });
+});

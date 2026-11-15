@@ -8,6 +8,9 @@ import { comboSearch } from "./combo-search.ts";
 import type { ComboSearchParams } from "./combo-search.ts";
 import { comboFindDeck } from "./combo-find-deck.ts";
 import type { ComboFindDeckParams, ComboInclude } from "./combo-find-deck.ts";
+import { MAX_CARDS as MAX_RULINGS_CARDS, cardRulings } from "./card-rulings.ts";
+import { rulesLookup } from "./rules-lookup.ts";
+import type { RulesStore } from "../rules/store.ts";
 
 /**
  * The tool result shape this slice emits: text-JSON only, no `structuredContent`.
@@ -31,6 +34,13 @@ export type ToolCallResult = {
 export interface Clients {
   scryfall: HttpClient;
   spellbook: HttpClient;
+  /**
+   * `rules_lookup`'s store: the two Wizards clients plus the filesystem, clock and cache
+   * directory, behind one instance that shares concurrent first-use work (MCP-PRD CAP-04).
+   * `index.ts` always supplies it. Optional so a bundle built for the other tools stays valid; a
+   * call without it is a structured failure.
+   */
+  rules?: RulesStore;
 }
 
 // (MCP-PRD OQ-01) Deep Scryfall-syntax teaching ships in the plugin's skill, not here —
@@ -136,7 +146,62 @@ const COMBO_FIND_DECK_INPUT_SCHEMA = {
   required: ["cards"],
 } as const;
 
+// (MCP-PRD CAP-03) Rulings attach to ONE card each, so an interaction is answered by reading every
+// card's rulings together — the description says so, because a model looking for "the ruling on
+// this interaction" would otherwise call once per card or give up.
+const CARD_RULINGS_DESCRIPTION =
+  "Get the official rulings for Magic: The Gathering cards, from Scryfall — at most " +
+  `${MAX_RULINGS_CARDS} card names per call. Each ruling is attached to one card, so for an ` +
+  "interaction pass every card involved in one call and read their rulings together. Each ruling " +
+  "carries its `source` (`wotc` is an official Wizards ruling, `scryfall` is a Scryfall note), " +
+  "its `published_at` date and its text; each card carries its Scryfall page link. A card with no " +
+  "rulings returns an empty list. Names Scryfall does not recognize are listed in " +
+  "`unresolved_cards`, which is always present. Submit a double-faced card by ONE face name: the " +
+  "combined `Front // Back` form is reported unresolved even though the card is real.";
+
+const CARD_RULINGS_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    cards: {
+      type: "array",
+      items: { type: "string" },
+      minItems: 1,
+      maxItems: MAX_RULINGS_CARDS,
+      description: "Card names, one per card. A double-faced card by one face name.",
+    },
+  },
+  required: ["cards"],
+} as const;
+
 export const CARD_SEARCH_TOOL_NAME = "card_search";
+export const CARD_RULINGS_TOOL_NAME = "card_rulings";
+
+// (MCP-PRD CAP-04) Names the version and citation fields because the point of the tool is a
+// citable answer, and says first use downloads, so a slow first call is not read as a hang.
+const RULES_LOOKUP_DESCRIPTION =
+  "Look up the Magic: The Gathering Comprehensive Rules. Pass exactly one of `rule` or `query`. " +
+  "`rule` takes a number — a section (\"7\"), rule (\"702\", \"702.19\") or subrule " +
+  "(\"702.19a\") — and returns its text and every rule under it. `query` takes a rules term or " +
+  "phrase (\"trample\", \"mana value\") and returns matching glossary definitions first, then " +
+  "every rule whose text contains it, each with its rule number. Every response carries " +
+  "`cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards' " +
+  "official dated document: cite the rule number and that version. The rules are downloaded " +
+  "from Wizards on first use, cached, and checked for a newer version weekly; `stale: true` " +
+  "means that check failed and the cached version was served, so say which version you cite. " +
+  "Subrule letters skip l and o; an unknown number is " +
+  "reported, not guessed, and a query with no match is an empty result. Results are cut at a " +
+  "size budget and `truncated` says so: for a rule, `next_rule` names the first one omitted; for " +
+  "a query, the totals count every match — narrow it, or look up a number from the results.";
+
+const RULES_LOOKUP_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    rule: { type: "string", description: "A Comprehensive Rules number, e.g. \"702.19\" or \"702.19a\"." },
+    query: { type: "string", description: "A rules term or phrase, e.g. \"trample\" or \"mana value\"." },
+  },
+} as const;
+
+export const RULES_LOOKUP_TOOL_NAME = "rules_lookup";
 export const COMBO_SEARCH_TOOL_NAME = "combo_search";
 export const COMBO_FIND_DECK_TOOL_NAME = "combo_find_deck";
 
@@ -159,6 +224,16 @@ export const toolDefinitions: Array<{ name: string; description: string; inputSc
     description: COMBO_FIND_DECK_DESCRIPTION,
     inputSchema: COMBO_FIND_DECK_INPUT_SCHEMA,
   },
+  {
+    name: CARD_RULINGS_TOOL_NAME,
+    description: CARD_RULINGS_DESCRIPTION,
+    inputSchema: CARD_RULINGS_INPUT_SCHEMA,
+  },
+  {
+    name: RULES_LOOKUP_TOOL_NAME,
+    description: RULES_LOOKUP_DESCRIPTION,
+    inputSchema: RULES_LOOKUP_INPUT_SCHEMA,
+  },
 ];
 
 const UNIQUE_VALUES = ["cards", "prints", "art"] as const;
@@ -178,7 +253,7 @@ function errorResult(body: unknown): ToolCallResult {
 
 /**
  * Card names off an arguments object. A non-array is `undefined`; a wrong-typed ENTRY is dropped
- * rather than rejected (MCP-PRD D-07), exactly as `unique` and `legalities` are treated above.
+ * rather than rejected, exactly as `unique` and `legalities` are treated above.
  */
 function asNames(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
@@ -189,7 +264,7 @@ function asNames(value: unknown): string[] | undefined {
  * All `tools/call` logic, separated from the transport so it is directly testable with no
  * server and no transport (MCP-PRD D-03).
  *
- * Argument validation is minimal (MCP-PRD D-07): the two search tools need an object with a
+ * Argument validation is minimal: the two search tools need an object with a
  * string `q`. The query string itself is never parsed, validated, or rewritten — the source owns
  * its query language, Scryfall for `card_search` and Commander Spellbook for `combo_search`.
  * Optional params pass through when they carry the right primitive type; wrong-typed values and
@@ -212,7 +287,38 @@ export async function dispatchToolCall(
   if (name === CARD_SEARCH_TOOL_NAME) return dispatchCardSearch(clients.scryfall, args);
   if (name === COMBO_SEARCH_TOOL_NAME) return dispatchComboSearch(clients.spellbook, args);
   if (name === COMBO_FIND_DECK_TOOL_NAME) return dispatchComboFindDeck(clients, args);
+  if (name === CARD_RULINGS_TOOL_NAME) return dispatchCardRulings(clients.scryfall, args);
+  if (name === RULES_LOOKUP_TOOL_NAME) return dispatchRulesLookup(clients.rules, args);
   throw new Error(`Unknown tool: ${name}`);
+}
+
+/** Reaches Wizards and the cache only — never Scryfall or Commander Spellbook. */
+async function dispatchRulesLookup(
+  deps: RulesStore | undefined,
+  args: unknown,
+): Promise<ToolCallResult> {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return errorResult({
+      error: {
+        code: "bad_request",
+        message:
+          'Tool arguments must be an object with `rule` (a number such as "702.19") or `query` ' +
+          '(a term such as "trample").',
+      },
+    });
+  }
+  if (deps === undefined) {
+    return errorResult({
+      error: { code: "unexpected", message: "rules_lookup is not configured in this server build." },
+    });
+  }
+  // (MCP-PRD CAP-04) a wrong-typed value is dropped, not rejected; the handler then refuses
+  // neither-or-both with one message, before any download.
+  const raw = args as Record<string, unknown>;
+  return toolResult(await rulesLookup(deps, {
+    ...(typeof raw.rule === "string" ? { rule: raw.rule } : {}),
+    ...(typeof raw.query === "string" ? { query: raw.query } : {}),
+  }));
 }
 
 /** Reads `q` off the arguments object, or returns the one rejection either search tool makes. */
@@ -276,7 +382,7 @@ async function dispatchComboSearch(client: HttpClient, args: unknown): Promise<T
 
   const raw = args as Record<string, unknown>;
 
-  // (MCP-PRD D-07) A wrong-typed `offset` or `format` is silently dropped and the handler's
+  // A wrong-typed `offset` or `format` is silently dropped and the handler's
   // default applies, exactly as `unique` and `legalities` are treated above. A missing or
   // non-string `q` stays the one rejection. An unknown *format string* is a different matter and
   // is refused by the handler, which is where the valid set is named.
@@ -322,6 +428,18 @@ async function dispatchComboFindDeck(clients: Clients, args: unknown): Promise<T
   };
 
   return toolResult(await comboFindDeck(clients, params));
+}
+
+/**
+ * `card_rulings` reaches Scryfall only. A non-object or non-array `cards` arrives at the handler as
+ * an empty list, where the one message describing a valid call lives — as for `combo_find_deck`.
+ */
+async function dispatchCardRulings(client: HttpClient, args: unknown): Promise<ToolCallResult> {
+  const raw =
+    typeof args === "object" && args !== null && !Array.isArray(args)
+      ? (args as Record<string, unknown>)
+      : {};
+  return toolResult(await cardRulings(client, { cards: asNames(raw.cards) ?? [] }));
 }
 
 /** Installs the two request handlers; both are thin delegations. */

@@ -42,8 +42,9 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (330 tests, 79 suites)
-npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
+npm test            # node --experimental-strip-types --test  (347 tests, 82 suites)
+npm run acceptance  # scripts/cap01-live.mjs — 14 LIVE checks against real Scryfall
+npm run acceptance:rules # scripts/cr-live.mjs — 18 LIVE checks, 2 Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
 
@@ -56,35 +57,51 @@ stay that way — see the rate-limit rule below.
 
 ```
 src/index.ts            entry point — the ONLY module that may read process.env/process.platform
-src/config.ts           resolveConfig(env, platform) — User-Agent, cacheDir, the two base URLs
+src/config.ts           resolveConfig(env, platform) — User-Agent, cacheDir, the four base URLs
 src/result.ts           Result<T> = Success<T> | Failure; FailureCode union
+src/budget.ts           BYTE_BUDGET (50,000) — the one response budget, combo tools and rules_lookup
 src/http/client.ts      the one HTTP module: createHttpClient(spec, deps) — headers, lanes,
-                        429 backoff, GET and POST. Everything below is a SourceSpec over it
+                        429 backoff, GET and POST, JSON or text body. Everything below is a
+                        SourceSpec over it
 src/scryfall/client.ts  spec: two lanes (500/100 ms), Scryfall's details reader. Thin factory
 src/spellbook/client.ts spec: one 500 ms lane, the Django-REST field-error details reader
+src/wizards/client.ts   two text clients, one per Wizards host (site, media), 500 ms lane each
+src/rules/source.ts     resolveCrSource() — newest .txt by date stamp, same-stamp PDF citation
+src/rules/parser.ts     parseRules() — the CR TXT into a RulesIndex, rules plus the glossary
+src/rules/store.ts      ensureRules() — download on first use, cache under <cacheDir>/rules/,
+                        revalidate weekly, serve the cache `stale` on failure; injected fs.
+                        createRulesStore(deps) — one per server, shares an in-flight first use;
+                        createNodeRulesFs(instanceTag) — the Node adapter, pid from index.ts
+src/rules/lookup.ts     lookupRule() — rule plus descendants on a number boundary, 50,000 budget;
+                        searchRules() — glossary terms first, then rule text, same budget
 src/scryfall/prices.ts  resolvePrice() — the three price traps
 src/scryfall/collection.ts resolveNames() — POST /cards/collection batched at 75; the misses come
-                        back as unresolved names rather than being dropped
+                        back as unresolved names rather than being dropped, and a match with no
+                        id/scryfall_uri comes back in `unhandled`; cleanNames() — trim, drop blanks
 src/scryfall/types.ts   minimal wire shapes; only fields actually read
 src/spellbook/types.ts  wire shapes that OMIT prices and every imageUri* field — the omission is
                         the mechanism: code cannot read a field the type does not declare
 src/spellbook/combos.ts ComboSummary, the normalized shape every later consumer reads, plus
                         resolveFormat over Commander Spellbook's 16 legality keys (NOT Scryfall's
-                        23), and — since Slice 17 — BYTE_BUDGET, ENVELOPE_RESERVE and
+                        23), and — since Slice 17 — BYTE_BUDGET (re-exported from budget.ts),
+                        ENVELOPE_RESERVE and
                         fillPage(summaries, extraReserve = 0), the ONE page budget both combo
                         tools spend
 src/tools/card-search.ts  cardSearch() — query in, shaped CardSearchData out
 src/tools/combo-search.ts comboSearch() — one upstream request per call, byte-filled page, offset
 src/tools/combo-find-deck.ts comboFindDeck() — names resolved through Scryfall first, then ONE
                         combo request carrying no limit and no offset; six buckets, capped after
+src/tools/card-rulings.ts cardRulings() (CAP-03) — ≤10 names via resolveNames, then one
+                        GET /cards/{id}/rulings per distinct card on the 10/sec lane
+src/tools/rules-lookup.ts rulesLookup() — CAP-04 over the cached CR: exactly one of rule or query
 src/tools/register.ts     tool definitions + dispatchToolCall(clients, name, args) + registerTools
 tests/                  handlers called as plain functions; fixtures under tests/fixtures/
 dist/index.js           committed build output — NOT gitignored
 ```
 
-Data flows one way: `index.ts` builds config → creates both clients → `registerTools` wires the SDK
-handlers to `dispatchToolCall` → `cardSearch` / `comboSearch` / `comboFindDeck` → `client.get` or
-`client.post`. `dispatchToolCall` takes a `Clients` bundle rather than positional clients, and each
+Data flows one way: `index.ts` builds config → creates the clients → `registerTools` wires the SDK
+handlers to `dispatchToolCall` → `cardSearch` / `comboSearch` / `comboFindDeck` / `rulesLookup` →
+`client.get` or `client.post`. `dispatchToolCall` takes a `Clients` bundle rather than positional clients, and each
 handler receives the client(s) it needs and no more, so no handler can reach a source it has no
 business calling. `comboFindDeck` is the **only** handler holding both — deliberately, because
 Commander Spellbook silently ignores a card name it does not know, so Scryfall resolves the names
@@ -850,6 +867,105 @@ Phase 1 stays open behind Slice 12's second cold run and Slice 13's remnant, whi
 not close. **The Commands-block header above read `325 tests, 77 suites` and is corrected to
 330/79; the dated records keep their figures.** Evidence:
 `docs/slices/TrackC-Slice19-results.md`.
+
+**`CAP-03` (card rulings) was specified and delivered 2026-11-15 as commit `23adcc4` on
+`ticket/01-card-rulings`** — ticket 01 of the plan `docs/plans/2026-11-15-mtg-rules-prd.md`, not a
+roadmap slice, merging into `feat/mtg-rules`, not `main`. `card_rulings` is the **fourth** tool. All
+ten `CAP-03` criteria verified (tests 330 → 347, suites 79 → 82; acceptance 14/14 live, no 429);
+`Phase` unassigned. It runs live per call under the author-confirmed `D-07` reading recorded in the
+block — `D-07` unedited, `OQ-03` unmoved. Scryfall's `source: "scryfall"` was **not observed** live
+(`MCP-PRD.md` §4.1.5), so never treat `wotc` as the only value. **The plugin version bump was not
+run** — the local tag set lags origin, so it would compute a spent version; it belongs to the
+integration PR to `main`. No open question resolved, no `D-`/`P-` minted, no `PC` criterion moved,
+`PQ-06` unmoved. Ticket 02 (rules lookup by number) is a parallel branch and not done.
+
+**Rules plan ticket 02 (`rules_lookup` by rule number) landed 2026-11-15 as `6dba6f2` (code) and
+`f572771` (docs) on `ticket/02-rules-lookup` — unmerged, no PR, not a roadmap slice.** Plan:
+`docs/plans/2026-11-15-mtg-rules-prd.md`. `CAP-04` is appended to `MCP-PRD.md`, `Status`
+**`specified`**, phase unassigned: criteria 1–9, 12, 13 verified (7 against mocks, permanently);
+**10 (keyword `query`, ticket 03) and 11 (seven-day revalidation and stale fallback, ticket 04) are
+not built — never write `CAP-04` as delivered.** Wizards is a new source on two hosts, one client
+each, 500 ms per host; the media client never fetches a scraped URL on another host. First use
+downloads ~1 MB and blocks (1,249 ms cold); nothing is fetched at startup. `OQ-03` is answered for
+the CR cache only and **stays open for tag discovery**; `OQ-08` is complied with, not answered. No
+`D-` minted, no `PC` criterion moved, plugin version not bumped (the PR's bump job writes it).
+Branch figures: `npm test` **392 tests, 97 suites**, typecheck clean, `lint:docs` OK,
+`npm run acceptance:rules` 10/10 live; full `npm run acceptance` not run. After merging ticket 01
+from `feat/mtg-rules`, `rules_lookup` is the **fifth** tool and the merged branch runs **409 tests,
+100 suites**; the Commands-block count keeps ticket 01's 347/82. Evidence: the `CAP-04` criteria in
+`MCP-PRD.md`; there is no results doc.
+
+**Rules plan ticket 03 (`rules_lookup` by keyword) landed 2026-11-15 as `4b17ea1` on
+`ticket/03-rules-keyword-search`, based on `feat/mtg-rules` — unmerged, no PR, not a roadmap
+slice.** `CAP-04` criterion 10 is **verified**: a call takes **exactly one** of `rule` or `query`
+(both or neither is `bad_request` before any download); a query returns glossary entries matched
+**by term only** first, then rules by text with their numbers, a case-insensitive phrase match that
+must start at a word boundary (`ward` never matches `toward`), filled to the same 50,000-character
+budget with `total_glossary_matches`, `total_rule_matches` and `truncated`. **No paging or offset
+in query mode, by design** — the totals and a `note` tell the model to narrow. No match is a
+successful empty result with a `note`. The parser now also reads the glossary, and a zero-entry
+glossary is a changed shape, never cached; criterion 4 is extended to it, not a new criterion.
+`tests/manifest.test.ts` now compares every manifest tool description verbatim against
+`register.ts`, not only the names — so a description edit without the manifest is a red test.
+**`Status` stays `specified`**: criterion 11 (ticket 04, revalidation and stale fallback) runs in
+parallel and is not built. Branch figures: `npm test` **433 tests, 105 suites** (was 409/100),
+typecheck clean, `lint:docs` OK, `npm run acceptance:rules` **17/17** live, Wizards contacted twice.
+No open question moved (`OQ-03`, `OQ-08` unmoved), no `D-` minted, plugin version deliberately not
+bumped (the CI bump job writes it on the PR to `main`). The Commands-block test count still keeps
+ticket 01's 347/82, as ticket 02 left it.
+
+**Rules plan ticket 04 (weekly CR refresh and stale fallback) landed 2026-11-15 as `a9378e4` (code)
+and `8aeddbc` (docs) on `ticket/04-rules-refresh` — unmerged, no PR, not a roadmap slice.** `CAP-04`
+criterion 11 is **verified by unit tests with a fake clock and fake I/O, never live** — a failed
+check cannot be provoked honestly. Under 7 days since the last check: no request. At 7+: one
+landing-page GET, re-download only on a changed stamp, an unchanged stamp only moves `checkedAt`.
+**Any failed check serves the cache as a SUCCESS with `stale: true`** and the check time does not
+move; only a first run with no cache stays a failure. Cache files are now `rules/cr-<YYYYMMDD>.txt`,
+`meta.json` switched last, writes go through a renamed temp file, and a ticket-02 `cr.txt` cache is
+still read. Responses gain `checked_at` and `stale`. Nothing at startup, no hook (`PQ-03`, answered
+in practice for the CR only). `OQ-03` stays open for tag discovery; `Status` stays `specified`
+because criterion 10 (ticket 03) is not built. `npm test` **425 tests, 105 suites**, typecheck
+clean, `npm run acceptance:rules` 11/11 live. No `D-`/`P-` minted, no `PC` moved, version not bumped.
+
+**Post-merge 2026-11-15: `CAP-04` is DELIVERED.** `feat/mtg-rules` (ticket 03) was merged into
+`ticket/04-rules-refresh` as `160abd4`, which puts criteria 10 and 11 on one branch. All thirteen
+criteria are now verified and `Status` moved `specified` → `delivered (2026-11-15)`. That supersedes
+the "stays `specified`" in both ticket paragraphs above and the "never write `CAP-04` as delivered"
+in ticket 02's. Criterion 7 rests on mocks and criterion 11 on fakes, both permanently. `Phase`
+stays unassigned, as `CAP-03`'s did. **Delivered is not released**: nothing is on `main`, there is
+no PR, and no bundle carries `rules_lookup`. The stale note comes before either mode's note, and
+`checked_at`/`stale` appear on every success in both modes. Merged branch: `npm test` **450 tests,
+110 suites** (+1 merge test, a stale keyword query), typecheck clean, `dist/` rebuilt, `lint:docs`
+OK, `npm run acceptance:rules` **18/18** live with two Wizards requests. No open question moved. The
+Commands-block count still keeps ticket 01's 347/82.
+
+**Rules plan ticket 05 (the `mtg-rules` skill) landed 2026-11-15 as `b73ec0a` (skill and tests) and
+`e72c440` (PRD block) on `ticket/05-mtg-rules-skill`, based on `feat/mtg-rules` — unmerged, no PR,
+not a roadmap slice.** `skills/mtg-rules/SKILL.md` teaches look-up-then-cite over `card_rulings` and
+`rules_lookup`; the combo skill gained a pointer to it. The block is **`PC-06`, not the plan's
+`PC-05`** — `PC-05` is taken on `main` by the Commander deck-ratios component this branch does not
+carry — and it is not renumbered. `Status` **`specified`**, phase unassigned: criteria 1–5 verified,
+**all static** (613 frontmatter characters, a zero-flag no-facts review by a fresh reviewer,
+no-fallback taught); 6 is the **combo half only**, the deck skill not being on this branch; **7
+(loaded in a real session's skill listing) and 8 (always-on cost measured) are author-TODO**, and 9
+is ticket 06's eval run. A skill passing static checks is not a skill that loads — see Slice 8.
+New `tests/skills.test.ts` fails any `mcp__…` or `Manabase:…` string under `skills/`, so `P-12`'s
+trap is now a red test. The skill teaches `stale` to `CAP-04`'s spec while ticket 04 builds it.
+`npm test` **445 tests, 107 suites** (was 433/105). No open question resolved (`PQ-02` gained an
+addendum, not an answer), no `CAP` criterion moved, no `D-`/`P-` minted, plugin version not bumped.
+
+**Rules plan code-review fixes, 2026-11-15, on `fix/mtg-rules-review` off `feat/mtg-rules` at
+`bca09b8` (`f238d88`…`62fac6f`) — unmerged, no PR, not a slice.** `CAP-04`'s dated "Amended after
+code review" bullet is the record: **a failed check now counts as a check** (Wizards at most once
+per 7 days whatever the outcome; `stale: true` with the recorded reason until a check succeeds;
+`checked_at` stays the last *successful* confirmation) — this supersedes ticket 04's "the check
+time does not move" above. A zero-entry glossary keeps the rules (zero rules still fails); an
+unchanged stamp refreshes the citation URL; concurrent first use shares one download. `CAP-03`:
+a match with no handle is reported in `unresolved_cards`, never dropped; `combo_find_deck`
+deliberately does not report it. The `D-07` citations in `register.ts` were wrong (D-07 is the
+cache split) and are gone. No criterion changed status, no open question moved, no `D-` minted,
+version not bumped. `npm test` **485 tests, 114 suites**; `acceptance:rules` 18/18 live;
+`npm run acceptance` not run. Commands block still keeps 347/82.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions

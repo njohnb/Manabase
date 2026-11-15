@@ -7,12 +7,16 @@ export const APP_VERSION = "0.0.0";
 export interface Config {
   /** Sent on every outbound request. Names the app per Scryfall's requirement. */
   userAgent: string;
-  /** CLAUDE_PLUGIN_DATA when set; otherwise the platform user-cache dir. Unused until a capability needs persistence. */
+  /** CLAUDE_PLUGIN_DATA when set; otherwise the platform user-cache dir. The CR cache lives under it, in `rules/` (CAP-04). */
   cacheDir: string;
   /** "https://api.scryfall.com" in production; overridable so tests never hit the network. */
   scryfallBaseUrl: string;
   /** "https://backend.commanderspellbook.com"; read by nothing until CAP-02 ships. */
   spellbookBaseUrl: string;
+  /** "https://magic.wizards.com" — the CR landing page lives here (MCP-PRD §4.6). */
+  wizardsSiteBaseUrl: string;
+  /** "https://media.wizards.com" — the dated CR TXT and PDF live here; a second host, a second client. */
+  wizardsMediaBaseUrl: string;
 }
 
 export function resolveConfig(
@@ -28,6 +32,8 @@ export function resolveConfig(
     cacheDir: resolveCacheDir(env, platform),
     scryfallBaseUrl,
     spellbookBaseUrl,
+    wizardsSiteBaseUrl: "https://magic.wizards.com",
+    wizardsMediaBaseUrl: "https://media.wizards.com",
   };
 }
 
