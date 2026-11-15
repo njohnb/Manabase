@@ -10,7 +10,7 @@ import { comboFindDeck } from "./combo-find-deck.ts";
 import type { ComboFindDeckParams, ComboInclude } from "./combo-find-deck.ts";
 import { MAX_CARDS as MAX_RULINGS_CARDS, cardRulings } from "./card-rulings.ts";
 import { rulesLookup } from "./rules-lookup.ts";
-import type { RulesStoreDeps } from "../rules/store.ts";
+import type { RulesStore } from "../rules/store.ts";
 
 /**
  * The tool result shape this slice emits: text-JSON only, no `structuredContent`.
@@ -35,11 +35,12 @@ export interface Clients {
   scryfall: HttpClient;
   spellbook: HttpClient;
   /**
-   * `rules_lookup`'s dependencies: the two Wizards clients plus the filesystem, clock and cache
-   * directory its store needs (MCP-PRD CAP-04). `index.ts` always supplies it. Optional so a
-   * bundle built for the other tools stays valid; a call without it is a structured failure.
+   * `rules_lookup`'s store: the two Wizards clients plus the filesystem, clock and cache
+   * directory, behind one instance that shares concurrent first-use work (MCP-PRD CAP-04).
+   * `index.ts` always supplies it. Optional so a bundle built for the other tools stays valid; a
+   * call without it is a structured failure.
    */
-  rules?: RulesStoreDeps;
+  rules?: RulesStore;
 }
 
 // (MCP-PRD OQ-01) Deep Scryfall-syntax teaching ships in the plugin's skill, not here —
@@ -293,7 +294,7 @@ export async function dispatchToolCall(
 
 /** Reaches Wizards and the cache only — never Scryfall or Commander Spellbook. */
 async function dispatchRulesLookup(
-  deps: RulesStoreDeps | undefined,
+  deps: RulesStore | undefined,
   args: unknown,
 ): Promise<ToolCallResult> {
   if (typeof args !== "object" || args === null || Array.isArray(args)) {

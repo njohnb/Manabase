@@ -1,8 +1,7 @@
 import type { Result } from "../result.ts";
 import type { GlossaryEntry, RuleEntry } from "../rules/parser.ts";
 import { lookupRule, normalizeRuleNumber, notARuleNumber, searchRules } from "../rules/lookup.ts";
-import { ensureRules } from "../rules/store.ts";
-import type { CachedRules, RulesStoreDeps } from "../rules/store.ts";
+import type { CachedRules, RulesStore, RulesStoreDeps } from "../rules/store.ts";
 
 /** Exactly one of the two. Both, or neither, is a `bad_request`. */
 export interface RulesLookupParams {
@@ -91,9 +90,10 @@ function withStaleNote(deps: RulesStoreDeps, loaded: CachedRules, modeNote: stri
  * before anything is downloaded.
  */
 export async function rulesLookup(
-  deps: RulesStoreDeps,
+  store: RulesStore,
   params: RulesLookupParams,
 ): Promise<Result<RulesLookupData>> {
+  const { deps } = store;
   const { rule, query } = params;
   if ((rule === undefined) === (query === undefined)) {
     return badRequest(
@@ -106,7 +106,7 @@ export async function rulesLookup(
     return badRequest('The query is empty. Pass a rules term such as "trample" or "mana value".');
   }
 
-  const loaded = await ensureRules(deps);
+  const loaded = await store.ensure();
   if (!loaded.ok) return loaded;
 
   return rule !== undefined

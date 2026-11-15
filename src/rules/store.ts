@@ -55,6 +55,13 @@ interface CacheMeta {
   /** Absent in a cache written before revalidation existed; `fetchedAt` stands in. */
   checkedAt?: string;
   /**
+   * When the last check FAILED — the landing page or the re-download. It counts as a check, so
+   * Wizards is contacted at most once a week whatever the outcome. Cleared by a check that succeeds.
+   */
+  failedAt?: string;
+  /** Why that check failed. Served as `staleReason` until a check succeeds. */
+  failureReason?: string;
+  /**
    * The TXT's file name under `<cacheDir>/rules/`, one per date stamp. Absent in a cache written
    * before revalidation existed, whose TXT is `cr.txt`.
    */
@@ -65,6 +72,8 @@ interface CacheMeta {
 interface Cached {
   rules: CachedRules;
   meta: CacheMeta;
+  /** Epoch ms of the last check, successful or failed. The next is due a week after it. */
+  lastAttemptAt: number;
 }
 
 /** The landing page is re-checked at most this often (MCP-PRD OQ-03, CAP-04). */
@@ -76,22 +85,29 @@ export const LANDING_PATH = "/en/rules";
  * Node's filesystem behind `RulesFs`. The only production implementation. Writes go to a
  * sibling temporary file renamed into place, so a killed process or a full disk leaves the old
  * file whole rather than a torn one.
+ *
+ * Every temp name is unique: `instanceTag` (injected by `index.ts` — this module never reads
+ * `process`, MCP-PRD D-03) separates processes sharing one cache directory, and a counter held by
+ * this adapter separates concurrent writes within one.
  */
-export const nodeRulesFs: RulesFs = {
-  readText: (path) => readFile(path, "utf8").catch(() => undefined),
-  writeText: async (path, text) => {
-    await mkdir(dirname(path), { recursive: true });
-    const temp = `${path}.${process.pid}.tmp`;
-    try {
-      await writeFile(temp, text, "utf8");
-      await rename(temp, path);
-    } catch (err) {
-      await rm(temp, { force: true }).catch(() => undefined);
-      throw err;
-    }
-  },
-  remove: (path) => rm(path, { force: true }),
-};
+export function createNodeRulesFs(instanceTag: string): RulesFs {
+  let writes = 0;
+  return {
+    readText: (path) => readFile(path, "utf8").catch(() => undefined),
+    writeText: async (path, text) => {
+      await mkdir(dirname(path), { recursive: true });
+      const temp = `${path}.${instanceTag}.${writes++}.tmp`;
+      try {
+        await writeFile(temp, text, "utf8");
+        await rename(temp, path);
+      } catch (err) {
+        await rm(temp, { force: true }).catch(() => undefined);
+        throw err;
+      }
+    },
+    remove: (path) => rm(path, { force: true }),
+  };
+}
 
 const LEGACY_TXT = "cr.txt";
 const TXT_FILE = /^cr(-\d{8})?\.txt$/;
@@ -132,14 +148,23 @@ async function fromCache(deps: RulesStoreDeps): Promise<Cached | undefined> {
   if (!parsed.ok) return undefined; // a damaged cache is no cache: download again
   const fetchedAt = Date.parse(cachedMeta.fetchedAt);
   const checked = cachedMeta.checkedAt !== undefined ? Date.parse(cachedMeta.checkedAt) : NaN;
+  const checkedAt = Number.isFinite(checked) ? checked : fetchedAt;
+  const failed = cachedMeta.failedAt !== undefined ? Date.parse(cachedMeta.failedAt) : NaN;
+  const failure =
+    Number.isFinite(failed) && typeof cachedMeta.failureReason === "string"
+      ? { failedAt: failed, reason: cachedMeta.failureReason }
+      : undefined;
   return {
     meta: cachedMeta,
+    // A failed check counts as a check: the next one is due a week after whichever came last.
+    lastAttemptAt: failure !== undefined ? Math.max(checkedAt, failure.failedAt) : checkedAt,
     rules: {
       index: parsed.value,
       citationUrl: cachedMeta.citationUrl,
       fetchedAt,
-      checkedAt: Number.isFinite(checked) ? checked : fetchedAt,
-      stale: false,
+      checkedAt,
+      // Until a check succeeds, the copy stays stale for the reason recorded.
+      ...(failure !== undefined ? { stale: true, staleReason: failure.reason } : { stale: false }),
     },
   };
 }
@@ -235,33 +260,51 @@ async function fetchFile(
 
 /**
  * The cached copy as it stands, because a due check or re-download failed. A success: the rules
- * are still answerable, and `stale` plus the copy's own dates say how old the answer is. The
- * check time does not move, so the next call tries again.
+ * are still answerable, and `stale` plus the copy's own dates say how old the answer is.
+ *
+ * The failed attempt is recorded and COUNTS AS A CHECK (MCP-PRD CAP-04, as amended 2026-11-15):
+ * Wizards is contacted at most once a week whatever the outcome, and until a check succeeds every
+ * lookup serves this copy stale with the reason recorded here. `checkedAt` does not move — it is
+ * the last time Wizards confirmed the copy current, which a failure never did.
  */
-function staleCopy(cached: Cached, failure: Failure): Result<CachedRules> {
+async function staleCopy(deps: RulesStoreDeps, cached: Cached, failure: Failure): Promise<Result<CachedRules>> {
+  const meta: CacheMeta = {
+    ...cached.meta,
+    failedAt: new Date(deps.now()).toISOString(),
+    failureReason: failure.error.message,
+  };
+  try {
+    await deps.fs.writeText(metaPath(deps.cacheDir), JSON.stringify(meta));
+  } catch {
+    // An unrecorded failure costs one more check next call, not this answer.
+  }
   return { ok: true, value: { ...cached.rules, stale: true, staleReason: failure.error.message } };
 }
 
 /**
  * The cached copy is due a check: read the landing page, and re-download only when its stamp
- * moved. An unchanged stamp just records the check time.
+ * moved. An unchanged stamp records the check time, clears any recorded failure, and refreshes the
+ * citation — a PDF published after the TXT is picked up without fetching the TXT again.
  */
 async function revalidate(deps: RulesStoreDeps, cached: Cached): Promise<Result<CachedRules>> {
   const source = await readLanding(deps);
-  if (!source.ok) return staleCopy(cached, source);
+  if (!source.ok) return staleCopy(deps, cached, source);
   if (source.value.dateStamp !== cached.meta.dateStamp) {
     const fresh = await fetchFile(deps, source.value, cached.meta);
-    return fresh.ok ? fresh : staleCopy(cached, fresh);
+    return fresh.ok ? fresh : staleCopy(deps, cached, fresh);
   }
 
   const checkedAt = deps.now();
-  const meta: CacheMeta = { ...cached.meta, checkedAt: new Date(checkedAt).toISOString() };
+  const { failedAt: _failedAt, failureReason: _failureReason, ...kept } = cached.meta;
+  const citationUrl = source.value.citationUrl;
+  const meta: CacheMeta = { ...kept, citationUrl, checkedAt: new Date(checkedAt).toISOString() };
   try {
     await deps.fs.writeText(metaPath(deps.cacheDir), JSON.stringify(meta));
   } catch {
     // An unrecorded check costs one more check next call, not this answer.
   }
-  return { ok: true, value: { ...cached.rules, checkedAt } };
+  const { staleReason: _staleReason, ...fresh } = cached.rules;
+  return { ok: true, value: { ...fresh, citationUrl, checkedAt, stale: false } };
 }
 
 /**
@@ -269,16 +312,19 @@ async function revalidate(deps: RulesStoreDeps, cached: Cached): Promise<Result<
  * cached (MCP-PRD D-08: fetched at runtime on the user's machine, never bundled). Never throws.
  *
  * First use blocks on that one download, and fails structurally when it cannot be made. After
- * that, a copy last checked fewer than seven days ago is served with no request; an older one is
- * revalidated against the landing page's date stamp, re-downloaded only when the stamp moved, and
- * served `stale` when the check or the download fails. Only a `rules_lookup` call reaches this —
- * never startup, never a hook (PLUGIN-PRD PQ-03).
+ * that, a copy whose last check — successful or failed — was fewer than seven days ago is served
+ * with no request; an older one is revalidated against the landing page's date stamp,
+ * re-downloaded only when the stamp moved, and served `stale` when the check or the download fails,
+ * and stays `stale` until a later check succeeds. Only a `rules_lookup` call reaches this — never
+ * startup, never a hook (PLUGIN-PRD PQ-03).
+ *
+ * Not deduplicated: two concurrent calls each do the work. `createRulesStore` shares it.
  */
 export async function ensureRules(deps: RulesStoreDeps): Promise<Result<CachedRules>> {
   try {
     const cached = await fromCache(deps);
     if (cached === undefined) return await download(deps);
-    if (deps.now() - cached.rules.checkedAt < REVALIDATE_AFTER_MS) return { ok: true, value: cached.rules };
+    if (deps.now() - cached.lastAttemptAt < REVALIDATE_AFTER_MS) return { ok: true, value: cached.rules };
     return await revalidate(deps, cached);
   } catch (err) {
     return {
@@ -289,4 +335,30 @@ export async function ensureRules(deps: RulesStoreDeps): Promise<Result<CachedRu
       },
     };
   }
+}
+
+/** The rules store one server holds: its dependencies plus a shared `ensureRules`. */
+export interface RulesStore {
+  readonly deps: RulesStoreDeps;
+  /** `ensureRules`, with concurrent calls on this instance sharing one in-flight run. */
+  ensure(): Promise<Result<CachedRules>>;
+}
+
+/**
+ * One store per server. Two lookups arriving together — the first use of a fresh install, say —
+ * share one download rather than racing two. The in-flight promise lives on this instance, never
+ * in module state (MCP-PRD D-03), and is dropped once it settles so the next call reads the cache
+ * afresh.
+ */
+export function createRulesStore(deps: RulesStoreDeps): RulesStore {
+  let inFlight: Promise<Result<CachedRules>> | undefined;
+  return {
+    deps,
+    ensure() {
+      inFlight ??= ensureRules(deps).finally(() => {
+        inFlight = undefined;
+      });
+      return inFlight;
+    },
+  };
 }

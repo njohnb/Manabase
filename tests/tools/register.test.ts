@@ -11,7 +11,8 @@ import type { ComboSearchData } from "../../src/tools/combo-search.ts";
 import type { ComboFindDeckData } from "../../src/tools/combo-find-deck.ts";
 import { dispatchToolCall, toolDefinitions } from "../../src/tools/register.ts";
 import type { Clients } from "../../src/tools/register.ts";
-import type { RulesStoreDeps } from "../../src/rules/store.ts";
+import { createRulesStore } from "../../src/rules/store.ts";
+import type { RulesStore } from "../../src/rules/store.ts";
 import { syntheticCr } from "../rules/synthetic-cr.ts";
 
 // Same pattern as card-search.test.ts: loaded at runtime, so no `resolveJsonModule` and
@@ -719,7 +720,7 @@ describe("dispatchToolCall — rules_lookup", () => {
   const LANDING =
     '<a href="https://media.wizards.com/2026/downloads/MagicCompRules 20261106.txt">txt</a>';
 
-  function rulesDeps(): { deps: RulesStoreDeps; requests: string[] } {
+  function rulesDeps(): { deps: RulesStore; requests: string[] } {
     const requests: string[] = [];
     const text = (body: string): HttpClient => ({
       get(path) { requests.push(path); return Promise.resolve({ ok: true, value: body }); },
@@ -728,7 +729,7 @@ describe("dispatchToolCall — rules_lookup", () => {
     const files = new Map<string, string>();
     return {
       requests,
-      deps: {
+      deps: createRulesStore({
         site: text(LANDING),
         media: text(syntheticCr()),
         siteBaseUrl: "https://magic.wizards.com",
@@ -740,7 +741,7 @@ describe("dispatchToolCall — rules_lookup", () => {
         },
         now: () => 0,
         cacheDir: "cache-root",
-      },
+      }),
     };
   }
 

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { HttpClient } from "../../src/http/client.ts";
 import type { Result } from "../../src/result.ts";
-import { ensureRules, nodeRulesFs } from "../../src/rules/store.ts";
+import { createNodeRulesFs, createRulesStore, ensureRules } from "../../src/rules/store.ts";
 import type { RulesFs, RulesStoreDeps } from "../../src/rules/store.ts";
 import { SYNTHETIC_LINES, syntheticCr } from "./synthetic-cr.ts";
 
@@ -286,6 +286,25 @@ describe("ensureRules — the seven-day revalidation", () => {
     assert.equal(files.has(join(CACHE, "rules", "cr-20270213.txt")), true);
   });
 
+  test("an unchanged stamp picks up a PDF that appeared after the download, without re-downloading the TXT", async () => {
+    const txtOnly = `<a href="${MEDIA}/2026/downloads/MagicCompRules 20261106.txt">txt</a>`;
+    const fs = memoryFs();
+    const first = await ensureRules(deps({ fs, siteResult: { ok: true, value: txtOnly } }).d);
+    assert.ok(first.ok);
+    assert.equal(first.value.citationUrl, `${MEDIA}/2026/downloads/MagicCompRules%2020261106.txt`);
+
+    const later = deps({ fs, now: () => NOW + WEEK });
+    const r = await ensureRules(later.d);
+    assert.ok(r.ok);
+    assert.deepEqual(later.media.paths, [], "the TXT is not fetched again");
+    assert.equal(r.value.citationUrl, `${MEDIA}/2026/downloads/MagicCompRules%2020261106.pdf`);
+
+    const next = deps({ fs, now: () => NOW + WEEK + DAY });
+    const again = await ensureRules(next.d);
+    assert.ok(again.ok);
+    assert.equal(again.value.citationUrl, `${MEDIA}/2026/downloads/MagicCompRules%2020261106.pdf`, "and it is persisted");
+  });
+
   test("a cache written before revalidation existed (cr.txt, no txtFile) is still served", async () => {
     const fs = memoryFs({
       [LEGACY_TXT_PATH]: syntheticCr(),
@@ -342,6 +361,63 @@ describe("ensureRules — a failed check serves the cached copy as stale, never 
       assert.equal((fs as ReturnType<typeof memoryFs>).files.get(TXT_PATH), syntheticCr(), "the good copy is untouched");
     });
   }
+
+  test("a failed check counts as a check: no request for 7 days, every call stale with the recorded reason", async () => {
+    const fs = await seeded();
+    const failed = deps({ fs, now: () => NOW + WEEK, siteResult: NETWORK_DOWN });
+    const first = await ensureRules(failed.d);
+    assert.ok(first.ok);
+    assert.deepEqual(failed.site.paths, ["/en/rules"]);
+
+    for (const offset of [DAY, WEEK - 1]) {
+      const later = deps({ fs, now: () => NOW + WEEK + offset });
+      const r = await ensureRules(later.d);
+      assert.deepEqual(later.site.paths, [], `no request ${offset} ms after the failed attempt`);
+      assert.deepEqual(later.media.paths, []);
+      assert.ok(r.ok);
+      assert.equal(r.value.stale, true, "still stale until a check succeeds");
+      assert.match(r.value.staleReason!, /ENOTFOUND/);
+      assert.equal(r.value.checkedAt, NOW, "the last confirmation, not the failed attempt");
+    }
+
+    const due = deps({ fs, now: () => NOW + 2 * WEEK, siteResult: NETWORK_DOWN });
+    await ensureRules(due.d);
+    assert.deepEqual(due.site.paths, ["/en/rules"], "7 days after the failed attempt, one more check");
+  });
+
+  test("a failed re-download also counts as a check", async () => {
+    const fs = await seeded();
+    const failed = deps({ fs, now: () => NOW + WEEK, siteResult: { ok: true, value: landing("20270213") }, mediaResult: NETWORK_DOWN });
+    await ensureRules(failed.d);
+    assert.deepEqual(failed.media.paths.length, 1);
+
+    const later = deps({ fs, now: () => NOW + WEEK + DAY, siteResult: { ok: true, value: landing("20270213") } });
+    const r = await ensureRules(later.d);
+    assert.deepEqual(later.site.paths, []);
+    assert.deepEqual(later.media.paths, []);
+    assert.ok(r.ok);
+    assert.equal(r.value.stale, true);
+    assert.match(r.value.staleReason!, /ENOTFOUND/);
+  });
+
+  test("a later successful check clears the recorded failure", async () => {
+    const fs = await seeded();
+    await ensureRules(deps({ fs, now: () => NOW + WEEK, siteResult: NETWORK_DOWN }).d);
+
+    const ok = deps({ fs, now: () => NOW + 2 * WEEK });
+    const r = await ensureRules(ok.d);
+    assert.ok(r.ok);
+    assert.deepEqual(ok.site.paths, ["/en/rules"]);
+    assert.equal(r.value.stale, false);
+    assert.equal("staleReason" in r.value, false);
+
+    const next = deps({ fs, now: () => NOW + 2 * WEEK + DAY });
+    const after = await ensureRules(next.d);
+    assert.ok(after.ok);
+    assert.deepEqual(next.site.paths, []);
+    assert.equal(after.value.stale, false);
+    assert.equal("staleReason" in after.value, false);
+  });
 
   test("a pre-revalidation cache (no checkedAt) counts its download as its check", async () => {
     const fs = await seeded();
@@ -416,8 +492,61 @@ describe("ensureRules — a partly written download never replaces a good cached
   });
 });
 
-describe("nodeRulesFs — the production adapter", () => {
+describe("createRulesStore — one store instance shares concurrent work", () => {
+  test("two simultaneous first lookups make one download", async () => {
+    const { d, site, media } = deps();
+    const store = createRulesStore(d);
+
+    const [a, b] = await Promise.all([store.ensure(), store.ensure()]);
+
+    assert.ok(a.ok && b.ok);
+    assert.deepEqual(site.paths, ["/en/rules"]);
+    assert.equal(media.paths.length, 1);
+  });
+
+  test("a settled call is not reused: the next call reads the cache afresh", async () => {
+    const { d, site } = deps();
+    const store = createRulesStore(d);
+    await store.ensure();
+
+    const r = await store.ensure();
+    assert.ok(r.ok);
+    assert.deepEqual(site.paths, ["/en/rules"], "served from the cache, no second landing GET");
+  });
+
+  test("two store instances do not share in-flight work", async () => {
+    const fs = memoryFs();
+    const one = deps({ fs });
+    const two = deps({ fs });
+
+    await Promise.all([createRulesStore(one.d).ensure(), createRulesStore(two.d).ensure()]);
+
+    assert.equal(one.site.paths.length + two.site.paths.length, 2);
+  });
+});
+
+describe("createNodeRulesFs — the production adapter", () => {
+  test("concurrent writes to one path from one adapter use distinct temp files and both land whole", async () => {
+    const root = mkdtempSync(join(tmpdir(), "manabase-rulesfs-"));
+    try {
+      const fs = createNodeRulesFs("t");
+      const path = join(root, "rules", "meta.json");
+      const big = (c: string) => c.repeat(200_000);
+      // A write may reject (Windows refuses a rename onto a file mid-replace); what must hold is
+      // that the two never share a temp file, so the target is one whole write and nothing is left.
+      const settled = await Promise.allSettled([fs.writeText(path, big("a")), fs.writeText(path, big("b"))]);
+      assert.ok(settled.some((s) => s.status === "fulfilled"));
+
+      const text = await fs.readText(path);
+      assert.ok(text === big("a") || text === big("b"), "one whole write, never an interleaving");
+      assert.deepEqual(readdirSync(join(root, "rules")), ["meta.json"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("writes create the directory, overwrite in place via a renamed temp file, and leave no temp behind", async () => {
+    const nodeRulesFs = createNodeRulesFs("t");
     const root = mkdtempSync(join(tmpdir(), "manabase-rulesfs-"));
     try {
       const path = join(root, "rules", "meta.json");

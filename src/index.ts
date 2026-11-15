@@ -5,7 +5,7 @@ import { createScryfallClient } from "./scryfall/client.ts";
 import { createSpellbookClient } from "./spellbook/client.ts";
 import { registerTools } from "./tools/register.ts";
 import { createWizardsClients } from "./wizards/client.ts";
-import { nodeRulesFs } from "./rules/store.ts";
+import { createNodeRulesFs, createRulesStore } from "./rules/store.ts";
 
 // This is the only module allowed to read process.env / process.platform —
 // everything below it is a plain, testable function (MCP-PRD D-03, §3.2).
@@ -26,15 +26,16 @@ const wizards = createWizardsClients(config);
 const clients = {
   scryfall: createScryfallClient(config),
   spellbook: createSpellbookClient(config),
-  rules: {
+  rules: createRulesStore({
     site: wizards.site,
     media: wizards.media,
     siteBaseUrl: config.wizardsSiteBaseUrl,
     mediaBaseUrl: config.wizardsMediaBaseUrl,
-    fs: nodeRulesFs,
+    // The pid keeps temp files apart when two servers share one cache directory.
+    fs: createNodeRulesFs(String(process.pid)),
     now: Date.now,
     cacheDir: config.cacheDir,
-  },
+  }),
 };
 
 // register.ts owns both tools/list and tools/call.

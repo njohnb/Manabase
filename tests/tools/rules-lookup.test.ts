@@ -1,6 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import type { HttpClient } from "../../src/http/client.ts";
+import { createRulesStore } from "../../src/rules/store.ts";
 import type { RulesFs, RulesStoreDeps } from "../../src/rules/store.ts";
 import { rulesLookup } from "../../src/tools/rules-lookup.ts";
 import { SYNTHETIC_LINES, syntheticCr } from "../rules/synthetic-cr.ts";
@@ -42,14 +43,14 @@ function harness(cr = syntheticCr()) {
     now: () => clock,
     cacheDir: "cache-root",
   };
-  return { deps, requests, setNow: (ms: number) => { clock = ms; } };
+  return { store: createRulesStore(deps), requests, setNow: (ms: number) => { clock = ms; } };
 }
 
 describe("rulesLookup — rule 702.19", () => {
   test("returns the rule, its subrules, the CR effective date, the cache age and the PDF citation", async () => {
-    const { deps } = harness();
+    const { store } = harness();
 
-    const r = await rulesLookup(deps, { rule: "702.19" });
+    const r = await rulesLookup(store, { rule: "702.19" });
 
     assert.ok(r.ok, r.ok ? "" : r.error.message);
     assert.deepEqual(r.value.rules.map((e) => e.number), ["702.19", "702.19a", "702.19b", "702.19c"]);
@@ -61,12 +62,12 @@ describe("rulesLookup — rule 702.19", () => {
   });
 
   test("a later call is served from the cache with no request, and reports its age", async () => {
-    const { deps, requests, setNow } = harness();
-    await rulesLookup(deps, { rule: "702.19" });
+    const { store, requests, setNow } = harness();
+    await rulesLookup(store, { rule: "702.19" });
     const firstUse = requests.length;
 
     setNow(DOWNLOADED_AT + 3 * DAY + 5);
-    const r = await rulesLookup(deps, { rule: "704.5" });
+    const r = await rulesLookup(store, { rule: "704.5" });
 
     assert.equal(firstUse, 2);
     assert.equal(requests.length, 2, "no request after the first download");
@@ -75,9 +76,9 @@ describe("rulesLookup — rule 702.19", () => {
   });
 
   test("an untruncated result carries no note", async () => {
-    const { deps } = harness();
+    const { store } = harness();
 
-    const r = await rulesLookup(deps, { rule: "702" });
+    const r = await rulesLookup(store, { rule: "702" });
 
     assert.ok(r.ok);
     assert.equal(r.value.truncated, false);
@@ -90,9 +91,9 @@ describe("rulesLookup — rule 702.19", () => {
       const at = lines.findIndex((l) => l.startsWith(`702.19${letter} `));
       lines[at] = `702.19${letter} ${"z".repeat(20_000)}`;
     }
-    const { deps } = harness(syntheticCr(lines));
+    const { store } = harness(syntheticCr(lines));
 
-    const r = await rulesLookup(deps, { rule: "702" });
+    const r = await rulesLookup(store, { rule: "702" });
 
     assert.ok(r.ok);
     assert.equal(r.value.truncated, true);
@@ -103,9 +104,9 @@ describe("rulesLookup — rule 702.19", () => {
 
 describe("rulesLookup — the weekly check and the stale copy", () => {
   test("a fresh answer reports stale: false, when it was last checked, and no note", async () => {
-    const { deps } = harness();
+    const { store } = harness();
 
-    const r = await rulesLookup(deps, { rule: "702.19" });
+    const r = await rulesLookup(store, { rule: "702.19" });
 
     assert.ok(r.ok);
     assert.equal(r.value.stale, false);
@@ -114,15 +115,15 @@ describe("rulesLookup — the weekly check and the stale copy", () => {
   });
 
   test("when Wizards is unreachable at the weekly check, the cached rules are served stale with their age", async () => {
-    const { deps, setNow } = harness();
-    await rulesLookup(deps, { rule: "702.19" });
+    const { store, setNow } = harness();
+    await rulesLookup(store, { rule: "702.19" });
 
     setNow(DOWNLOADED_AT + 9 * DAY);
-    deps.site = {
+    store.deps.site = {
       get: () => Promise.resolve({ ok: false, error: { code: "network", message: "Could not reach Wizards of the Coast: ENOTFOUND" } }),
       post: () => Promise.reject(new Error("no POST")),
     };
-    const r = await rulesLookup(deps, { rule: "702.19" });
+    const r = await rulesLookup(store, { rule: "702.19" });
 
     assert.ok(r.ok, r.ok ? "" : r.error.message);
     assert.equal(r.value.stale, true);
@@ -135,15 +136,15 @@ describe("rulesLookup — the weekly check and the stale copy", () => {
   });
 
   test("a keyword query on a stale copy carries stale and the same note", async () => {
-    const { deps, setNow } = harness();
-    await rulesLookup(deps, { query: "trample" });
+    const { store, setNow } = harness();
+    await rulesLookup(store, { query: "trample" });
 
     setNow(DOWNLOADED_AT + 9 * DAY);
-    deps.site = {
+    store.deps.site = {
       get: () => Promise.resolve({ ok: false, error: { code: "network", message: "Could not reach Wizards of the Coast: ENOTFOUND" } }),
       post: () => Promise.reject(new Error("no POST")),
     };
-    const r = await rulesLookup(deps, { query: "trample" });
+    const r = await rulesLookup(store, { query: "trample" });
 
     assert.ok(r.ok, r.ok ? "" : r.error.message);
     assert.equal(r.value.stale, true);
@@ -154,9 +155,9 @@ describe("rulesLookup — the weekly check and the stale copy", () => {
 
 describe("rulesLookup — keyword query", () => {
   test("returns the glossary entry first, then numbered rules, with the same version and citation", async () => {
-    const { deps } = harness();
+    const { store } = harness();
 
-    const r = await rulesLookup(deps, { query: "trample" });
+    const r = await rulesLookup(store, { query: "trample" });
 
     assert.ok(r.ok, r.ok ? "" : r.error.message);
     assert.equal(r.value.query, "trample");
@@ -170,9 +171,9 @@ describe("rulesLookup — keyword query", () => {
   });
 
   test("no match is a successful empty result with a note to rephrase", async () => {
-    const { deps } = harness();
+    const { store } = harness();
 
-    const r = await rulesLookup(deps, { query: "banding" });
+    const r = await rulesLookup(store, { query: "banding" });
 
     assert.ok(r.ok, r.ok ? "" : r.error.message);
     assert.deepEqual(r.value.glossary, []);
@@ -189,9 +190,9 @@ describe("rulesLookup — keyword query", () => {
       copy[copy.findIndex((l) => l.startsWith(`${n} `))] = `${n} damage ${"z".repeat(20_000)}`;
       lines = copy;
     }
-    const { deps } = harness(syntheticCr(lines));
+    const { store } = harness(syntheticCr(lines));
 
-    const r = await rulesLookup(deps, { query: "damage" });
+    const r = await rulesLookup(store, { query: "damage" });
 
     assert.ok(r.ok);
     assert.equal(r.value.truncated, true);
@@ -203,16 +204,16 @@ describe("rulesLookup — keyword query", () => {
   test("an unreadable glossary: rule-text matches still come back, with a note saying so, and the copy is cached", async () => {
     const at = SYNTHETIC_LINES.lastIndexOf("Glossary");
     const end = SYNTHETIC_LINES.lastIndexOf("Credits");
-    const { deps, requests } = harness(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
+    const { store, requests } = harness(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
 
-    const r = await rulesLookup(deps, { query: "trample" });
+    const r = await rulesLookup(store, { query: "trample" });
 
     assert.ok(r.ok, r.ok ? "" : r.error.message);
     assert.deepEqual(r.value.glossary, []);
     assert.deepEqual(r.value.rules.map((e) => e.number), ["702.19", "702.19a", "702.19b", "702.19c"]);
     assert.match(r.value.note!, /glossary could not be read/i);
 
-    const byNumber = await rulesLookup(deps, { rule: "702.19" });
+    const byNumber = await rulesLookup(store, { rule: "702.19" });
     assert.ok(byNumber.ok);
     assert.equal("note" in byNumber.value, false, "rule-number lookups are unaffected");
     assert.equal(requests.length, 2, "the copy was cached normally: no second download");
@@ -221,18 +222,18 @@ describe("rulesLookup — keyword query", () => {
   test("an unreadable glossary with no rule match still says the glossary could not be read", async () => {
     const at = SYNTHETIC_LINES.lastIndexOf("Glossary");
     const end = SYNTHETIC_LINES.lastIndexOf("Credits");
-    const { deps } = harness(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
+    const { store } = harness(syntheticCr([...SYNTHETIC_LINES.slice(0, at + 1), "", ...SYNTHETIC_LINES.slice(end)]));
 
-    const r = await rulesLookup(deps, { query: "banding" });
+    const r = await rulesLookup(store, { query: "banding" });
 
     assert.ok(r.ok);
     assert.match(r.value.note!, /glossary could not be read/i);
   });
 
   test("both rule and query is a bad_request, refused before any download", async () => {
-    const { deps, requests } = harness();
+    const { store, requests } = harness();
 
-    const r = await rulesLookup(deps, { rule: "702.19", query: "trample" });
+    const r = await rulesLookup(store, { rule: "702.19", query: "trample" });
 
     assert.ok(r.ok === false);
     assert.equal(r.error.code, "bad_request");
@@ -240,9 +241,9 @@ describe("rulesLookup — keyword query", () => {
   });
 
   test("neither rule nor query is a bad_request, refused before any download", async () => {
-    const { deps, requests } = harness();
+    const { store, requests } = harness();
 
-    const r = await rulesLookup(deps, {});
+    const r = await rulesLookup(store, {});
 
     assert.ok(r.ok === false);
     assert.equal(r.error.code, "bad_request");
@@ -251,9 +252,9 @@ describe("rulesLookup — keyword query", () => {
   });
 
   test("an empty query is a bad_request, refused before any download", async () => {
-    const { deps, requests } = harness();
+    const { store, requests } = harness();
 
-    const r = await rulesLookup(deps, { query: "  " });
+    const r = await rulesLookup(store, { query: "  " });
 
     assert.ok(r.ok === false);
     assert.equal(r.error.code, "bad_request");
@@ -263,9 +264,9 @@ describe("rulesLookup — keyword query", () => {
 
 describe("rulesLookup — failures", () => {
   test("an unknown rule number is a structured not_found naming it", async () => {
-    const { deps } = harness();
+    const { store } = harness();
 
-    const r = await rulesLookup(deps, { rule: "702.999" });
+    const r = await rulesLookup(store, { rule: "702.999" });
 
     assert.ok(r.ok === false);
     assert.equal(r.error.code, "not_found");
@@ -273,9 +274,9 @@ describe("rulesLookup — failures", () => {
   });
 
   test("something that is not a rule number is refused before any download", async () => {
-    const { deps, requests } = harness();
+    const { store, requests } = harness();
 
-    const r = await rulesLookup(deps, { rule: "how does trample work" });
+    const r = await rulesLookup(store, { rule: "how does trample work" });
 
     assert.ok(r.ok === false);
     assert.equal(r.error.code, "bad_request");
@@ -283,13 +284,13 @@ describe("rulesLookup — failures", () => {
   });
 
   test("a download failure on first use reaches the caller as the store's failure", async () => {
-    const { deps } = harness();
-    deps.site = {
+    const { store } = harness();
+    store.deps.site = {
       get: () => Promise.resolve({ ok: false, error: { code: "network", message: "Could not reach Wizards of the Coast: ENOTFOUND" } }),
       post: () => Promise.reject(new Error("no POST")),
     };
 
-    const r = await rulesLookup(deps, { rule: "702.19" });
+    const r = await rulesLookup(store, { rule: "702.19" });
 
     assert.ok(r.ok === false);
     assert.equal(r.error.code, "network");
