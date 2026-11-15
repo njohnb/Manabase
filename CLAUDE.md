@@ -967,6 +967,19 @@ cache split) and are gone. No criterion changed status, no open question moved, 
 version not bumped. `npm test` **485 tests, 114 suites**; `acceptance:rules` 18/18 live;
 `npm run acceptance` not run. Commands block still keeps 347/82.
 
+**Rules plan ticket 06 (the rules eval run) ran 2026-11-15 on `test/rules-eval` — measurement
+only, no code or skill change; agents in `482151c`, `evals/rules-evals.json` and the results doc
+uncommitted.** 11 cases × with/without `mtg-rules`, clean-room baseline with no `Skill` tool, one
+subagent at a time, no 429. `PC-06` criterion **7 verified** (listed as `manabase:mtg-rules` from
+installed `0.5.0` at `4959da5`, an updated profile not a cold one; auto-invoked 11/11). Criterion
+**9 measured and NOT met** — citation 11/11, CR version 7/7, source 4/4, but zero uncited claims
+**6/11** (baseline 2/11); 41/48 vs 35/48 — record it as Slice 10 recorded `PC-01` criterion 2,
+never as passed. 8 still author-TODO, so `Status` stays `specified`. `CAP-03`/`CAP-04` gain
+live-use notes, no criterion moved; **the stale case was staged in local `meta.json`, so `CAP-04`
+criterion 11 stays on fakes.** Two skill edits the results doc suggests (don't vouch for a stale
+copy; submit names as typed) are suggestions, not applied. No open question moved, no `D-`/`P-`.
+`npm test` 485/114 unchanged. Evidence: `docs/slices/rules-eval-results.md`.
+
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions
 arising *inside* triaged work are the other lane — `OPEN-QUESTIONS.md` and §7.

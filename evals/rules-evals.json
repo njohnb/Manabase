@@ -1,0 +1,142 @@
+{
+  "skill_name": "mtg-rules",
+  "note": "Rules plan ticket 06: behavioral measurement of the mtg-rules skill (PC-06 criterion 9) over CAP-03's card_rulings and CAP-04's rules_lookup, run with the skill (rules-subject) and against a clean-room baseline with no Skill tool (rules-baseline). Every expected rule number and ruling below was fixed against a live rules_lookup or card_rulings call on 2026-11-15 (CR effective 2026-11-06, the 20261106 file), never from memory. Graded binary from each run's TOOL_CALLS and FINAL_ANSWER blocks, burden of proof on the expectation. The four scored expectations the ticket names are a correct rule or ruling citation, zero uncited rules claims, the CR version stated, and the ruling source labelled; each case carries the ones that apply, plus one correctness expectation. 'Uncited rules claim' means a statement of how the rules or a card work that carries neither a CR rule number nor a card-ruling citation in the same sentence or the sentence before it. Case 10 runs with the local CR cache forced stale (a recorded failed check, written into the cache metadata; Wizards is not contacted). Case 11 is the 'tool unavailable' case, staged as a question no available tool covers, because both subject agents carry every Manabase tool and the agent registry is fixed at session start.",
+  "evals": [
+    {
+      "id": 1,
+      "category": "rule-number",
+      "prompt": "my buddy says rule 903.4 is what decides which cards i can put in my commander deck. what does that rule actually say, and does the back face of a double-faced card count toward it?",
+      "expected_output": "A rules_lookup by rule number for 903.4, then an answer citing 903.4 for color identity and 903.4d for the back face counting, with the CR version named.",
+      "expectations": [
+        "At least one rules_lookup call passes rule 903.4 (or a subrule of it, or 903).",
+        "The final answer cites CR 903.4 and cites 903.4d for the back-face question.",
+        "The final answer says the back face IS included when determining color identity.",
+        "The final answer names the CR version: the effective date 2026-11-06 or the dated citation URL.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 2,
+      "category": "rule-number",
+      "prompt": "what does rule 702.19c mean in plain english? i see it cited all the time and have no idea",
+      "expected_output": "A rules_lookup of 702.19c, then a plain-English explanation of trample over planeswalkers citing that rule and the version.",
+      "expectations": [
+        "At least one rules_lookup call passes rule 702.19c (or 702.19).",
+        "The final answer identifies 702.19c as trample over planeswalkers and explains that excess damage past the planeswalker's loyalty can go on to its controller, citing 702.19c.",
+        "The final answer names the CR version: the effective date 2026-11-06 or the dated citation URL.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 3,
+      "category": "keyword",
+      "prompt": "how does ward work? if i target their ward creature with my removal spell and i can't pay the ward cost, what happens to my spell?",
+      "expected_output": "A rules_lookup for ward (query or 702.21), then an answer citing 702.21a: ward is a triggered ability that counters the spell unless the cost is paid.",
+      "expectations": [
+        "At least one rules_lookup call is made for ward (query \"ward\" or rule 702.21 / 702.21a).",
+        "The final answer cites CR 702.21a and says the spell is countered unless the ward cost is paid.",
+        "The final answer names the CR version: the effective date 2026-11-06 or the dated citation URL.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 4,
+      "category": "keyword",
+      "prompt": "can you respond to cascade? like when my opponent casts a cascade spell, is there a window before they start flipping cards?",
+      "expected_output": "A rules_lookup for cascade (query or 702.85), then an answer citing 702.85a: cascade is a triggered ability that triggers on cast, so it uses the stack and can be responded to before it resolves.",
+      "expectations": [
+        "At least one rules_lookup call is made for cascade (query \"cascade\" or rule 702.85 / 702.85a).",
+        "The final answer cites CR 702.85a and says cascade is a triggered ability that triggers when the spell is cast, so players can respond to the trigger before cards are exiled.",
+        "The final answer names the CR version: the effective date 2026-11-06 or the dated citation URL.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 5,
+      "category": "keyword",
+      "prompt": "whats the mana value of a spell with X in its cost? is it different when its in my hand vs on the stack?",
+      "expected_output": "A rules_lookup for mana value (query or 202.3), then an answer citing 202.3e: X is 0 off the stack and the chosen number on the stack.",
+      "expectations": [
+        "At least one rules_lookup call is made for mana value (query \"mana value\" or rule 202.3 / 202.3e).",
+        "The final answer cites CR 202.3e and says X counts as 0 when not on the stack and as the chosen value while on the stack.",
+        "The final answer names the CR version: the effective date 2026-11-06 or the dated citation URL.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 6,
+      "category": "two-card",
+      "prompt": "does rest in peace stop my blood artist triggers?",
+      "expected_output": "One card_rulings call naming both cards, then an answer citing Rest in Peace's 2018-03-16 Wizards ruling that dies triggers don't trigger, so Blood Artist does nothing.",
+      "expectations": [
+        "A card_rulings call includes both Rest in Peace and Blood Artist.",
+        "The final answer says Blood Artist's ability does not trigger, citing the Rest in Peace ruling dated 2018-03-16.",
+        "Every ruling the final answer cites is labelled with its source as an official Wizards ruling (wotc), not left unlabelled.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 7,
+      "category": "two-card",
+      "prompt": "humility and opalescence are both on the battlefield. humility came down first, then opalescence. how big is humility, and does anything still have abilities?",
+      "expected_output": "One card_rulings call naming both cards; the 2009-10-01 Wizards ruling on both gives the layer walk-through. With Humility first, Humility is a 4/4 with no abilities (Opalescence's later timestamp wins in layer 7b); Opalescence is not a creature and keeps its ability.",
+      "expectations": [
+        "A card_rulings call includes both Humility and Opalescence.",
+        "The final answer says Humility is a 4/4, citing the Humility/Opalescence ruling dated 2009-10-01.",
+        "Every ruling the final answer cites is labelled with its source as an official Wizards ruling (wotc), not left unlabelled.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 8,
+      "category": "three-card",
+      "prompt": "i have torpor orb out. if i evoke mulldrifter while i also have panharmonicon on the battlefield, do i draw cards, and do i have to sacrifice it?",
+      "expected_output": "One card_rulings call naming all three cards, and a rules_lookup for evoke (702.74a). Torpor Orb stops Mulldrifter's own ETB trigger AND the evoke sacrifice trigger (702.74a makes it a 'when this permanent enters' trigger), so no draw and no sacrifice; Panharmonicon has nothing to double.",
+      "expectations": [
+        "A card_rulings call includes all three of Torpor Orb, Panharmonicon and Mulldrifter.",
+        "A rules_lookup call is made for evoke (query \"evoke\" or rule 702.74 / 702.74a).",
+        "The final answer says no cards are drawn AND Mulldrifter is not sacrificed, citing CR 702.74a for the sacrifice being an enters trigger and a Torpor Orb ruling (2024-04-12) for it being stopped.",
+        "The final answer names the CR version: the effective date 2026-11-06 or the dated citation URL.",
+        "Every ruling the final answer cites is labelled with its source as an official Wizards ruling (wotc), not left unlabelled.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 9,
+      "category": "misspelled-card",
+      "prompt": "my opponent has platinum angel out. if i have laboratory manaic and draw from an empty library, do i win?",
+      "expected_output": "A card_rulings call returns 'Laboratory Manaic' in unresolved_cards. The answer says so rather than silently treating it as resolved; it may ask the user to confirm Laboratory Maniac, or retry with the corrected name and answer from that call's rulings (no win and no loss: Platinum Angel's 2009-10-01 ruling, Laboratory Maniac's 2021-03-19 ruling).",
+      "expectations": [
+        "A card_rulings call is made whose cards include the name as the user typed it, \"laboratory manaic\" (any case).",
+        "The final answer tells the user that the misspelled name was not recognized (or names the correction it assumed), rather than answering as though it had resolved.",
+        "Any statement in the final answer about what Laboratory Maniac does is backed by a card_rulings or card_search call in this transcript that returned Laboratory Maniac; if none returned it, the answer asserts nothing about its effect as fact.",
+        "Every ruling the final answer cites is labelled with its source as an official Wizards ruling (wotc), not left unlabelled.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 10,
+      "category": "stale-cache",
+      "prompt": "if my creature has deathtouch and trample, can i assign just 1 damage to each blocker and trample the rest over to the player?",
+      "expected_output": "rules_lookup calls for deathtouch and trample, served stale. The answer cites 702.2c (any nonzero deathtouch damage counts as lethal) and 702.19b (trample assignment), states the CR version it cites (2026-11-06), and tells the user the cached version was served because the check for a newer one failed, so a newer CR may exist.",
+      "expectations": [
+        "At least one rules_lookup call is made for deathtouch or trample.",
+        "The final answer says yes, citing CR 702.2c.",
+        "The final answer names the CR version: the effective date 2026-11-06 or the dated citation URL.",
+        "The final answer tells the user the rules were served from a cached copy whose freshness check failed, or that a newer version of the rules may exist.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    },
+    {
+      "id": 11,
+      "category": "tool-unavailable",
+      "prompt": "at a competitive REL tournament, what's the penalty if i accidentally draw an extra card?",
+      "expected_output": "Tournament policy (the Infraction Procedure Guide and MTR) is in neither tool. The answer says the available tools do not cover tournament policy and stops, rather than stating a penalty from memory.",
+      "expectations": [
+        "The final answer tells the user that tournament policy (the IPG or MTR) is not covered by the tools available, or that the answer could not be looked up.",
+        "The final answer does not state a specific penalty (such as a Warning, Game Loss, or the name of an infraction) as fact.",
+        "Zero uncited rules claims in the final answer."
+      ]
+    }
+  ]
+}

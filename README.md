@@ -48,42 +48,42 @@ updates itself, so **if you installed `v0.1.0` you still carry the old payload**
 `manabase.mcpb` from the [latest release](https://github.com/njohnb/Manabase/releases/latest) and
 reinstall through Settings → Extensions to pick it up.
 
-**Phase 2 — combo discovery — is delivered in this repository as of 2026-08-25, and is not yet in
-anything you can install.** The server now registers three tools rather than one: `card_search`,
+**Phase 2 — combo discovery — is delivered as of 2026-08-25 and has shipped since.**
+The server now registers three tools rather than one: `card_search`,
 plus `combo_search` (what combos a card is part of) and `combo_find_deck` (what combos a decklist
 already contains, and the ones it is one card away from) — both reading
 [Commander Spellbook](https://commanderspellbook.com).
 [CAP-02](./docs/MCP-PRD.md#cap-02--combo-discovery) is delivered against all fourteen of its
 acceptance criteria, closed by
 [Slice 17](./docs/slices/TrackA-Slice17.md)
-([`docs/slices/TrackA-Slice17-results.md`](./docs/slices/TrackA-Slice17-results.md)). **What that
-does not mean:** the work is still on a branch, no new bundle has been released, and the newest
-one — `v0.1.1` — carries `card_search` alone. Nothing installed anywhere has the combo tools today.
+([`docs/slices/TrackA-Slice17-results.md`](./docs/slices/TrackA-Slice17-results.md)). **They
+shipped in releases:** `combo_search` first in `v0.2.0` (2026-08-26) and `combo_find_deck` in
+`v0.3.0` (2026-08-27). A bundle installed before then does not have them until you reinstall.
 
-**Card rulings — a fourth tool, `card_rulings` — landed 2026-11-15 on a branch and is in no
-release.** Name up to 10 cards and it returns each card's rulings — date, whether the ruling is
+**Card rulings — a fourth tool, `card_rulings` — landed 2026-11-15 and shipped in `v0.5.0`
+the same day.** Name up to 10 cards and it returns each card's rulings — date, whether the ruling is
 from Wizards or a Scryfall note, and a link to the card's Scryfall page — and lists any name it
 could not find rather than answering about fewer cards
 ([`docs/MCP-PRD.md` CAP-03](./docs/MCP-PRD.md#cap-03--card-rulings), delivered against all ten of
 its criteria).
 
-**Comprehensive Rules lookup is built on a branch, 2026-11-15, and is in nothing you can
-install.** A fifth tool, `rules_lookup`, returns a rule by number — `702.19` and every subrule
+**Comprehensive Rules lookup was built 2026-11-15 and shipped in `v0.5.0` the same
+day.** A fifth tool, `rules_lookup`, returns a rule by number — `702.19` and every subrule
 under it — with the rules version it came from and a link to Wizards' dated document. It also
 searches by keyword: ask about "trample" and it returns the glossary definition first, then the
 rules that mention it with their numbers, and it tells you when a broad word matches more than
 fits in one answer. Once a week it checks for a newer rules version. If Wizards' site cannot be
-reached, lookups keep answering from the cached copy and say how old it is. All of this is now on
-one branch and the capability is complete
-([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), `delivered`). It is not merged or
-released yet.
+reached, lookups keep answering from the cached copy and say how old it is. The capability is
+complete ([CAP-04](./docs/MCP-PRD.md#cap-04--comprehensive-rules-lookup), `delivered`).
 
-**A rules skill was written on a branch, 2026-11-15, and is in nothing you can install.** It
+**A rules skill was written 2026-11-15 and ships with the plugin from `v0.5.0`.** It
 teaches Claude to answer a rules or card-interaction question by looking it up with those two
 tools and citing the rule number, the rules version and each ruling's date and source — and to say
 so when the tools are missing rather than answering from memory
 ([`docs/PLUGIN-PRD.md` PC-06](./docs/PLUGIN-PRD.md#pc-06--rules-and-rulings), still `specified`).
-It passes its static checks; nobody has yet confirmed it loads in a real session.
+It passes its static checks, and on 2026-11-15 it was confirmed to load in a real session and was
+measured with and without the skill: it makes Claude cite more of what it says, but not yet every
+claim ([`docs/slices/rules-eval-results.md`](./docs/slices/rules-eval-results.md)).
 
 ## Where it runs
 
@@ -335,7 +335,7 @@ two weeks later ([`docs/PLUGIN-PRD.md` P-06](./docs/PLUGIN-PRD.md#p-06--cached-d
 Phase 1 caches nothing — every card search goes to Scryfall — but the directory rule is already
 implemented and settled, so the first capability that needs persistence inherits it.
 
-**Rules lookup is that first capability** (built on a branch 2026-11-15, not yet released). Its
+**Rules lookup is that first capability** (built 2026-11-15, released in `v0.5.0`). Its
 first call downloads the Comprehensive Rules — about 1 MB — and caches the file under `rules/` in
 that directory, as `cr-<date>.txt` beside a small `meta.json`; later calls read the cache. A call
 made seven or more days after the last check asks Wizards whether a newer version exists and
@@ -487,8 +487,8 @@ reached today: [Archidekt](https://archidekt.com) and [Moxfield](https://moxfiel
 data, and Scryfall's Tags API for tag discovery. Deck reading is planned for Archidekt first and
 Moxfield second ([`docs/MCP-PRD.md` D-13](./docs/MCP-PRD.md#d-13--deck-platform-order-archidekt-first-moxfield-second)); neither
 needs an account, and reading a private deck is not something the plugin will be able to do.
-Comprehensive Rules text is © Wizards of the Coast; `rules_lookup` (built on a branch
-2026-11-15, not yet released) resolves and fetches the official published file at runtime rather
+Comprehensive Rules text is © Wizards of the Coast; `rules_lookup` (released in
+`v0.5.0`, 2026-11-15) resolves and fetches the official published file at runtime rather
 than redistribute a copy, and cites Wizards' dated document with every answer
 ([`docs/MCP-PRD.md` D-08](./docs/MCP-PRD.md#d-08--comprehensive-rules-fetched-at-runtime-never-bundled)).
 
