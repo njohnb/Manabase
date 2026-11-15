@@ -83,7 +83,9 @@ teaches Claude to answer a rules or card-interaction question by looking it up w
 tools and citing the rule number, the rules version and each ruling's date and source — and to say
 so when the tools are missing rather than answering from memory
 ([`docs/PLUGIN-PRD.md` PC-06](./docs/PLUGIN-PRD.md#pc-06--rules-and-rulings), still `specified`).
-It passes its static checks; nobody has yet confirmed it loads in a real session.
+It passes its static checks, and on 2026-11-15 it was confirmed to load in a real session and was
+measured with and without the skill: it makes Claude cite more of what it says, but not yet every
+claim ([`docs/slices/rules-eval-results.md`](./docs/slices/rules-eval-results.md)).
 
 ## Where it runs
 

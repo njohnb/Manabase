@@ -604,6 +604,25 @@ moved, no `D-` or `P-` minted, and no
 [PC-02](./PLUGIN-PRD.md#pc-02--bundled-mcp-server) or
 [PC-03](./PLUGIN-PRD.md#pc-03--mcpb-bundle-for-the-chat-tab) criterion changed status.
 
+**Unscheduled work, 2026-11-15 — ticket 06 of the
+[MTG rules plan](./plans/2026-11-15-mtg-rules-prd.md),
+[the rules eval run](./plans/2026-11-15-mtg-rules-prd/slices/06-rules-eval-run.md), on
+`test/rules-eval` (`482151c`, the two clean-room subject agents); the eval file and results doc are
+uncommitted.** Not a slice in this document and given no slice number. Measurement only — no code
+and no skill changed. 11 known-answer cases × with and without the skill, 22 fresh subagents
+dispatched one at a time, no 429. [`PLUGIN-PRD.md` PC-06](./PLUGIN-PRD.md#pc-06--rules-and-rulings)
+criterion **7 is verified** (`manabase:mtg-rules` in a real session's skill listing from the
+installed `0.5.0` plugin, an updated profile, and auto-invoked in 11 of 11 subject runs); criterion
+**9 is measured and NOT met** — citation 11/11, CR version 7/7, ruling source 4/4, but zero uncited
+rules claims **6/11** (baseline 2/11), 41/48 vs 35/48 expectations; criterion 8 is still
+author-TODO, so `Status` stays `specified`.
+[`MCP-PRD.md` CAP-03](./MCP-PRD.md#cap-03--card-rulings) and
+[CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup) gain live-use notes and move no criterion;
+the stale case was staged in the local cache, so
+[CAP-04](./MCP-PRD.md#cap-04--comprehensive-rules-lookup) criterion 11 stays on its fakes. No open
+question resolved, no `D-` or `P-` minted, `npm test` unchanged at 485 tests / 114 suites.
+Evidence: [`docs/slices/rules-eval-results.md`](./slices/rules-eval-results.md).
+
 | Area | State |
 |---|---|
 | Repo layout | `src/`, `tests/`, `dist/`, `skills/scryfall-query-craft/reference/` exist — per [P-02](./PLUGIN-PRD.md#p-02--one-repo-manifest-at-the-root). The skill directory now holds `SKILL.md` plus `reference/operators.md` and `reference/recipes.md`, both `.gitkeep` placeholders deleted ([Slice 8](./slices/TrackB-Slice8.md)) |

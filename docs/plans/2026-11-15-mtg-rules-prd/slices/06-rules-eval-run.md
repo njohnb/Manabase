@@ -7,21 +7,23 @@ results written up and the acceptance criteria of CAP-03, CAP-04 and PC-06 marke
 
 **Blocked by:** 04, 05.
 
-**Status:** ready-for-agent
+**Status:** done 2026-11-15 — measured, not all met; see [the results](../../../slices/rules-eval-results.md)
 
-- [ ] An eval file holds known-answer cases in the existing eval schema. It covers rule-number
+- [x] An eval file holds known-answer cases in the existing eval schema. It covers rule-number
       lookups, keyword lookups, two- and three-card interactions, a misspelled card, a stale-cache
       answer, and a "tool unavailable" case.
-- [ ] A clean-room baseline agent with no `Skill` tool exists **before** the measuring session
+- [x] A clean-room baseline agent with no `Skill` tool exists **before** the measuring session
       starts, because the agent registry resolves at session start.
-- [ ] Every case runs in a fresh subagent, one at a time, in both configurations. Live calls are
+- [x] Every case runs in a fresh subagent, one at a time, in both configurations. Live calls are
       spaced and no 429 is provoked.
-- [ ] The scored expectations are a correct rule or ruling citation, zero uncited rules claims,
+- [x] The scored expectations are a correct rule or ruling citation, zero uncited rules claims,
       the CR version stated, and the ruling source labelled.
-- [ ] A results document records per-case tallies, the axes where the skill helps and where it
+- [x] A results document records per-case tallies, the axes where the skill helps and where it
       doesn't, and any confounds.
-- [ ] Verified criteria are marked in the CAP-03, CAP-04 and PC-06 blocks with dated evidence, by
-      `doc-sync`. Nothing is marked from this run that it didn't measure.
+- [x] Verified criteria are marked in the CAP-03, CAP-04 and PC-06 blocks with dated evidence, by
+      `doc-sync`. Nothing is marked from this run that it didn't measure. *(2026-11-15: PC-06 criterion 7
+      verified; criterion 9 measured and **not met** (zero uncited claims 6/11 with the skill); CAP-03
+      and CAP-04 gained live-use notes and moved no criterion.)*
 
 ## How to run (prepared 2026-11-15)
 
