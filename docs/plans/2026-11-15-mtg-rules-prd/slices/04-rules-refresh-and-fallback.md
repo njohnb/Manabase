@@ -7,8 +7,7 @@ is.
 
 **Blocked by:** 02. It can run in parallel with 03.
 
-**Status:** built 2026-11-15 on `ticket/04-rules-refresh` (unmerged); the version bump is left to
-the CI bump job on the PR to `main`.
+**Status:** done — merged to `feat/mtg-rules` 2026-11-15. Only the version bump is open; the CI bump job writes it on the PR to `main`.
 
 - [x] A cached copy checked fewer than 7 days ago is used with no network request.
 - [x] A copy last checked 7 or more days ago revalidates against the landing page. It re-downloads

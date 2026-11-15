@@ -8,16 +8,16 @@ exist.
 
 **Blocked by:** 02.
 
-**Status:** ready-for-agent
+**Status:** done — merged to `feat/mtg-rules` 2026-11-15. Only the version bump is open; the CI bump job writes it on the PR to `main`.
 
-- [ ] The parser also produces the glossary, covering its term, definition and blank-line pattern,
+- [x] The parser also produces the glossary, covering its term, definition and blank-line pattern,
       including multi-line definitions. It is tested on a synthetic excerpt.
-- [ ] `query` matches glossary terms first, then rule text, and every rule hit carries its number.
-- [ ] Results fill to a byte budget in the pattern of the combo tools' shared page budget. The
+- [x] `query` matches glossary terms first, then rule text, and every rule hit carries its number.
+- [x] Results fill to a byte budget in the pattern of the combo tools' shared page budget. The
       response reports when it was truncated, so it is never a silent cut.
-- [ ] A query with no matches is a successful empty result, not a failure.
-- [ ] Passing both `rule` and `query`, or neither, is a structured `bad_request`.
-- [ ] Tests cover glossary-first ordering, the budget on a broad term, and no matches.
-- [ ] The tool description is updated for the new mode, and the manifest and `dist/` match.
-- [ ] A spaced live acceptance check runs a keyword query against the real CR.
+- [x] A query with no matches is a successful empty result, not a failure.
+- [x] Passing both `rule` and `query`, or neither, is a structured `bad_request`.
+- [x] Tests cover glossary-first ordering, the budget on a broad term, and no matches.
+- [x] The tool description is updated for the new mode, and the manifest and `dist/` match.
+- [x] A spaced live acceptance check runs a keyword query against the real CR.
 - [ ] The plugin version is bumped in the PR. `doc-sync` is dispatched as the closeout.
