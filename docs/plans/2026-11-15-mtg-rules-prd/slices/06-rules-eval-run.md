@@ -22,3 +22,20 @@ results written up and the acceptance criteria of CAP-03, CAP-04 and PC-06 marke
       doesn't, and any confounds.
 - [ ] Verified criteria are marked in the CAP-03, CAP-04 and PC-06 blocks with dated evidence, by
       `doc-sync`. Nothing is marked from this run that it didn't measure.
+
+## How to run (prepared 2026-11-15)
+
+The two subject agents exist as `.claude/agents/rules-baseline.md` (no `Skill` tool) and
+`.claude/agents/rules-subject.md` (with `Skill`). They have identical Manabase tool lists and
+nothing else, so the skill is the only variable. Both were committed before the measuring session
+started, so the registry loads them.
+
+1. Confirm both agent types appear in the session's agent list, and that `manabase:mtg-rules` appears
+   in the skill listing. The second check also verifies PC-06's loads criterion, so record it.
+2. Write `evals/rules-evals.json` in the `combo-evals.json` schema. Fix each expected rule number
+   or ruling against a live `rules_lookup` or `card_rulings` call before freezing the case, never
+   from memory.
+3. Dispatch each case to `rules-baseline` and then to `rules-subject`, one at a time, each in a
+   fresh subagent with the case prompt verbatim and nothing else.
+4. Grade every run binary, from its `TOOL_CALLS` and `FINAL_ANSWER` blocks. Then write
+   `docs/slices/rules-eval-results.md` and dispatch `doc-sync`.
