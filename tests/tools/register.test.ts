@@ -169,12 +169,31 @@ describe("toolDefinitions", () => {
     assert.equal(tool.description, EXPECTED_DESCRIPTION);
   });
 
-  test("[CAP-04] tools/list reports exactly FOUR tools, rules_lookup last", () => {
-    assert.equal(toolDefinitions.length, 4);
+  test("[CAP-03, CAP-04] tools/list reports exactly FIVE tools, card_rulings then rules_lookup", () => {
+    assert.equal(toolDefinitions.length, 5);
     assert.deepEqual(
       toolDefinitions.map((t) => t.name),
-      ["card_search", "combo_search", "combo_find_deck", "rules_lookup"],
+      ["card_search", "combo_search", "combo_find_deck", "card_rulings", "rules_lookup"],
     );
+  });
+
+  test("[CAP-03] card_rulings' description names the cap, unresolved_cards and the one-face-name rule", () => {
+    const description = toolDefinitions[3]!.description;
+    assert.match(description, /at most 10/);
+    assert.match(description, /unresolved_cards/);
+    // Same verified §4.1.2 trap as combo_find_deck: the batch resolver rejects `Front // Back`.
+    assert.match(description, /Front \/\/ Back/);
+    assert.match(description, /ONE face name/);
+  });
+
+  test("[CAP-03] card_rulings input schema requires cards", () => {
+    const schema = toolDefinitions[3]!.inputSchema as {
+      required: string[];
+      properties: Record<string, { type: string; maxItems?: number }>;
+    };
+    assert.deepEqual(schema.required, ["cards"]);
+    assert.equal(schema.properties.cards!.type, "array");
+    assert.equal(schema.properties.cards!.maxItems, 10);
   });
 
   test("[requirement 14] combo_search carries the spec's description exactly", () => {
@@ -495,6 +514,62 @@ describe("dispatchToolCall — each tool reaches ONE source", () => {
     assert.equal(body.include, "matched");
     assert.equal(body.color_identity, "UBR");
     assert.deepEqual(body.unresolved_cards, []);
+  });
+
+  test("[CAP-03] card_rulings reaches scryfall and never spellbook", async () => {
+    const scryfallCalls: string[] = [];
+    const spellbookCalls: string[] = [];
+    const clients: Clients = {
+      scryfall: {
+        get(path) {
+          scryfallCalls.push(`GET ${path}`);
+          return Promise.resolve({ ok: true, value: { object: "list", has_more: false, data: [] } });
+        },
+        post(path) {
+          scryfallCalls.push(`POST ${path}`);
+          return Promise.resolve({
+            ok: true,
+            value: {
+              object: "list",
+              not_found: [],
+              data: [{ name: "Sol Ring", id: "abc", scryfall_uri: "https://scryfall.com/card/x/1/sol-ring" }],
+            },
+          });
+        },
+      },
+      spellbook: {
+        get(path) {
+          spellbookCalls.push(path);
+          return Promise.reject(new Error("card_rulings must not reach spellbook"));
+        },
+        post(path) {
+          spellbookCalls.push(path);
+          return Promise.reject(new Error("card_rulings must not reach spellbook"));
+        },
+      },
+    };
+
+    const result = await dispatchToolCall(clients, "card_rulings", { cards: ["Sol Ring"] });
+
+    assert.ok(!("isError" in result) || result.isError !== true);
+    assert.deepEqual(scryfallCalls, ["POST /cards/collection", "GET /cards/abc/rulings"]);
+    assert.deepEqual(spellbookCalls, []);
+    assert.deepEqual(parseBody(result), {
+      cards: [{ name: "Sol Ring", scryfall_uri: "https://scryfall.com/card/x/1/sol-ring", rulings: [] }],
+      unresolved_cards: [],
+    });
+  });
+
+  test("[CAP-03] card_rulings with non-object args or a non-array cards is bad_request, no call", async () => {
+    const { clients, scryfallCalls, spellbookCalls } = makeClients();
+
+    for (const args of [undefined, "Sol Ring", { cards: "Sol Ring" }, {}]) {
+      const result = await dispatchToolCall(clients, "card_rulings", args);
+      assert.equal(result.isError, true);
+      assert.equal((parseBody(result) as Failure).error.code, "bad_request");
+    }
+    assert.equal(scryfallCalls.length, 0);
+    assert.equal(spellbookCalls.length, 0);
   });
 });
 

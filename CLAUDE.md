@@ -42,8 +42,8 @@ holds the planning prompts that generated the PRDs.
 npm run build       # esbuild bundle -> dist/index.js (self-contained, no runtime deps)
 npm run typecheck   # tsc --noEmit
 npm run lint:docs   # scripts/check-doc-links.mjs — every link and anchor in docs/ + README.md
-npm test            # node --experimental-strip-types --test  (330 tests, 79 suites)
-npm run acceptance  # scripts/cap01-live.mjs — 13 LIVE checks against real Scryfall
+npm test            # node --experimental-strip-types --test  (347 tests, 82 suites)
+npm run acceptance  # scripts/cap01-live.mjs — 14 LIVE checks against real Scryfall
 npm run acceptance:rules # scripts/cr-live.mjs — 10 LIVE checks, 2 Wizards requests, no Scryfall
 npm run pack:mcpb   # stage + stamp + pack build/manabase.mcpb (PC-03)
 ```
@@ -84,6 +84,8 @@ src/tools/card-search.ts  cardSearch() — query in, shaped CardSearchData out
 src/tools/combo-search.ts comboSearch() — one upstream request per call, byte-filled page, offset
 src/tools/combo-find-deck.ts comboFindDeck() — names resolved through Scryfall first, then ONE
                         combo request carrying no limit and no offset; six buckets, capped after
+src/tools/card-rulings.ts cardRulings() (CAP-03) — ≤10 names via resolveNames, then one
+                        GET /cards/{id}/rulings per distinct card on the 10/sec lane
 src/tools/rules-lookup.ts rulesLookup() — CAP-04's rule-number path over the cached CR
 src/tools/register.ts     tool definitions + dispatchToolCall(clients, name, args) + registerTools
 tests/                  handlers called as plain functions; fixtures under tests/fixtures/
@@ -859,6 +861,17 @@ not close. **The Commands-block header above read `325 tests, 77 suites` and is 
 330/79; the dated records keep their figures.** Evidence:
 `docs/slices/TrackC-Slice19-results.md`.
 
+**`CAP-03` (card rulings) was specified and delivered 2026-11-15 as commit `23adcc4` on
+`ticket/01-card-rulings`** — ticket 01 of the plan `docs/plans/2026-11-15-mtg-rules-prd.md`, not a
+roadmap slice, merging into `feat/mtg-rules`, not `main`. `card_rulings` is the **fourth** tool. All
+ten `CAP-03` criteria verified (tests 330 → 347, suites 79 → 82; acceptance 14/14 live, no 429);
+`Phase` unassigned. It runs live per call under the author-confirmed `D-07` reading recorded in the
+block — `D-07` unedited, `OQ-03` unmoved. Scryfall's `source: "scryfall"` was **not observed** live
+(`MCP-PRD.md` §4.1.5), so never treat `wotc` as the only value. **The plugin version bump was not
+run** — the local tag set lags origin, so it would compute a spent version; it belongs to the
+integration PR to `main`. No open question resolved, no `D-`/`P-` minted, no `PC` criterion moved,
+`PQ-06` unmoved. Ticket 02 (rules lookup by number) is a parallel branch and not done.
+
 **Rules plan ticket 02 (`rules_lookup` by rule number) landed 2026-11-15 as `6dba6f2` (code) and
 `f572771` (docs) on `ticket/02-rules-lookup` — unmerged, no PR, not a roadmap slice.** Plan:
 `docs/plans/2026-11-15-mtg-rules-prd.md`. `CAP-04` is appended to `MCP-PRD.md`, `Status`
@@ -870,9 +883,10 @@ downloads ~1 MB and blocks (1,249 ms cold); nothing is fetched at startup. `OQ-0
 the CR cache only and **stays open for tag discovery**; `OQ-08` is complied with, not answered. No
 `D-` minted, no `PC` criterion moved, plugin version not bumped (the PR's bump job writes it).
 Branch figures: `npm test` **392 tests, 97 suites**, typecheck clean, `lint:docs` OK,
-`npm run acceptance:rules` 10/10 live; full `npm run acceptance` not run. The Commands-block count
-still reads 330/79 because it tracks `main` and ticket 01 changes it in parallel. Evidence: the
-`CAP-04` criteria in `MCP-PRD.md`; there is no results doc.
+`npm run acceptance:rules` 10/10 live; full `npm run acceptance` not run. After merging ticket 01
+from `feat/mtg-rules`, `rules_lookup` is the **fifth** tool and the merged branch runs **409 tests,
+100 suites**; the Commands-block count keeps ticket 01's 347/82. Evidence: the `CAP-04` criteria in
+`MCP-PRD.md`; there is no results doc.
 
 Pre-triage feature ideas live in `IDEAS.md` at the repo root — non-binding, `IDEA-0N` IDs, captured
 by `/idea`. It is upstream of triage: an idea there has no `CAP`, `PC`, or slice yet. Questions

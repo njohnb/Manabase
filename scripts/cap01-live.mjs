@@ -130,12 +130,17 @@ let lastCallAt = 0;
  * here (the text is already in hand) and adds no calls.
  */
 async function callCardSearch(client, args) {
+  return callTool(client, "card_search", args);
+}
+
+/** Any tool, with the same spacing and the same result reading as `callCardSearch`. */
+async function callTool(client, name, args) {
   const waitFor = POLITE_GAP_MS - (Date.now() - lastCallAt);
   if (waitFor > 0) await sleep(waitFor);
   lastCallAt = Date.now();
 
   const message = await client.request("tools/call", {
-    name: "card_search",
+    name,
     arguments: args,
   });
 
@@ -469,6 +474,47 @@ const checks = [
       assert(data.total_cards === 0, `expected total_cards 0, got ${data.total_cards}`);
       assert(typeof data.note === "string" && data.note.length > 0, "expected a non-empty note");
       return `cards=[] total_cards=${data.total_cards} note="${data.note}"`;
+    },
+  },
+  {
+    n: 14,
+    label: "card_rulings — two real cards and one typo in one call",
+    criterion: "CAP-03 (rulings shape, unresolved_cards, Scryfall page link)",
+    baseline: "Blood Artist carries >= 1 wotc ruling (probe 2026-11-15)",
+    async run(client) {
+      // ONE tools/call: inside the server that is one POST /cards/collection (card lane) and two
+      // GET /cards/{id}/rulings (10/sec lane). Never repeated, never retried.
+      const typo = "Zzzz Not A Real Card 9999";
+      const { isError, data } = await callTool(client, "card_rulings", {
+        cards: ["Blood Artist", "Rest in Peace", typo],
+      });
+      assert(!isError, `expected success, got isError with ${JSON.stringify(data)}`);
+      assert(
+        Array.isArray(data.unresolved_cards) && data.unresolved_cards.length === 1 &&
+          data.unresolved_cards[0] === typo,
+        `expected unresolved_cards [${typo}], got ${JSON.stringify(data.unresolved_cards)}`,
+      );
+      assert(Array.isArray(data.cards) && data.cards.length === 2, `expected 2 cards, got ${JSON.stringify(data.cards)}`);
+      for (const card of data.cards) {
+        assert(
+          typeof card.scryfall_uri === "string" && card.scryfall_uri.startsWith("https://scryfall.com/card/"),
+          `expected a Scryfall page link for ${card.name}, got ${card.scryfall_uri}`,
+        );
+        assert(Array.isArray(card.rulings), `expected a rulings array for ${card.name}`);
+        for (const r of card.rulings) {
+          assert(
+            (r.source === "wotc" || r.source === "scryfall") &&
+              /^\d{4}-\d{2}-\d{2}$/.test(r.published_at) &&
+              typeof r.comment === "string" && r.comment.length > 0,
+            `malformed ruling on ${card.name}: ${JSON.stringify(r)}`,
+          );
+        }
+      }
+      const artist = data.cards.find((c) => c.name === "Blood Artist");
+      assert(artist !== undefined && artist.rulings.length >= 1, "expected Blood Artist to carry >= 1 ruling");
+      return data.cards
+        .map((c) => `${c.name}: ${c.rulings.length} rulings (${[...new Set(c.rulings.map((r) => r.source))].join("/") || "none"})`)
+        .join("; ") + ` unresolved=${JSON.stringify(data.unresolved_cards)}`;
     },
   },
 ];

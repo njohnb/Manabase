@@ -23,6 +23,13 @@ export interface ScryfallCardFace {
 }
 
 export interface ScryfallCard {
+  /**
+   * Optional in the TYPE only: every real card object carries both (verified 2026-11-15, MCP-PRD
+   * §4.1.5), but `card_search` reads neither and its fixtures predate them, so readers guard.
+   */
+  id?: string;
+  /** The card's Scryfall web page, `?utm_source=api` included as served. */
+  scryfall_uri?: string;
   name: string;
   mana_cost?: string;
   cmc: number;
@@ -48,6 +55,27 @@ export interface ScryfallList {
   total_cards: number;
   has_more: boolean;
   data: ScryfallCard[];
+}
+
+/**
+ * One ruling from `GET /cards/{id}/rulings` (MCP-PRD §4.1.5, verified 2026-11-15). The live object
+ * also carries `object: "ruling"` and `oracle_id`; neither is read, so neither is modelled.
+ */
+export interface ScryfallRuling {
+  /** `"wotc"` observed live; `"scryfall"` is documented and was not seen in the probe. */
+  source: string;
+  published_at: string;
+  comment: string;
+}
+
+/**
+ * The rulings envelope: `{ object: "list", has_more, data }` — no `total_cards`, unlike
+ * `ScryfallList`. `has_more` was `false` on the one card probed.
+ */
+export interface ScryfallRulingList {
+  object: "list";
+  has_more: boolean;
+  data: ScryfallRuling[];
 }
 
 /**

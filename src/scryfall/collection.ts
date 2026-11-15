@@ -17,6 +17,18 @@ export interface NameResolution {
   resolved: string[];
   /** The submitted names Scryfall matched nothing for. */
   unresolved: string[];
+  /**
+   * The resolved cards' handles, in response order: what CAP-03 needs to request each card's
+   * rulings and to link its page. A card object lacking either string is left out here rather than
+   * given an invented handle; its name still appears in `resolved`.
+   */
+  cards: ResolvedCard[];
+}
+
+export interface ResolvedCard {
+  name: string;
+  id: string;
+  scryfall_uri: string;
 }
 
 /** Narrow the parsed body far enough to read it. Never trusts the cast alone. */
@@ -66,6 +78,7 @@ export async function resolveNames(
 ): Promise<Result<NameResolution>> {
   const resolved: string[] = [];
   const unresolved: string[] = [];
+  const cards: ResolvedCard[] = [];
 
   for (let start = 0; start < names.length; start += BATCH_SIZE) {
     const batch = names.slice(start, start + BATCH_SIZE);
@@ -78,7 +91,12 @@ export async function resolveNames(
     const body = asCollection(result.value);
     if (body === undefined) return unexpectedBodyFailure();
 
-    for (const card of body.data) resolved.push(card.name);
+    for (const card of body.data) {
+      resolved.push(card.name);
+      if (typeof card.id === "string" && typeof card.scryfall_uri === "string") {
+        cards.push({ name: card.name, id: card.id, scryfall_uri: card.scryfall_uri });
+      }
+    }
     for (const miss of body.not_found) {
       // Only ever `{ name }` identifiers go up, and Scryfall echoes the identifier object it could
       // not match, so an entry without a readable `name` is a shape this endpoint has never
@@ -88,5 +106,5 @@ export async function resolveNames(
     }
   }
 
-  return { ok: true, value: { resolved, unresolved } };
+  return { ok: true, value: { resolved, unresolved, cards } };
 }

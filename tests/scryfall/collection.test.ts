@@ -123,7 +123,7 @@ describe("resolveNames — batching at 75", () => {
     const result = await resolveNames(client, []);
 
     assert.equal(result.ok, true);
-    assert.deepEqual(result.ok && result.value, { resolved: [], unresolved: [] });
+    assert.deepEqual(result.ok && result.value, { resolved: [], unresolved: [], cards: [] });
     assert.equal(calls.length, 0);
   });
 });
@@ -145,6 +145,23 @@ describe("resolveNames — not_found is the whole point", () => {
     if (!result.ok) return;
     assert.deepEqual(result.value.unresolved, ["Zzzz Not A Real Card 9999"]);
     assert.deepEqual(result.value.resolved, ["Demonic Consultation", "Thassa's Oracle"]);
+  });
+
+  test("[CAP-03] each resolved card carries its Scryfall id and page link, read off the verbatim capture", async () => {
+    // CAP-03 issues one `/cards/{id}/rulings` per resolved card and links each card's page, so the
+    // resolver has to hand back more than the canonical name. Values below are the capture's own.
+    const { client } = scriptedClient([{ ok: true, value: collectionNotFound }]);
+
+    const result = await resolveNames(client, ["Demonic Consultation", "Zzzz Not A Real Card 9999"]);
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const first = result.value.cards[0];
+    assert.deepEqual(first, {
+      name: "Demonic Consultation",
+      id: "1d779f19-3068-4976-b96b-8f93d156900b",
+      scryfall_uri: "https://scryfall.com/card/me2/85/demonic-consultation?utm_source=api",
+    });
   });
 
   test("an empty not_found means every name resolved", async () => {
