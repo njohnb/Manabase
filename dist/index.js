@@ -15491,7 +15491,9 @@ function resolveConfig(env, platform) {
     userAgent,
     cacheDir: resolveCacheDir(env, platform),
     scryfallBaseUrl,
-    spellbookBaseUrl
+    spellbookBaseUrl,
+    wizardsSiteBaseUrl: "https://magic.wizards.com",
+    wizardsMediaBaseUrl: "https://media.wizards.com"
   };
 }
 function resolveCacheDir(env, platform) {
@@ -15543,18 +15545,19 @@ function rateLimitedFailure(sourceName, details) {
     details
   );
 }
-async function mapResponse(spec, response) {
+async function mapResponse(spec2, response) {
   const status = response.status;
   const text = await response.text();
-  const name = spec.sourceName;
+  const name = spec2.sourceName;
   if (status >= 200 && status < 300) {
+    if (spec2.responseBody === "text") return { ok: true, value: text };
     try {
       return { ok: true, value: JSON.parse(text) };
     } catch {
       return fail("unexpected", `${name} returned a non-JSON success body (status ${status}).`, status);
     }
   }
-  const details = spec.detailsFrom(text);
+  const details = spec2.detailsFrom(text);
   if (status === 400) return fail("bad_request", `${name} rejected the request as malformed.`, status, details);
   if (status === 404) return fail("not_found", `${name} found no match for the request.`, status, details);
   if (status >= 500 && status <= 599) {
@@ -15562,13 +15565,13 @@ async function mapResponse(spec, response) {
   }
   return fail("unexpected", `${name} returned an unexpected status ${status}.`, status, details);
 }
-function createHttpClient(spec, deps) {
+function createHttpClient(spec2, deps) {
   const fetchImpl = deps?.fetchImpl ?? globalThis.fetch;
   const now = deps?.now ?? Date.now;
   const sleep = deps?.sleep ?? ((ms) => new Promise((r) => {
     setTimeout(r, ms);
   }));
-  const lanes = Object.entries(spec.lanes).map(([key, laneSpec]) => ({
+  const lanes = Object.entries(spec2.lanes).map(([key, laneSpec]) => ({
     key,
     runtime: {
       state: { tail: Promise.resolve(), nextAllowedAt: 0 },
@@ -15576,9 +15579,9 @@ function createHttpClient(spec, deps) {
       pathPrefixes: laneSpec.pathPrefixes ?? []
     }
   }));
-  const declaredFallback = lanes.find((lane) => lane.key === spec.defaultLane)?.runtime;
+  const declaredFallback = lanes.find((lane) => lane.key === spec2.defaultLane)?.runtime;
   if (declaredFallback === void 0) {
-    throw new Error(`createHttpClient: defaultLane "${spec.defaultLane}" is not a key of lanes.`);
+    throw new Error(`createHttpClient: defaultLane "${spec2.defaultLane}" is not a key of lanes.`);
   }
   const fallback = declaredFallback;
   function selectLane(path) {
@@ -15588,7 +15591,7 @@ function createHttpClient(spec, deps) {
     return fallback;
   }
   function baseHeaders() {
-    return { "User-Agent": spec.userAgent, "Accept": "application/json" };
+    return { "User-Agent": spec2.userAgent, "Accept": spec2.accept ?? "application/json" };
   }
   async function attemptOnce(url, init) {
     let response;
@@ -15597,14 +15600,14 @@ function createHttpClient(spec, deps) {
     } catch (err) {
       return {
         throttled: false,
-        result: fail("network", `Could not reach ${spec.sourceName}: ${describe2(err)}`)
+        result: fail("network", `Could not reach ${spec2.sourceName}: ${describe2(err)}`)
       };
     }
     if (response.status === 429) return { throttled: true, response };
-    return { throttled: false, result: await mapResponse(spec, response) };
+    return { throttled: false, result: await mapResponse(spec2, response) };
   }
   async function run(path, init, query) {
-    const url = buildUrl(spec.baseUrl, path, query);
+    const url = buildUrl(spec2.baseUrl, path, query);
     const { state: lane, spacingMs } = selectLane(path);
     const previous = lane.tail;
     let release = () => {
@@ -15625,7 +15628,7 @@ function createHttpClient(spec, deps) {
         if (attempt.throttled) {
           lane.nextAllowedAt = now() + 3e4;
           const text = await attempt.response.text().catch(() => "");
-          return rateLimitedFailure(spec.sourceName, spec.detailsFrom(text));
+          return rateLimitedFailure(spec2.sourceName, spec2.detailsFrom(text));
         }
       }
       return attempt.result;
@@ -15637,7 +15640,7 @@ function createHttpClient(spec, deps) {
     try {
       return await work();
     } catch (err) {
-      return fail("unexpected", `Unexpected failure in ${spec.sourceName} client: ${describe2(err)}`);
+      return fail("unexpected", `Unexpected failure in ${spec2.sourceName} client: ${describe2(err)}`);
     }
   }
   function get(path, query) {
@@ -15670,7 +15673,7 @@ function detailsFrom(text) {
   }
 }
 function createScryfallClient(config3, deps) {
-  const spec = {
+  const spec2 = {
     sourceName: "Scryfall",
     baseUrl: config3.scryfallBaseUrl,
     userAgent: config3.userAgent,
@@ -15681,7 +15684,7 @@ function createScryfallClient(config3, deps) {
     defaultLane: "other",
     detailsFrom
   };
-  return createHttpClient(spec, deps);
+  return createHttpClient(spec2, deps);
 }
 
 // src/spellbook/client.ts
@@ -15703,7 +15706,7 @@ function detailsFrom2(text) {
   return parts.length > 0 ? parts.join("; ") : void 0;
 }
 function createSpellbookClient(config3, deps) {
-  const spec = {
+  const spec2 = {
     sourceName: "Commander Spellbook",
     baseUrl: config3.spellbookBaseUrl,
     userAgent: config3.userAgent,
@@ -15715,7 +15718,7 @@ function createSpellbookClient(config3, deps) {
     defaultLane: "default",
     detailsFrom: detailsFrom2
   };
-  return createHttpClient(spec, deps);
+  return createHttpClient(spec2, deps);
 }
 
 // src/scryfall/prices.ts
@@ -16331,6 +16334,280 @@ async function comboFindDeck(clients2, params) {
   return { ok: true, value: data };
 }
 
+// src/rules/lookup.ts
+var RULES_BYTE_BUDGET = 5e4;
+var RULE_NUMBER = /^(\d{1,3}(?:\.\d+[a-z]*)?)$/;
+function normalizeRuleNumber(input) {
+  const candidate = input.trim().replace(/^rule\s+/i, "").replace(/\.$/, "").toLowerCase();
+  return RULE_NUMBER.test(candidate) ? candidate : void 0;
+}
+function isUnder(number3, parent) {
+  if (/^\d$/.test(parent)) return /^\d{3}/.test(number3) && number3[0] === parent;
+  if (/^\d{3}$/.test(parent)) return number3.startsWith(`${parent}.`);
+  if (/^\d{3}\.\d+$/.test(parent)) return new RegExp(`^${parent.replace(".", "\\.")}[a-z]+$`).test(number3);
+  return false;
+}
+function notARuleNumber(input) {
+  return {
+    ok: false,
+    error: {
+      code: "bad_request",
+      message: `"${input}" is not a Comprehensive Rules number. Pass a section, rule or subrule number such as "7", "702", "702.19" or "702.19a".`
+    }
+  };
+}
+function lookupRule(index, input) {
+  const number3 = normalizeRuleNumber(input);
+  if (number3 === void 0) return notARuleNumber(input);
+  const start = index.positions.get(number3);
+  if (start === void 0) {
+    return {
+      ok: false,
+      error: {
+        code: "not_found",
+        message: `There is no rule ${number3} in the Comprehensive Rules effective ${index.effectiveDate}. Subrule letters skip l and o; check the number, or look up its parent rule.`
+      }
+    };
+  }
+  const first = index.rules[start];
+  const rules = [first];
+  let bytes = JSON.stringify(first).length;
+  for (let i = start + 1; i < index.rules.length; i++) {
+    const entry = index.rules[i];
+    if (!isUnder(entry.number, number3)) break;
+    const cost = JSON.stringify(entry).length + 1;
+    if (bytes + cost > RULES_BYTE_BUDGET) {
+      return { ok: true, value: { rules, truncated: true, next_rule: entry.number } };
+    }
+    rules.push(entry);
+    bytes += cost;
+  }
+  return { ok: true, value: { rules, truncated: false } };
+}
+
+// src/rules/store.ts
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+
+// src/rules/parser.ts
+var MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
+];
+var EFFECTIVE = /effective as of ([A-Z][a-z]+) (\d{1,2}), (\d{4})/;
+var RULE_LINE = /^(\d{1,3}(?:\.\d+[a-z]*)?)\.?\s+(\S.*)$/;
+function shapeChanged(what) {
+  return {
+    ok: false,
+    error: {
+      code: "unexpected",
+      message: `The downloaded Comprehensive Rules did not parse: ${what}. The file may have changed shape; nothing was cached from it.`
+    }
+  };
+}
+function parseRules(raw) {
+  const lines = raw.replace(/^﻿/, "").split(/\r?\n/);
+  const date3 = EFFECTIVE.exec(lines.slice(0, 20).join("\n"));
+  const month = date3 === null ? -1 : MONTHS.indexOf(date3[1]);
+  if (date3 === null || month < 0) return shapeChanged('no effective date ("effective as of \u2026") near the top');
+  const effectiveDate = `${date3[3]}-${String(month + 1).padStart(2, "0")}-${date3[2].padStart(2, "0")}`;
+  const trimmed = lines.map((line) => line.trim());
+  const contents = trimmed.indexOf("Contents");
+  if (contents < 0) return shapeChanged("no Contents heading");
+  const contentsEnd = trimmed.indexOf("Credits", contents);
+  if (contentsEnd < 0) return shapeChanged("the Contents section never ends");
+  const bodyEnd = trimmed.indexOf("Glossary", contentsEnd);
+  if (bodyEnd < 0) return shapeChanged("no Glossary heading after the rules");
+  const rules = [];
+  const positions = /* @__PURE__ */ new Map();
+  for (const line of trimmed.slice(contentsEnd + 1, bodyEnd)) {
+    if (line === "") continue;
+    const match = RULE_LINE.exec(line);
+    if (match !== null && !positions.has(match[1])) {
+      positions.set(match[1], rules.length);
+      rules.push({ number: match[1], text: match[2] });
+      continue;
+    }
+    const previous = rules.at(-1);
+    if (previous !== void 0) previous.text += `
+${line}`;
+  }
+  if (rules.length === 0) return shapeChanged("no numbered rules between the contents and the glossary");
+  return { ok: true, value: { effectiveDate, rules, positions } };
+}
+
+// src/rules/source.ts
+var HREF = /href\s*=\s*(["'])([^"']*?MagicCompRules[^"']*?(\d{8})\.(txt|pdf))\1/gi;
+function resolveCrSource(html, pageUrl) {
+  const txt = /* @__PURE__ */ new Map();
+  const pdf = /* @__PURE__ */ new Map();
+  for (const match of html.matchAll(HREF)) {
+    const href = match[2];
+    const stamp = match[3];
+    const kind = match[4].toLowerCase();
+    let absolute;
+    try {
+      absolute = new URL(href, pageUrl).href;
+    } catch {
+      continue;
+    }
+    (kind === "txt" ? txt : pdf).set(stamp, absolute);
+  }
+  const newest = [...txt.keys()].sort().at(-1);
+  if (newest === void 0) {
+    return {
+      ok: false,
+      error: {
+        code: "unexpected",
+        message: "The Wizards rules page listed no dated Comprehensive Rules .txt \u2014 the page may have changed shape or served a challenge instead of the page. This is reported, not worked around (MCP-PRD \xA73.7)."
+      }
+    };
+  }
+  const txtUrl = txt.get(newest);
+  const pdfUrl = pdf.get(newest);
+  return {
+    ok: true,
+    value: {
+      dateStamp: newest,
+      txtUrl,
+      ...pdfUrl !== void 0 ? { pdfUrl } : {},
+      citationUrl: pdfUrl ?? txtUrl
+    }
+  };
+}
+
+// src/rules/store.ts
+var LANDING_PATH = "/en/rules";
+var nodeRulesFs = {
+  readText: (path) => readFile(path, "utf8").catch(() => void 0),
+  writeText: async (path, text) => {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, text, "utf8");
+  }
+};
+function paths(cacheDir) {
+  const dir = join(cacheDir, "rules");
+  return { txt: join(dir, "cr.txt"), meta: join(dir, "meta.json") };
+}
+function readMeta(text) {
+  if (text === void 0) return void 0;
+  try {
+    const meta2 = JSON.parse(text);
+    if (typeof meta2.citationUrl !== "string" || typeof meta2.fetchedAt !== "string") return void 0;
+    if (!Number.isFinite(Date.parse(meta2.fetchedAt))) return void 0;
+    return meta2;
+  } catch {
+    return void 0;
+  }
+}
+async function fromCache(deps) {
+  const { txt, meta: meta2 } = paths(deps.cacheDir);
+  const cachedMeta = readMeta(await deps.fs.readText(meta2));
+  if (cachedMeta === void 0) return void 0;
+  const text = await deps.fs.readText(txt);
+  if (text === void 0) return void 0;
+  const parsed = parseRules(text);
+  if (!parsed.ok) return void 0;
+  return { index: parsed.value, citationUrl: cachedMeta.citationUrl, fetchedAt: Date.parse(cachedMeta.fetchedAt) };
+}
+function downloadFailure(failure) {
+  const refused = failure.error.status === 401 || failure.error.status === 403;
+  const message = `Could not download the Comprehensive Rules: ${failure.error.message}` + (refused ? " Wizards of the Coast refused the request. That is reported, not worked around (MCP-PRD \xA73.7)." : "");
+  return { ok: false, error: { ...failure.error, message } };
+}
+async function download(deps) {
+  const page = await deps.site.get(LANDING_PATH);
+  if (!page.ok) return downloadFailure(page);
+  if (typeof page.value !== "string") {
+    return { ok: false, error: { code: "unexpected", message: "The Wizards rules page returned no text body." } };
+  }
+  const source = resolveCrSource(page.value, `${deps.siteBaseUrl}${LANDING_PATH}`);
+  if (!source.ok) return source;
+  const txtUrl = new URL(source.value.txtUrl);
+  if (txtUrl.origin !== new URL(deps.mediaBaseUrl).origin) {
+    return {
+      ok: false,
+      error: {
+        code: "unexpected",
+        message: `The Wizards rules page points the Comprehensive Rules at ${txtUrl.origin}, not ${deps.mediaBaseUrl}. The page may have changed; the file was not fetched.`
+      }
+    };
+  }
+  const file = await deps.media.get(txtUrl.pathname);
+  if (!file.ok) return downloadFailure(file);
+  if (typeof file.value !== "string") {
+    return { ok: false, error: { code: "unexpected", message: "The Comprehensive Rules download returned no text body." } };
+  }
+  const parsed = parseRules(file.value);
+  if (!parsed.ok) return parsed;
+  const fetchedAt = deps.now();
+  const meta2 = {
+    dateStamp: source.value.dateStamp,
+    txtUrl: source.value.txtUrl,
+    citationUrl: source.value.citationUrl,
+    fetchedAt: new Date(fetchedAt).toISOString()
+  };
+  const { txt, meta: metaPath } = paths(deps.cacheDir);
+  try {
+    await deps.fs.writeText(txt, file.value);
+    await deps.fs.writeText(metaPath, JSON.stringify(meta2));
+  } catch {
+  }
+  return { ok: true, value: { index: parsed.value, citationUrl: source.value.citationUrl, fetchedAt } };
+}
+async function ensureRules(deps) {
+  try {
+    const cached2 = await fromCache(deps);
+    if (cached2 !== void 0) return { ok: true, value: cached2 };
+    return await download(deps);
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: "unexpected",
+        message: `Unexpected failure loading the Comprehensive Rules: ${err instanceof Error ? err.message : String(err)}`
+      }
+    };
+  }
+}
+
+// src/tools/rules-lookup.ts
+var DAY_MS = 864e5;
+async function rulesLookup(deps, params) {
+  if (normalizeRuleNumber(params.rule) === void 0) return notARuleNumber(params.rule);
+  const loaded = await ensureRules(deps);
+  if (!loaded.ok) return loaded;
+  const { index, citationUrl, fetchedAt } = loaded.value;
+  const found = lookupRule(index, params.rule);
+  if (!found.ok) return found;
+  const { rules, truncated, next_rule } = found.value;
+  return {
+    ok: true,
+    value: {
+      rules,
+      truncated,
+      ...next_rule !== void 0 ? { next_rule } : {},
+      cr_effective_date: index.effectiveDate,
+      fetched_at: new Date(fetchedAt).toISOString(),
+      cache_age_days: Math.max(0, Math.floor((deps.now() - fetchedAt) / DAY_MS)),
+      citation_url: citationUrl,
+      ...next_rule !== void 0 ? {
+        note: `Rules under ${rules[0].number} were cut at the size budget; ${next_rule} is the first one omitted. Look up a narrower number to read the rest.`
+      } : {}
+    }
+  };
+}
+
 // src/tools/register.ts
 var CARD_SEARCH_DESCRIPTION = "Search Magic: The Gathering cards using Scryfall query syntax, evaluated by Scryfall itself \u2014 supports all operators including `t:`, `o:`, `f:`, `cmc`, `usd`, `otag:`, `art:`, and regex (`o:/\u2026/`). Returns per-card gameplay fields, format legalities, and a USD price with finish. 88 cards per page; the response reports `total_cards` and `has_more`. Legalities are trimmed to the format the query names (`legalities` to widen); formats absent from `legalities_included` were not returned and are not claims about legality.";
 var CARD_SEARCH_INPUT_SCHEMA = {
@@ -16384,7 +16661,16 @@ var COMBO_FIND_DECK_INPUT_SCHEMA = {
   },
   required: ["cards"]
 };
+var RULES_LOOKUP_DESCRIPTION = 'Look up a rule in the Magic: The Gathering Comprehensive Rules by number \u2014 a section ("7"), rule ("702", "702.19") or subrule ("702.19a") \u2014 and get its text and every rule under it. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and `citation_url`, Wizards\' official dated document: cite the rule number and that version. The rules are downloaded from Wizards on first use and cached. Subrule letters skip l and o; an unknown number is reported, not guessed. A broad rule is cut at a size budget and `next_rule` names the first one omitted.';
+var RULES_LOOKUP_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    rule: { type: "string", description: 'A Comprehensive Rules number, e.g. "702.19" or "702.19a".' }
+  },
+  required: ["rule"]
+};
 var CARD_SEARCH_TOOL_NAME = "card_search";
+var RULES_LOOKUP_TOOL_NAME = "rules_lookup";
 var COMBO_SEARCH_TOOL_NAME = "combo_search";
 var COMBO_FIND_DECK_TOOL_NAME = "combo_find_deck";
 var toolDefinitions = [
@@ -16402,6 +16688,11 @@ var toolDefinitions = [
     name: COMBO_FIND_DECK_TOOL_NAME,
     description: COMBO_FIND_DECK_DESCRIPTION,
     inputSchema: COMBO_FIND_DECK_INPUT_SCHEMA
+  },
+  {
+    name: RULES_LOOKUP_TOOL_NAME,
+    description: RULES_LOOKUP_DESCRIPTION,
+    inputSchema: RULES_LOOKUP_INPUT_SCHEMA
   }
 ];
 var UNIQUE_VALUES = ["cards", "prints", "art"];
@@ -16422,7 +16713,24 @@ async function dispatchToolCall(clients2, name, args) {
   if (name === CARD_SEARCH_TOOL_NAME) return dispatchCardSearch(clients2.scryfall, args);
   if (name === COMBO_SEARCH_TOOL_NAME) return dispatchComboSearch(clients2.spellbook, args);
   if (name === COMBO_FIND_DECK_TOOL_NAME) return dispatchComboFindDeck(clients2, args);
+  if (name === RULES_LOOKUP_TOOL_NAME) return dispatchRulesLookup(clients2.rules, args);
   throw new Error(`Unknown tool: ${name}`);
+}
+async function dispatchRulesLookup(deps, args) {
+  if (typeof args !== "object" || args === null || Array.isArray(args) || typeof args.rule !== "string") {
+    return errorResult({
+      error: {
+        code: "bad_request",
+        message: 'Missing required argument `rule`: a Comprehensive Rules number such as "702.19".'
+      }
+    });
+  }
+  if (deps === void 0) {
+    return errorResult({
+      error: { code: "unexpected", message: "rules_lookup is not configured in this server build." }
+    });
+  }
+  return toolResult(await rulesLookup(deps, { rule: args.rule }));
 }
 function readQuery(args, language) {
   if (typeof args !== "object" || args === null || Array.isArray(args)) {
@@ -16505,15 +16813,51 @@ function registerTools(server2, clients2) {
   );
 }
 
+// src/wizards/client.ts
+function detailsFrom3(_text) {
+  return void 0;
+}
+function spec(baseUrl, userAgent, accept) {
+  return {
+    sourceName: "Wizards of the Coast",
+    baseUrl,
+    userAgent,
+    // (MCP-PRD §3.7) Wizards publishes no limit for these pages, so each host takes §3.4's
+    // strictest lane until told otherwise. Volume is tiny regardless: a first use is one request
+    // per host, issued in sequence.
+    lanes: { default: { spacingMs: 500 } },
+    defaultLane: "default",
+    detailsFrom: detailsFrom3,
+    accept,
+    responseBody: "text"
+  };
+}
+function createWizardsClients(config3, deps) {
+  return {
+    site: createHttpClient(spec(config3.wizardsSiteBaseUrl, config3.userAgent, "text/html"), deps),
+    media: createHttpClient(spec(config3.wizardsMediaBaseUrl, config3.userAgent, "text/plain"), deps)
+  };
+}
+
 // src/index.ts
 var config2 = resolveConfig(process.env, process.platform);
 var server = new Server(
   { name: "manabase-mtg", version: APP_VERSION },
   { capabilities: { tools: {} } }
 );
+var wizards = createWizardsClients(config2);
 var clients = {
   scryfall: createScryfallClient(config2),
-  spellbook: createSpellbookClient(config2)
+  spellbook: createSpellbookClient(config2),
+  rules: {
+    site: wizards.site,
+    media: wizards.media,
+    siteBaseUrl: config2.wizardsSiteBaseUrl,
+    mediaBaseUrl: config2.wizardsMediaBaseUrl,
+    fs: nodeRulesFs,
+    now: Date.now,
+    cacheDir: config2.cacheDir
+  }
 };
 registerTools(server, clients);
 await server.connect(new StdioServerTransport());

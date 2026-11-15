@@ -8,6 +8,8 @@ import { comboSearch } from "./combo-search.ts";
 import type { ComboSearchParams } from "./combo-search.ts";
 import { comboFindDeck } from "./combo-find-deck.ts";
 import type { ComboFindDeckParams, ComboInclude } from "./combo-find-deck.ts";
+import { rulesLookup } from "./rules-lookup.ts";
+import type { RulesStoreDeps } from "../rules/store.ts";
 
 /**
  * The tool result shape this slice emits: text-JSON only, no `structuredContent`.
@@ -31,6 +33,12 @@ export type ToolCallResult = {
 export interface Clients {
   scryfall: HttpClient;
   spellbook: HttpClient;
+  /**
+   * `rules_lookup`'s dependencies: the two Wizards clients plus the filesystem, clock and cache
+   * directory its store needs (MCP-PRD CAP-04). `index.ts` always supplies it. Optional so a
+   * bundle built for the other tools stays valid; a call without it is a structured failure.
+   */
+  rules?: RulesStoreDeps;
 }
 
 // (MCP-PRD OQ-01) Deep Scryfall-syntax teaching ships in the plugin's skill, not here —
@@ -136,7 +144,27 @@ const COMBO_FIND_DECK_INPUT_SCHEMA = {
   required: ["cards"],
 } as const;
 
+// (MCP-PRD CAP-04) Names the version and citation fields because the point of the tool is a
+// citable answer, and says first use downloads, so a slow first call is not read as a hang.
+const RULES_LOOKUP_DESCRIPTION =
+  "Look up a rule in the Magic: The Gathering Comprehensive Rules by number — a section (\"7\"), " +
+  "rule (\"702\", \"702.19\") or subrule (\"702.19a\") — and get its text and every rule under " +
+  "it. Every response carries `cr_effective_date` (the rules version), `cache_age_days`, and " +
+  "`citation_url`, Wizards' official dated document: cite the rule number and that version. " +
+  "The rules are downloaded from Wizards on first use and cached. Subrule letters skip l and o; " +
+  "an unknown number is reported, not guessed. A broad rule is cut at a size budget and " +
+  "`next_rule` names the first one omitted.";
+
+const RULES_LOOKUP_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    rule: { type: "string", description: "A Comprehensive Rules number, e.g. \"702.19\" or \"702.19a\"." },
+  },
+  required: ["rule"],
+} as const;
+
 export const CARD_SEARCH_TOOL_NAME = "card_search";
+export const RULES_LOOKUP_TOOL_NAME = "rules_lookup";
 export const COMBO_SEARCH_TOOL_NAME = "combo_search";
 export const COMBO_FIND_DECK_TOOL_NAME = "combo_find_deck";
 
@@ -158,6 +186,11 @@ export const toolDefinitions: Array<{ name: string; description: string; inputSc
     name: COMBO_FIND_DECK_TOOL_NAME,
     description: COMBO_FIND_DECK_DESCRIPTION,
     inputSchema: COMBO_FIND_DECK_INPUT_SCHEMA,
+  },
+  {
+    name: RULES_LOOKUP_TOOL_NAME,
+    description: RULES_LOOKUP_DESCRIPTION,
+    inputSchema: RULES_LOOKUP_INPUT_SCHEMA,
   },
 ];
 
@@ -212,7 +245,30 @@ export async function dispatchToolCall(
   if (name === CARD_SEARCH_TOOL_NAME) return dispatchCardSearch(clients.scryfall, args);
   if (name === COMBO_SEARCH_TOOL_NAME) return dispatchComboSearch(clients.spellbook, args);
   if (name === COMBO_FIND_DECK_TOOL_NAME) return dispatchComboFindDeck(clients, args);
+  if (name === RULES_LOOKUP_TOOL_NAME) return dispatchRulesLookup(clients.rules, args);
   throw new Error(`Unknown tool: ${name}`);
+}
+
+/** Reaches Wizards and the cache only — never Scryfall or Commander Spellbook. */
+async function dispatchRulesLookup(
+  deps: RulesStoreDeps | undefined,
+  args: unknown,
+): Promise<ToolCallResult> {
+  if (typeof args !== "object" || args === null || Array.isArray(args) ||
+      typeof (args as Record<string, unknown>).rule !== "string") {
+    return errorResult({
+      error: {
+        code: "bad_request",
+        message: 'Missing required argument `rule`: a Comprehensive Rules number such as "702.19".',
+      },
+    });
+  }
+  if (deps === undefined) {
+    return errorResult({
+      error: { code: "unexpected", message: "rules_lookup is not configured in this server build." },
+    });
+  }
+  return toolResult(await rulesLookup(deps, { rule: (args as { rule: string }).rule }));
 }
 
 /** Reads `q` off the arguments object, or returns the one rejection either search tool makes. */

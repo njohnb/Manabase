@@ -11,6 +11,8 @@ import type { ComboSearchData } from "../../src/tools/combo-search.ts";
 import type { ComboFindDeckData } from "../../src/tools/combo-find-deck.ts";
 import { dispatchToolCall, toolDefinitions } from "../../src/tools/register.ts";
 import type { Clients } from "../../src/tools/register.ts";
+import type { RulesStoreDeps } from "../../src/rules/store.ts";
+import { syntheticCr } from "../rules/synthetic-cr.ts";
 
 // Same pattern as card-search.test.ts: loaded at runtime, so no `resolveJsonModule` and
 // identical behaviour under type stripping and under the esbuild bundle.
@@ -167,11 +169,11 @@ describe("toolDefinitions", () => {
     assert.equal(tool.description, EXPECTED_DESCRIPTION);
   });
 
-  test("[Slice 17 #19] tools/list reports exactly THREE tools", () => {
-    assert.equal(toolDefinitions.length, 3);
+  test("[CAP-04] tools/list reports exactly FOUR tools, rules_lookup last", () => {
+    assert.equal(toolDefinitions.length, 4);
     assert.deepEqual(
       toolDefinitions.map((t) => t.name),
-      ["card_search", "combo_search", "combo_find_deck"],
+      ["card_search", "combo_search", "combo_find_deck", "rules_lookup"],
     );
   });
 
@@ -635,5 +637,78 @@ describe("dispatchToolCall — combo_search argument handling", () => {
     assert.equal(body.error.code, "bad_request");
     assert.match(body.error.message, /historic/);
     assert.equal(spellbookCalls.length, 0);
+  });
+});
+
+describe("dispatchToolCall — rules_lookup", () => {
+  const LANDING =
+    '<a href="https://media.wizards.com/2026/downloads/MagicCompRules 20261106.txt">txt</a>';
+
+  function rulesDeps(): { deps: RulesStoreDeps; requests: string[] } {
+    const requests: string[] = [];
+    const text = (body: string): HttpClient => ({
+      get(path) { requests.push(path); return Promise.resolve({ ok: true, value: body }); },
+      post: () => Promise.reject(new Error("no POST to Wizards")),
+    });
+    const files = new Map<string, string>();
+    return {
+      requests,
+      deps: {
+        site: text(LANDING),
+        media: text(syntheticCr()),
+        siteBaseUrl: "https://magic.wizards.com",
+        mediaBaseUrl: "https://media.wizards.com",
+        fs: {
+          readText: (p) => Promise.resolve(files.get(p)),
+          writeText: (p, t) => { files.set(p, t); return Promise.resolve(); },
+        },
+        now: () => 0,
+        cacheDir: "cache-root",
+      },
+    };
+  }
+
+  test("routes `rule` to the handler and never touches Scryfall or Commander Spellbook", async () => {
+    const { clients, scryfallCalls, spellbookCalls } = makeClients();
+    const { deps } = rulesDeps();
+
+    const result = await dispatchToolCall({ ...clients, rules: deps }, "rules_lookup", { rule: "702.19" });
+
+    assert.equal(result.isError, undefined);
+    const body = JSON.parse(result.content[0]!.text);
+    assert.equal(body.rules[0].number, "702.19");
+    assert.equal(body.cr_effective_date, "2026-11-06");
+    assert.equal(scryfallCalls.length + spellbookCalls.length, 0);
+  });
+
+  test("a missing or non-string `rule` is a structured bad_request with no download", async () => {
+    const { clients } = makeClients();
+    const { deps, requests } = rulesDeps();
+
+    for (const args of [{}, { rule: 702.19 }, null]) {
+      const result = await dispatchToolCall({ ...clients, rules: deps }, "rules_lookup", args);
+      assert.equal(result.isError, true);
+      assert.equal(JSON.parse(result.content[0]!.text).error.code, "bad_request");
+    }
+    assert.deepEqual(requests, []);
+  });
+
+  test("an unknown rule number reaches the model as a structured not_found", async () => {
+    const { clients } = makeClients();
+    const { deps } = rulesDeps();
+
+    const result = await dispatchToolCall({ ...clients, rules: deps }, "rules_lookup", { rule: "999.9" });
+
+    assert.equal(result.isError, true);
+    assert.equal(JSON.parse(result.content[0]!.text).error.code, "not_found");
+  });
+
+  test("a bundle with no rules dependencies is a structured failure, never a throw", async () => {
+    const { clients } = makeClients();
+
+    const result = await dispatchToolCall(clients, "rules_lookup", { rule: "702.19" });
+
+    assert.equal(result.isError, true);
+    assert.equal(JSON.parse(result.content[0]!.text).error.code, "unexpected");
   });
 });

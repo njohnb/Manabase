@@ -8,6 +8,8 @@ const config: Config = {
   cacheDir: "unused",
   scryfallBaseUrl: "https://scryfall.test",
   spellbookBaseUrl: "https://spellbook.test",
+  wizardsSiteBaseUrl: "https://site.wizards.test",
+  wizardsMediaBaseUrl: "https://media.wizards.test",
 };
 
 const jsonResponse = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });

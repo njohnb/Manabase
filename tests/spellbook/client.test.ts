@@ -11,6 +11,8 @@ const config: Config = {
   cacheDir: "unused",
   scryfallBaseUrl: "https://scryfall.test",
   spellbookBaseUrl: "https://spellbook.test",
+  wizardsSiteBaseUrl: "https://site.wizards.test",
+  wizardsMediaBaseUrl: "https://media.wizards.test",
 };
 
 // Loaded at runtime rather than imported: no `resolveJsonModule` / import attributes needed, and

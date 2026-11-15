@@ -13,6 +13,10 @@ export interface Config {
   scryfallBaseUrl: string;
   /** "https://backend.commanderspellbook.com"; read by nothing until CAP-02 ships. */
   spellbookBaseUrl: string;
+  /** "https://magic.wizards.com" — the CR landing page lives here (MCP-PRD §4.6). */
+  wizardsSiteBaseUrl: string;
+  /** "https://media.wizards.com" — the dated CR TXT and PDF live here; a second host, a second client. */
+  wizardsMediaBaseUrl: string;
 }
 
 export function resolveConfig(
@@ -28,6 +32,8 @@ export function resolveConfig(
     cacheDir: resolveCacheDir(env, platform),
     scryfallBaseUrl,
     spellbookBaseUrl,
+    wizardsSiteBaseUrl: "https://magic.wizards.com",
+    wizardsMediaBaseUrl: "https://media.wizards.com",
   };
 }
 
